@@ -1,0 +1,13 @@
+# Rust
+/target/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Deploy secrets (tokens locaux)
+deploy/*.local.toml
+deploy/secrets/
