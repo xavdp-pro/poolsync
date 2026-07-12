@@ -28,7 +28,7 @@ scp "$ROOT/deploy/systemd/poolsync-hub.service" "$BS1:/etc/systemd/system/poolsy
 echo "==> Installe hub systemd sur bs1"
 ssh "$BS1" bash -s <<REMOTE
 set -euo pipefail
-install -m 755 $REMOTE_DIR/poolsync-hub $REMOTE_DIR/poolsync-hub
+chmod 755 $REMOTE_DIR/poolsync-hub
 systemctl disable --now now3pool-hub.service 2>/dev/null || true
 docker rm -f now3pool-hub 2>/dev/null || true
 systemctl daemon-reload
