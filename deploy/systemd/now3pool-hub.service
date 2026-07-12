@@ -1,0 +1,14 @@
+[Unit]
+Description=NOW3-Pool hub (clipboard + KVM coordinator)
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/now3pool/now3pool.env
+ExecStart=/opt/now3pool/now3pool-hub --listen 0.0.0.0:9470 --token ${NOW3POOL_TOKEN}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

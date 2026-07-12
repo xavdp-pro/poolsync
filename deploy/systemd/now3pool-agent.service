@@ -1,0 +1,16 @@
+[Unit]
+Description=NOW3-Pool agent (clipboard + KVM)
+After=graphical-session.target network-online.target wg-quick@wg-bs1.service wg-quick@wg-gbs.service
+Wants=network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/now3pool-agent --config %h/.config/now3pool/agent.toml
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+
+[Install]
+WantedBy=graphical-session.target

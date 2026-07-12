@@ -1,0 +1,13 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY now3pool-hub /usr/local/bin/now3pool-hub
+RUN chmod +x /usr/local/bin/now3pool-hub
+
+EXPOSE 9470
+
+ENTRYPOINT ["/usr/local/bin/now3pool-hub"]
+CMD ["--listen", "0.0.0.0:9470"]

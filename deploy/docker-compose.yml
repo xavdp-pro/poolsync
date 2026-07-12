@@ -1,0 +1,13 @@
+services:
+  now3pool-hub:
+    image: now3pool-hub:latest
+    container_name: now3pool-hub
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - now3pool.env
+    command:
+      - --listen
+      - 0.0.0.0:9470
+      - --token
+      - ${NOW3POOL_TOKEN}
