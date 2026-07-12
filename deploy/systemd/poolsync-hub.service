@@ -1,0 +1,14 @@
+[Unit]
+Description=PoolSync hub (clipboard + KVM coordinator)
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/poolsync/poolsync.env
+ExecStart=/opt/poolsync/poolsync-hub --listen 0.0.0.0:9470 --token ${POOLSYNC_TOKEN}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

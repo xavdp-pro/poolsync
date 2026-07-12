@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::{SinkExt, StreamExt};
-use now3pool_core::{
+use poolsync_core::{
     decode_message, encode_message, hash_text, AgentConfig, AgentMode, Message,
 };
 use std::{
@@ -21,9 +21,9 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
-#[command(name = "now3pool-agent", about = "NOW3-Pool agent — client presse-papiers + KVM")]
+#[command(name = "poolsync-agent", about = "PoolSync agent — client presse-papiers + KVM")]
 struct Args {
-    #[arg(long, default_value = "/etc/now3pool/agent.toml")]
+    #[arg(long, default_value = "/etc/poolsync/agent.toml")]
     config: PathBuf,
 }
 
@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "now3pool_agent=info".into()),
+                .unwrap_or_else(|_| "poolsync_agent=info".into()),
         )
         .init();
 
@@ -264,12 +264,12 @@ async fn get_mouse_location() -> Result<(i32, i32)> {
     Ok((x, y))
 }
 
-async fn inject_input(kind: &now3pool_core::InputKind) -> Result<()> {
+async fn inject_input(kind: &poolsync_core::InputKind) -> Result<()> {
     match kind {
-        now3pool_core::InputKind::MouseMove { x, y } => {
+        poolsync_core::InputKind::MouseMove { x, y } => {
             xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
         }
-        now3pool_core::InputKind::MouseButton {
+        poolsync_core::InputKind::MouseButton {
             button,
             pressed,
             x,
@@ -279,11 +279,11 @@ async fn inject_input(kind: &now3pool_core::InputKind) -> Result<()> {
             let action = if *pressed { "mousedown" } else { "mouseup" };
             xdotool(&[action, &button.to_string()]).await?;
         }
-        now3pool_core::InputKind::Key { keycode, pressed } => {
+        poolsync_core::InputKind::Key { keycode, pressed } => {
             let action = if *pressed { "keydown" } else { "keyup" };
             xdotool(&[action, &keycode.to_string()]).await?;
         }
-        now3pool_core::InputKind::MouseWheel { delta, x, y } => {
+        poolsync_core::InputKind::MouseWheel { delta, x, y } => {
             xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
             let button = if *delta > 0 { "4" } else { "5" };
             xdotool(&["click", button]).await?;

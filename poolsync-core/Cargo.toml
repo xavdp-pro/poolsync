@@ -1,5 +1,5 @@
 [package]
-name = "now3pool-core"
+name = "poolsync-core"
 version.workspace = true
 edition.workspace = true
 

@@ -16,7 +16,7 @@ use axum::{
 };
 use clap::Parser;
 use futures_util::StreamExt;
-use now3pool_core::{
+use poolsync_core::{
     decode_message, encode_message, AgentMode, Message, Neighbor, ScreenInfo,
 };
 use tokio::sync::{broadcast, RwLock};
@@ -24,14 +24,14 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 #[derive(Parser, Debug)]
-#[command(name = "now3pool-hub", about = "NOW3-Pool hub — presse-papiers + KVM maître dynamique")]
+#[command(name = "poolsync-hub", about = "PoolSync hub — presse-papiers + KVM maître dynamique")]
 struct Args {
     /// Adresse d'écoute (0.0.0.0 pour LAN/VPN/public)
     #[arg(long, default_value = "0.0.0.0:9470")]
     listen: String,
 
     /// Token partagé avec les agents
-    #[arg(long, default_value = "now3pool-dev")]
+    #[arg(long, default_value = "poolsync-dev")]
     token: String,
 }
 
@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "now3pool_hub=info".into()),
+                .unwrap_or_else(|_| "poolsync_hub=info".into()),
         )
         .init();
 
@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
         .route("/ws", get(ws_handler))
         .with_state(state);
 
-    info!("now3pool-hub listening on {listen}");
+    info!("poolsync-hub listening on {listen}");
     let listener = tokio::net::TcpListener::bind(listen).await?;
     axum::serve(listener, app).await?;
     Ok(())

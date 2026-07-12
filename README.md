@@ -1,4 +1,4 @@
-# now3pool
+# poolsync
 
 Pool **presse-papiers + clavier/souris** pour machines NOW3 — remplacement progressif de Barrier.
 
@@ -11,9 +11,9 @@ Pool **presse-papiers + clavier/souris** pour machines NOW3 — remplacement pro
 
 | Crate | Rôle |
 |-------|------|
-| `now3pool-core` | Protocole JSON, config TOML |
-| `now3pool-hub` | Serveur WebSocket |
-| `now3pool-agent` | Client X11 (xclip, xdotool) |
+| `poolsync-core` | Protocole JSON, config TOML |
+| `poolsync-hub` | Serveur WebSocket |
+| `poolsync-agent` | Client X11 (xclip, xdotool) |
 
 ## Build
 
@@ -21,19 +21,19 @@ Pool **presse-papiers + clavier/souris** pour machines NOW3 — remplacement pro
 cargo build --release
 ```
 
-Binaires : `target/release/now3pool-hub`, `target/release/now3pool-agent`
+Binaires : `target/release/poolsync-hub`, `target/release/poolsync-agent`
 
 ## Hub (flexible)
 
 ```bash
-now3pool-hub --listen 0.0.0.0:9470 --token VOTRE_TOKEN
+poolsync-hub --listen 0.0.0.0:9470 --token VOTRE_TOKEN
 ```
 
 Peut tourner sur **bs1**, **Asus**, ou n'importe quel nœud joignable par les agents via VPN.
 
 ## Agent
 
-Fichier `/etc/now3pool/agent.toml` :
+Fichier `~/.config/poolsync/agent.toml` :
 
 ```toml
 node = "inspiron"
@@ -52,7 +52,7 @@ node = "acer"
 
 ## Déploiement NOW3 (phase pilote)
 
-- **Hub** : `bs1` (Docker)
+- **Hub** : `bs1` (systemd)
 - **Agents** : `acer`, `inspiron` (Barrier reste actif sur les 3 portables)
 - **Asus** : agent plus tard
 

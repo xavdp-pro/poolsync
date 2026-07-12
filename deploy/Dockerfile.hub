@@ -4,10 +4,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY now3pool-hub /usr/local/bin/now3pool-hub
-RUN chmod +x /usr/local/bin/now3pool-hub
+COPY poolsync-hub /usr/local/bin/poolsync-hub
+RUN chmod +x /usr/local/bin/poolsync-hub
 
 EXPOSE 9470
 
-ENTRYPOINT ["/usr/local/bin/now3pool-hub"]
+ENTRYPOINT ["/usr/local/bin/poolsync-hub"]
 CMD ["--listen", "0.0.0.0:9470"]

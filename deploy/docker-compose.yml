@@ -1,13 +1,13 @@
 services:
-  now3pool-hub:
-    image: now3pool-hub:latest
-    container_name: now3pool-hub
+  poolsync-hub:
+    image: poolsync-hub:latest
+    container_name: poolsync-hub
     network_mode: host
     restart: unless-stopped
     env_file:
-      - now3pool.env
+      - poolsync.env
     command:
       - --listen
       - 0.0.0.0:9470
       - --token
-      - ${NOW3POOL_TOKEN}
+      - ${POOLSYNC_TOKEN}

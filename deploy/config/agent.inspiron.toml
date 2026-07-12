@@ -1,6 +1,6 @@
 node = "inspiron"
 hub_url = "ws://10.24.42.1:9470/ws"
-token = "NOW3POOL_TOKEN_PLACEHOLDER"
+token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "full"
 
 [screen]

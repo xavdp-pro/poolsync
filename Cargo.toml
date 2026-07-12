@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["now3pool-core", "now3pool-hub", "now3pool-agent"]
+members = ["poolsync-core", "poolsync-hub", "poolsync-agent"]
 
 [workspace.package]
 version = "0.1.0"
