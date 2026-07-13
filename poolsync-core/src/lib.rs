@@ -106,7 +106,11 @@ pub enum InputKind {
 }
 
 pub fn hash_text(data: &str) -> String {
-    let digest = Sha256::digest(data.as_bytes());
+    hash_bytes(data.as_bytes())
+}
+
+pub fn hash_bytes(data: &[u8]) -> String {
+    let digest = Sha256::digest(data);
     format!("{:x}", digest)
 }
 

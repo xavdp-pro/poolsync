@@ -1,4 +1,5 @@
 mod agent;
+mod clipboard;
 mod logs_viewer;
 mod single;
 mod state;

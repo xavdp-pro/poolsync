@@ -206,6 +206,23 @@ pub fn clip_preview(text: &str) -> String {
     }
 }
 
+pub fn clip_preview_mime(mime: &str, data: &str) -> String {
+    if mime.starts_with("image/") {
+        let label = mime.strip_prefix("image/").unwrap_or(mime);
+        let bytes = data.len().saturating_mul(3) / 4;
+        let size = if bytes >= 1024 * 1024 {
+            format!("{:.1} Mo", bytes as f64 / (1024.0 * 1024.0))
+        } else if bytes >= 1024 {
+            format!("{} Ko", bytes / 1024)
+        } else {
+            format!("{bytes} o")
+        };
+        format!("[Image {label} — {size}]")
+    } else {
+        clip_preview(data)
+    }
+}
+
 pub fn format_time_ago(secs: u64) -> String {
     if secs < 5 {
         "à l'instant".into()

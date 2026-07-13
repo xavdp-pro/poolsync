@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
 futures-util = { workspace = true }
 glib = "0.18"

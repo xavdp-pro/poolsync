@@ -1,9 +1,11 @@
-use crate::state::{clip_preview, AgentState};
+use crate::clipboard::{
+    clipboard_targets, read_clipboard_payload, read_selection_text, targets_have_image,
+    try_send_payload, write_clipboard, write_selection_text,
+};
+use crate::state::{clip_preview_mime, AgentState};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
-use poolsync_core::{
-    decode_message, encode_message, hash_text, AgentMode, Message,
-};
+use poolsync_core::{decode_message, encode_message, AgentMode, Message};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -116,10 +118,10 @@ async fn handle_incoming(
                 *last = hash.clone();
             }
 
-            set_clipboard(&data, &mime).await?;
-            let preview = clip_preview(&data);
+            write_clipboard(&data, &mime).await?;
+            let preview = clip_preview_mime(&mime, &data);
             state.record_clip_received(preview.clone());
-            info!("clipboard synced ({mime}, {} bytes)", data.len());
+            info!("clipboard synced ({mime}, {} bytes wire)", data.len());
 
             if state.should_notify(&hash, &preview) {
                 let preview = preview.clone();
@@ -206,9 +208,12 @@ async fn clipboard_poll_loop(
 
     loop {
         if state.clipboard_sync_enabled() {
-            // Sélection souris → presse-papiers (équivalent Ctrl+C), puis envoi via clipboard.
-            if state.primary_sync_enabled() {
-                match get_selection_text("primary").await {
+            let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
+            let image_on_clipboard = targets_have_image(&clip_targets);
+
+            // Sélection souris → presse-papiers (équivalent Ctrl+C), sauf si une image est déjà au clipboard.
+            if state.primary_sync_enabled() && !image_on_clipboard {
+                match read_selection_text("primary").await {
                     Ok(text) if text.is_empty() => primary_pending = None,
                     Ok(text) => {
                         let now = Instant::now();
@@ -222,20 +227,21 @@ async fn clipboard_poll_loop(
                             }
                         };
                         if stable {
-                            if write_selection("clipboard", &text).await.is_ok() {
+                            if write_selection_text("clipboard", &text).await.is_ok() {
                                 primary_pending = None;
                             }
                         }
                     }
                     Err(_) => primary_pending = None,
                 }
-            } else {
+            } else if image_on_clipboard {
+                primary_pending = None;
+            } else if !state.primary_sync_enabled() {
                 primary_pending = None;
             }
 
-            // Canal unique d'envoi : clipboard (comme un copier classique).
-            if let Ok(text) = get_selection_text("clipboard").await {
-                if try_send_clip(&text, &out_tx, &last_clip_hash) {
+            if let Ok(Some(payload)) = read_clipboard_payload().await {
+                if try_send_payload(&payload, &out_tx, &last_clip_hash) {
                     primary_pending = None;
                 }
             }
@@ -244,36 +250,6 @@ async fn clipboard_poll_loop(
         }
         sleep(poll).await;
     }
-}
-
-fn try_send_clip(
-    text: &str,
-    out_tx: &mpsc::UnboundedSender<String>,
-    last_clip_hash: &Mutex<String>,
-) -> bool {
-    if text.is_empty() {
-        return false;
-    }
-    let hash = hash_text(text);
-    let mut last = match last_clip_hash.lock() {
-        Ok(guard) => guard,
-        Err(_) => return false,
-    };
-    if *last == hash {
-        return false;
-    }
-    *last = hash.clone();
-    drop(last);
-    if let Ok(payload) = encode_message(&Message::Clipboard {
-        msg_id: uuid::Uuid::new_v4().to_string(),
-        hash,
-        mime: "text/plain".into(),
-        data: text.to_string(),
-    }) {
-        let _ = out_tx.send(payload);
-        return true;
-    }
-    false
 }
 
 async fn input_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) {
@@ -293,42 +269,6 @@ async fn input_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<Strin
         }
         sleep(poll).await;
     }
-}
-
-async fn get_selection_text(selection: &str) -> Result<String> {
-    let output = Command::new("xclip")
-        .args(["-selection", selection, "-o"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .await?;
-    if !output.status.success() {
-        anyhow::bail!("xclip read {selection} failed");
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-async fn write_selection(selection: &str, text: &str) -> Result<()> {
-    let mut child = Command::new("xclip")
-        .args(["-selection", selection])
-        .stdin(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("xclip -selection {selection}"))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        use tokio::io::AsyncWriteExt;
-        stdin.write_all(text.as_bytes()).await?;
-    }
-    child.wait().await?;
-    Ok(())
-}
-
-async fn set_clipboard(text: &str, mime: &str) -> Result<()> {
-    if mime != "text/plain" {
-        warn!("unsupported clipboard mime: {mime}");
-        return Ok(());
-    }
-    // Comme un Ctrl+C distant : clipman et collages standards utilisent clipboard.
-    write_selection("clipboard", text).await
 }
 
 async fn get_mouse_location() -> Result<(i32, i32)> {
