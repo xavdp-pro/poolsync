@@ -17,6 +17,8 @@ pub struct AgentState {
     last_notified_hash: Arc<RwLock<String>>,
     last_notified_preview: Arc<RwLock<String>>,
     last_notify_at: Arc<RwLock<Option<Instant>>>,
+    /// Dernier collage PoolSync depuis le hub (cohabitation cliprdr RDP).
+    last_hub_apply_at: Arc<RwLock<Option<Instant>>>,
 }
 
 impl AgentState {
@@ -34,7 +36,24 @@ impl AgentState {
             last_notified_hash: Arc::new(RwLock::new(String::new())),
             last_notified_preview: Arc::new(RwLock::new(String::new())),
             last_notify_at: Arc::new(RwLock::new(None)),
+            last_hub_apply_at: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub fn mark_hub_clipboard_applied(&self) {
+        if let Ok(mut t) = self.last_hub_apply_at.write() {
+            *t = Some(Instant::now());
+        }
+    }
+
+    /// Court délai après un collage hub : laisse cliprdr RDP digérer le clipboard X11.
+    pub fn hub_apply_grace_active(&self) -> bool {
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(900);
+        self.last_hub_apply_at
+            .read()
+            .ok()
+            .and_then(|t| *t)
+            .is_some_and(|t| t.elapsed() < GRACE)
     }
 
     pub fn set_connected(&self, value: bool) {

@@ -110,9 +110,6 @@ async fn handle_incoming(
             if !state.clipboard_sync_enabled() {
                 return Ok(());
             }
-            if state.config.pause_clipboard_when_rdp && rdp_client_active().await {
-                return Ok(());
-            }
             {
                 let mut last = last_clip_hash
                     .lock()
@@ -125,6 +122,7 @@ async fn handle_incoming(
 
             write_clipboard(&data, &mime).await?;
             align_hash_after_write(last_clip_hash).await;
+            state.mark_hub_clipboard_applied();
             let preview = clip_preview_mime(&mime, &data);
             state.record_clip_received(preview.clone());
             info!("clipboard synced ({mime}, {} bytes wire)", data.len());
@@ -261,16 +259,19 @@ async fn clipboard_poll_loop(
                 primary_pending = None;
             }
 
-            if let Ok(Some(payload)) = read_clipboard_payload().await {
-                if try_send_payload(&payload, &out_tx, &last_clip_hash) {
-                    if payload.mime.starts_with("image/") {
-                        let approx_bytes = payload.wire_data.len().saturating_mul(3) / 4;
-                        info!(
-                            "clipboard image sent ({}, ~{approx_bytes} bytes)",
-                            payload.mime
-                        );
+            let skip_send = rdp_active && state.hub_apply_grace_active();
+            if !skip_send {
+                if let Ok(Some(payload)) = read_clipboard_payload().await {
+                    if try_send_payload(&payload, &out_tx, &last_clip_hash) {
+                        if payload.mime.starts_with("image/") {
+                            let approx_bytes = payload.wire_data.len().saturating_mul(3) / 4;
+                            info!(
+                                "clipboard image sent ({}, ~{approx_bytes} bytes)",
+                                payload.mime
+                            );
+                        }
+                        primary_pending = None;
                     }
-                    primary_pending = None;
                 }
             }
         } else {

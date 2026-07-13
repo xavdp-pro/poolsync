@@ -44,7 +44,8 @@ pub struct AgentConfig {
     pub clipboard_poll_ms: u64,
     #[serde(default = "default_input_poll_ms")]
     pub input_poll_ms: u64,
-    /// Met en pause la synchro presse-papiers locale tant qu'un client RDP (xfreerdp/remmina) est actif.
+    /// Avec RDP actif : ne promeut pas la sélection primary (évite conflit cliprdr).
+    /// La réception et l'envoi PoolSync restent actifs pour cohabiter avec le clipboard RDP.
     #[serde(default = "default_true")]
     pub pause_clipboard_when_rdp: bool,
     /// Display X11 (ex. ":10" pour session xrdp). Vide = auto via poolsync-agent-launch.sh
