@@ -1,6 +1,6 @@
 use crate::clipboard::{
-    clipboard_targets, read_clipboard_payload, read_selection_text, targets_have_image,
-    try_send_payload, write_clipboard, write_selection_text,
+    align_hash_after_write, clipboard_targets, read_clipboard_payload, read_selection_text,
+    targets_have_image, try_send_payload, write_clipboard, write_selection_text,
 };
 use crate::notify_thumb::notify_thumbnail_path;
 use crate::rdp_detect::rdp_client_active;
@@ -124,6 +124,7 @@ async fn handle_incoming(
             }
 
             write_clipboard(&data, &mime).await?;
+            align_hash_after_write(last_clip_hash).await;
             let preview = clip_preview_mime(&mime, &data);
             state.record_clip_received(preview.clone());
             info!("clipboard synced ({mime}, {} bytes wire)", data.len());
@@ -261,14 +262,14 @@ async fn clipboard_poll_loop(
             }
 
             if let Ok(Some(payload)) = read_clipboard_payload().await {
-                if payload.mime.starts_with("image/") {
-                    let approx_bytes = payload.wire_data.len().saturating_mul(3) / 4;
-                    info!(
-                        "clipboard image send ({}, ~{approx_bytes} bytes)",
-                        payload.mime
-                    );
-                }
                 if try_send_payload(&payload, &out_tx, &last_clip_hash) {
+                    if payload.mime.starts_with("image/") {
+                        let approx_bytes = payload.wire_data.len().saturating_mul(3) / 4;
+                        info!(
+                            "clipboard image sent ({}, ~{approx_bytes} bytes)",
+                            payload.mime
+                        );
+                    }
                     primary_pending = None;
                 }
             }

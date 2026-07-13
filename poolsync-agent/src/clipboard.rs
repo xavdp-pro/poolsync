@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
+use image::codecs::png::PngEncoder;
+use image::{ExtendedColorType, GenericImageView, ImageEncoder, ImageReader};
 use poolsync_core::{encode_message, hash_bytes, hash_text, Message};
+use std::io::Cursor;
 use std::process::Stdio;
 use std::sync::Mutex;
 use tokio::process::Command;
@@ -14,6 +17,9 @@ const IMAGE_MIMES: &[&str] = &[
     "image/x-xfce-ng",
     "image/x-qt-image",
 ];
+
+const MIN_TEXT_SYNC_LEN: usize = 2;
+const MAX_IMAGE_BYTES: usize = 4 * 1024 * 1024;
 
 pub struct ClipboardPayload {
     pub mime: String,
@@ -58,11 +64,7 @@ pub async fn read_clipboard_payload() -> Result<Option<ClipboardPayload>> {
     for mime in &image_mimes {
         if let Ok(bytes) = read_selection_bytes("clipboard", mime).await {
             if !bytes.is_empty() {
-                return Ok(Some(ClipboardPayload {
-                    mime: mime.clone(),
-                    wire_data: B64.encode(&bytes),
-                    hash: hash_bytes(&bytes),
-                }));
+                return image_payload_from_bytes(&bytes).map(Some);
             }
         }
     }
@@ -70,17 +72,13 @@ pub async fn read_clipboard_payload() -> Result<Option<ClipboardPayload>> {
         if targets.is_empty() || targets.iter().any(|t| t == mime) {
             if let Ok(bytes) = read_selection_bytes("clipboard", mime).await {
                 if !bytes.is_empty() {
-                    return Ok(Some(ClipboardPayload {
-                        mime: mime.to_string(),
-                        wire_data: B64.encode(&bytes),
-                        hash: hash_bytes(&bytes),
-                    }));
+                    return image_payload_from_bytes(&bytes).map(Some);
                 }
             }
         }
     }
     if let Ok(text) = read_selection_text("clipboard").await {
-        if !text.is_empty() {
+        if is_syncable_text(&text) {
             return Ok(Some(ClipboardPayload {
                 mime: "text/plain".into(),
                 wire_data: text.clone(),
@@ -91,11 +89,23 @@ pub async fn read_clipboard_payload() -> Result<Option<ClipboardPayload>> {
     Ok(None)
 }
 
+/// Après écriture distante, aligne le hash sur le clipboard local (évite boucle xclip).
+pub async fn align_hash_after_write(last_clip_hash: &Mutex<String>) {
+    if let Ok(Some(payload)) = read_clipboard_payload().await {
+        if let Ok(mut last) = last_clip_hash.lock() {
+            *last = payload.hash;
+        }
+    }
+}
+
 pub fn try_send_payload(
     payload: &ClipboardPayload,
     out_tx: &UnboundedSender<String>,
     last_clip_hash: &Mutex<String>,
 ) -> bool {
+    if payload.mime == "text/plain" && !is_syncable_text(&payload.wire_data) {
+        return false;
+    }
     let mut last = match last_clip_hash.lock() {
         Ok(guard) => guard,
         Err(_) => return false,
@@ -124,10 +134,37 @@ pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
         let bytes = B64
             .decode(data)
             .with_context(|| format!("decode base64 image ({mime})"))?;
-        write_selection_bytes("clipboard", mime, &bytes).await
+        // Toujours écrire en PNG pour compatibilité clipman / collages.
+        write_selection_bytes("clipboard", "image/png", &bytes).await
     } else {
         anyhow::bail!("unsupported clipboard mime: {mime}");
     }
+}
+
+fn is_syncable_text(text: &str) -> bool {
+    text.trim().len() >= MIN_TEXT_SYNC_LEN
+}
+
+fn image_payload_from_bytes(bytes: &[u8]) -> Result<ClipboardPayload> {
+    if bytes.len() > MAX_IMAGE_BYTES {
+        anyhow::bail!("image too large ({} bytes)", bytes.len());
+    }
+    let img = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .context("guess image format")?
+        .decode()
+        .context("decode image")?;
+    let (w, h) = img.dimensions();
+    let rgba = img.to_rgba8();
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(rgba.as_raw(), w, h, ExtendedColorType::Rgba8)
+        .context("encode png")?;
+    Ok(ClipboardPayload {
+        mime: "image/png".into(),
+        wire_data: B64.encode(&png),
+        hash: hash_bytes(&png),
+    })
 }
 
 pub async fn read_selection_text(selection: &str) -> Result<String> {
