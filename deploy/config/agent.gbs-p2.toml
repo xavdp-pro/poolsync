@@ -1,0 +1,18 @@
+node = "gbs-p2"
+hub_url = "ws://10.24.42.1:9470/ws"
+token = "POOLSYNC_TOKEN_PLACEHOLDER"
+mode = "clipboard_only"
+display = ":10"
+pause_clipboard_when_rdp = false
+
+[screen]
+width = 1920
+height = 1080
+
+[[neighbors]]
+direction = "left"
+node = "acer"
+
+[[neighbors]]
+direction = "right"
+node = "asus"

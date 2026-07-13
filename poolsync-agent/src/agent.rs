@@ -2,6 +2,7 @@ use crate::clipboard::{
     clipboard_targets, read_clipboard_payload, read_selection_text, targets_have_image,
     try_send_payload, write_clipboard, write_selection_text,
 };
+use crate::rdp_detect::rdp_client_active;
 use crate::state::{clip_preview_mime, AgentState};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
@@ -108,6 +109,9 @@ async fn handle_incoming(
             if !state.clipboard_sync_enabled() {
                 return Ok(());
             }
+            if state.config.pause_clipboard_when_rdp && rdp_client_active().await {
+                return Ok(());
+            }
             {
                 let mut last = last_clip_hash
                     .lock()
@@ -208,6 +212,14 @@ async fn clipboard_poll_loop(
 
     loop {
         if state.clipboard_sync_enabled() {
+            let rdp_active =
+                state.config.pause_clipboard_when_rdp && rdp_client_active().await;
+            if rdp_active {
+                primary_pending = None;
+                sleep(poll).await;
+                continue;
+            }
+
             let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
             let image_on_clipboard = targets_have_image(&clip_targets);
 

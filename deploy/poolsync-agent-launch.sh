@@ -4,7 +4,21 @@ set -euo pipefail
 UID_NUM="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID_NUM}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
-export DISPLAY="${DISPLAY:-:0}"
+
+# Display : session xrdp (:10) si active, sinon :0 XFCE local
+if [[ -z "${DISPLAY:-}" || "${DISPLAY}" == ":0" ]]; then
+  CFG_DISPLAY=""
+  if [[ -f "${HOME}/.config/poolsync/agent.toml" ]]; then
+    CFG_DISPLAY="$(grep -E '^display\s*=' "${HOME}/.config/poolsync/agent.toml" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+  fi
+  if [[ -n "$CFG_DISPLAY" ]]; then
+    export DISPLAY="$CFG_DISPLAY"
+  elif pgrep -u "$UID_NUM" -f 'Xorg :10' >/dev/null 2>&1; then
+    export DISPLAY=":10"
+  else
+    export DISPLAY="${DISPLAY:-:0}"
+  fi
+fi
 export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
 export GDK_BACKEND=x11

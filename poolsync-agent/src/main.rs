@@ -1,6 +1,7 @@
 mod agent;
 mod clipboard;
 mod logs_viewer;
+mod rdp_detect;
 mod single;
 mod state;
 mod tray;
