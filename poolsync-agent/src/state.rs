@@ -111,41 +111,23 @@ impl AgentState {
         new
     }
 
-    /// Notifie à la réception si contenu nouveau ; anti-spam léger sur sélection progressive.
+    /// Notifie à la réception si le hash clipboard est nouveau.
     pub fn should_notify(&self, hash: &str, preview: &str) -> bool {
         if !self.notify_enabled() {
             return false;
         }
-        let now = Instant::now();
         let Ok(mut last_hash) = self.last_notified_hash.write() else {
             return false;
         };
         if *last_hash == hash {
             return false;
         }
-        if let Ok(last_preview) = self.last_notified_preview.read() {
-            if let Ok(last_at) = self.last_notify_at.read() {
-                if let Some(t) = *last_at {
-                    if now.duration_since(t) < std::time::Duration::from_secs(2) {
-                        let prev = last_preview.trim();
-                        let cur = preview.trim();
-                        if !prev.is_empty()
-                            && !cur.is_empty()
-                            && cur != prev
-                            && (cur.starts_with(prev) || prev.starts_with(cur))
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
         *last_hash = hash.to_string();
         if let Ok(mut last_preview) = self.last_notified_preview.write() {
             *last_preview = preview.to_string();
         }
         if let Ok(mut last_at) = self.last_notify_at.write() {
-            *last_at = Some(now);
+            *last_at = Some(Instant::now());
         }
         true
     }

@@ -175,7 +175,7 @@ async fn show_clip_notification(preview: &str, mime: &str, wire_data: &str) {
         "-i",
         &icon,
         "-t",
-        "4000",
+        "5000",
         "-u",
         "normal",
         "PoolSync",
@@ -186,25 +186,43 @@ async fn show_clip_notification(preview: &str, mime: &str, wire_data: &str) {
         args.extend_from_slice(&base_args);
         args
     };
-    let status = Command::new("notify-send")
-        .args(&with_replace)
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .status()
-        .await;
-    let ok = matches!(status, Ok(ref s) if s.success());
-    if !ok {
-        let _ = Command::new("notify-send")
-            .args(&base_args)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .await;
+    if run_notify_send(&with_replace).await {
+        info!("notification envoyée");
+        return;
     }
-    if ok {
+    if run_notify_send(&base_args).await {
         info!("notification envoyée");
     } else {
         warn!("notify-send échoué");
+    }
+}
+
+async fn run_notify_send(args: &[&str]) -> bool {
+    let mut cmd = Command::new("notify-send");
+    cmd.args(args).stdout(Stdio::null()).stderr(Stdio::piped());
+    for key in [
+        "DISPLAY",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "XAUTHORITY",
+        "XDG_RUNTIME_DIR",
+        "XDG_CURRENT_DESKTOP",
+    ] {
+        if let Ok(val) = std::env::var(key) {
+            cmd.env(key, val);
+        }
+    }
+    match cmd.status().await {
+        Ok(s) if s.success() => true,
+        Ok(s) => {
+            if let Some(code) = s.code() {
+                warn!("notify-send exit {code}");
+            }
+            false
+        }
+        Err(err) => {
+            warn!("notify-send: {err}");
+            false
+        }
     }
 }
 
