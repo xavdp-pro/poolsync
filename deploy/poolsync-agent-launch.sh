@@ -25,4 +25,9 @@ export GDK_BACKEND=x11
 if pgrep -x poolsync-agent >/dev/null 2>&1; then
   exit 0
 fi
-exec "$HOME/.local/bin/poolsync-agent" "$@"
+EXTRA_ARGS=()
+# Systray GTK incompatible avec session xrdp — évite de tuer xfce4-panel
+if [[ "${DISPLAY}" == :10* ]]; then
+  EXTRA_ARGS+=(--no-tray)
+fi
+exec "$HOME/.local/bin/poolsync-agent" "${EXTRA_ARGS[@]}" "$@"
