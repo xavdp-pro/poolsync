@@ -6,11 +6,13 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/poolsync-agent --config %h/.config/poolsync/agent.toml
+ExecStart=%h/.local/bin/poolsync-agent-launch.sh --config %h/.config/poolsync/agent.toml
 Restart=on-failure
 RestartSec=5
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=%h/.Xauthority
+Environment=XDG_CURRENT_DESKTOP=XFCE
+Environment=GDK_BACKEND=x11
 
 [Install]
 WantedBy=graphical-session.target

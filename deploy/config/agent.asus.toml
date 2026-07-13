@@ -1,4 +1,4 @@
-node = "acer"
+node = "asus"
 hub_url = "ws://10.24.42.1:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "clipboard_only"
@@ -8,9 +8,5 @@ width = 1920
 height = 1080
 
 [[neighbors]]
-direction = "left"
-node = "asus"
-
-[[neighbors]]
 direction = "right"
-node = "inspiron"
+node = "acer"

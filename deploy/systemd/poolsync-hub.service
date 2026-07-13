@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/opt/poolsync/poolsync.env
-ExecStart=/opt/poolsync/poolsync-hub --listen 0.0.0.0:9470 --token ${POOLSYNC_TOKEN}
+ExecStart=/opt/poolsync/poolsync-hub --listen 0.0.0.0:9470 --token ${POOLSYNC_TOKEN} --web-dir /opt/poolsync/web
 Restart=on-failure
 RestartSec=3
 

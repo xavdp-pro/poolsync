@@ -21,19 +21,28 @@ source "${HOME}/.cargo/env" 2>/dev/null || true
 (cd "$ROOT" && cargo build --release -p poolsync-agent)
 
 echo "==> Dépendances X11 sur $HOST"
-ssh "root@$HOST" 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xclip xdotool >/dev/null'
+ssh "root@$HOST" 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xclip xdotool libnotify-bin >/dev/null'
 
 echo "==> Binaire + config pour $USER_NAME@$HOST"
-ssh "root@$HOST" "install -d -o $USER_NAME -g $USER_NAME /home/$USER_NAME/.local/bin /home/$USER_NAME/.config/poolsync /home/$USER_NAME/.config/systemd/user"
-scp "$ROOT/target/release/poolsync-agent" "root@$HOST:/home/$USER_NAME/.local/bin/poolsync-agent"
-ssh "root@$HOST" "chown $USER_NAME:$USER_NAME /home/$USER_NAME/.local/bin/poolsync-agent && chmod 755 /home/$USER_NAME/.local/bin/poolsync-agent"
+ssh "root@$HOST" "install -d -o $USER_NAME -g $USER_NAME /home/$USER_NAME/.local/bin /home/$USER_NAME/.config/poolsync /home/$USER_NAME/.local/share/poolsync /home/$USER_NAME/.local/share/applications /home/$USER_NAME/.config/systemd/user"
+ssh "root@$HOST" "su - $USER_NAME -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u $USER_NAME); systemctl --user stop poolsync-agent.service 2>/dev/null || true; rm -f /home/$USER_NAME/.config/autostart/poolsync-agent.desktop'"
+scp "$ROOT/target/release/poolsync-agent" "root@$HOST:/home/$USER_NAME/.local/bin/poolsync-agent.new"
+scp "$ROOT/deploy/poolsync-agent-launch.sh" "root@$HOST:/home/$USER_NAME/.local/bin/poolsync-agent-launch.sh"
+scp "$ROOT/deploy/poolsync-logs.sh" "root@$HOST:/home/$USER_NAME/.local/bin/poolsync-logs"
+scp "$ROOT/poolsync-agent/icons/poolsync-tray.png" "root@$HOST:/home/$USER_NAME/.local/share/poolsync/poolsync-tray.png"
+scp "$ROOT/deploy/com.xavdp.poolsync.desktop" "root@$HOST:/home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop"
+ssh "root@$HOST" "mv /home/$USER_NAME/.local/bin/poolsync-agent.new /home/$USER_NAME/.local/bin/poolsync-agent && chown $USER_NAME:$USER_NAME /home/$USER_NAME/.local/bin/poolsync-agent && chmod 755 /home/$USER_NAME/.local/bin/poolsync-agent"
 
 TMP_CFG="$(mktemp)"
 trap 'rm -f "$TMP_CFG"' EXIT
 sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$CONFIG_SRC" > "$TMP_CFG"
 scp "$TMP_CFG" "root@$HOST:/home/$USER_NAME/.config/poolsync/agent.toml"
 scp "$ROOT/deploy/systemd/poolsync-agent.service" "root@$HOST:/home/$USER_NAME/.config/systemd/user/poolsync-agent.service"
-ssh "root@$HOST" "chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.config/poolsync /home/$USER_NAME/.config/systemd/user/poolsync-agent.service"
+ssh "root@$HOST" "chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.config/poolsync /home/$USER_NAME/.local/share/poolsync /home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop /home/$USER_NAME/.config/systemd/user/poolsync-agent.service /home/$USER_NAME/.local/bin/poolsync-agent-launch.sh /home/$USER_NAME/.local/bin/poolsync-logs && chmod 755 /home/$USER_NAME/.local/bin/poolsync-agent-launch.sh /home/$USER_NAME/.local/bin/poolsync-logs && chmod 644 /home/$USER_NAME/.local/share/poolsync/poolsync-tray.png /home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop"
+
+echo "==> Plugin Indicator XFCE"
+scp "$ROOT/deploy/setup-xfce-indicator.sh" "root@$HOST:/tmp/setup-xfce-indicator.sh"
+ssh "root@$HOST" "chmod +x /tmp/setup-xfce-indicator.sh && /tmp/setup-xfce-indicator.sh $USER_NAME || true"
 
 echo "==> Active service user (sans toucher Barrier)"
 ssh "root@$HOST" "su - $USER_NAME -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u $USER_NAME); systemctl --user disable --now now3pool-agent.service 2>/dev/null || true; systemctl --user daemon-reload; systemctl --user enable --now poolsync-agent.service; systemctl --user status poolsync-agent.service --no-pager | head -15'"

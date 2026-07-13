@@ -11,13 +11,33 @@ echo "==> Build release (hub)"
 source "${HOME}/.cargo/env" 2>/dev/null || true
 (cd "$ROOT" && cargo build --release -p poolsync-hub)
 
+echo "==> Build dashboard web"
+WEB_BUILT=0
+if [[ -f "$ROOT/web/package.json" ]]; then
+  if (cd "$ROOT/web" && npm ci --silent 2>/dev/null && npm run build 2>/dev/null); then
+    WEB_BUILT=1
+  else
+    echo "    build local échoué — tentative sur $BS1 (node 20)"
+    ssh "$BS1" "command -v npm >/dev/null && node -v" || { echo "npm absent sur bs1" >&2; }
+    ssh "$BS1" "rm -rf /tmp/poolsync-web-build && mkdir -p /tmp/poolsync-web-build"
+    scp -r "$ROOT/web/"* "$BS1:/tmp/poolsync-web-build/"
+    ssh "$BS1" "cd /tmp/poolsync-web-build && npm ci --silent && npm run build && mkdir -p $REMOTE_DIR/web && cp -r dist/* $REMOTE_DIR/web/"
+    WEB_BUILT=1
+  fi
+else
+  echo "web/ absent — hub sans dashboard" >&2
+fi
+
 echo "==> Prépare bundle"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP/deploy"
+mkdir -p "$TMP/deploy/web"
 cp "$ROOT/target/release/poolsync-hub" "$TMP/deploy/poolsync-hub"
 cp "$ROOT/deploy/Dockerfile.hub" "$TMP/deploy/Dockerfile"
 cp "$ROOT/deploy/docker-compose.yml" "$TMP/deploy/docker-compose.yml"
+if [[ "$WEB_BUILT" == 1 && -d "$ROOT/web/dist" ]]; then
+  cp -r "$ROOT/web/dist/"* "$TMP/deploy/web/"
+fi
 printf 'POOLSYNC_TOKEN=%s\n' "$TOKEN" > "$TMP/deploy/poolsync.env"
 
 echo "==> Sync vers $BS1:$REMOTE_DIR"

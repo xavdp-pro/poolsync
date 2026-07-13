@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     net::SocketAddr,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -12,16 +13,17 @@ use axum::{
     },
     response::IntoResponse,
     routing::get,
-    Router,
+    Json, Router,
 };
 use clap::Parser;
 use futures_util::StreamExt;
 use poolsync_core::{
     decode_message, encode_message, AgentMode, Message, Neighbor, ScreenInfo,
 };
+use serde::Serialize;
 use tokio::sync::{broadcast, RwLock};
+use tower_http::services::{ServeDir, ServeFile};
 use tracing::{error, info, warn};
-use uuid::Uuid;
 
 #[derive(Parser, Debug)]
 #[command(name = "poolsync-hub", about = "PoolSync hub — presse-papiers + KVM maître dynamique")]
@@ -33,6 +35,10 @@ struct Args {
     /// Token partagé avec les agents
     #[arg(long, default_value = "poolsync-dev")]
     token: String,
+
+    /// Répertoire des fichiers statiques (dashboard web)
+    #[arg(long)]
+    web_dir: Option<PathBuf>,
 }
 
 #[derive(Clone)]
@@ -40,15 +46,18 @@ struct NodeInfo {
     mode: AgentMode,
     screen: ScreenInfo,
     neighbors: Vec<Neighbor>,
+    connected_at: u64,
     sender: broadcast::Sender<String>,
 }
 
 #[derive(Clone)]
 struct HubState {
     token: String,
+    started_at: u64,
     nodes: Arc<RwLock<HashMap<String, NodeInfo>>>,
     master: Arc<RwLock<Option<String>>>,
     last_clipboard_hash: Arc<RwLock<Option<String>>>,
+    last_clipboard_at: Arc<RwLock<Option<u64>>>,
 }
 
 #[derive(Deserialize)]
@@ -57,6 +66,46 @@ struct WsQuery {
 }
 
 use serde::Deserialize;
+
+#[derive(Serialize)]
+struct StatusResponse {
+    hub: HubInfo,
+    master: Option<String>,
+    clipboard: ClipboardInfo,
+    nodes: Vec<NodeStatus>,
+}
+
+#[derive(Serialize)]
+struct HubInfo {
+    version: &'static str,
+    started_at: u64,
+    node_count: usize,
+    listen: String,
+}
+
+#[derive(Serialize)]
+struct ClipboardInfo {
+    last_hash: Option<String>,
+    last_at: Option<u64>,
+}
+
+#[derive(Serialize)]
+struct NodeStatus {
+    name: String,
+    mode: AgentMode,
+    screen: ScreenInfo,
+    neighbors: Vec<Neighbor>,
+    connected_at: u64,
+    online: bool,
+    is_master: bool,
+}
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -73,17 +122,35 @@ async fn main() -> Result<()> {
         .parse()
         .with_context(|| format!("invalid listen address {}", args.listen))?;
 
+    let started_at = now_secs();
     let state = HubState {
         token: args.token.clone(),
+        started_at,
         nodes: Arc::new(RwLock::new(HashMap::new())),
         master: Arc::new(RwLock::new(None)),
         last_clipboard_hash: Arc::new(RwLock::new(None)),
+        last_clipboard_at: Arc::new(RwLock::new(None)),
     };
 
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/health", get(health))
+        .route("/api/status", get(api_status))
         .route("/ws", get(ws_handler))
         .with_state(state);
+
+    if let Some(web_dir) = args.web_dir.as_ref() {
+        let index = web_dir.join("index.html");
+        if web_dir.is_dir() && index.is_file() {
+            let serve = ServeDir::new(web_dir).not_found_service(ServeFile::new(index));
+            app = app.fallback_service(serve);
+            info!("serving web dashboard from {}", web_dir.display());
+        } else {
+            warn!(
+                "web_dir {} missing or no index.html — dashboard disabled",
+                web_dir.display()
+            );
+        }
+    }
 
     info!("poolsync-hub listening on {listen}");
     let listener = tokio::net::TcpListener::bind(listen).await?;
@@ -93,6 +160,42 @@ async fn main() -> Result<()> {
 
 async fn health() -> impl IntoResponse {
     "ok"
+}
+
+async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
+    let nodes_map = state.nodes.read().await;
+    let master = state.master.read().await.clone();
+    let last_hash = state.last_clipboard_hash.read().await.clone();
+    let last_at = state.last_clipboard_at.read().await;
+    let node_count = nodes_map.len();
+
+    let nodes: Vec<NodeStatus> = nodes_map
+        .iter()
+        .map(|(name, info)| NodeStatus {
+            name: name.clone(),
+            mode: info.mode,
+            screen: info.screen.clone(),
+            neighbors: info.neighbors.clone(),
+            connected_at: info.connected_at,
+            online: true,
+            is_master: master.as_deref() == Some(name.as_str()),
+        })
+        .collect();
+
+    Json(StatusResponse {
+        hub: HubInfo {
+            version: env!("CARGO_PKG_VERSION"),
+            started_at: state.started_at,
+            node_count,
+            listen: "0.0.0.0:9470".into(),
+        },
+        master,
+        clipboard: ClipboardInfo {
+            last_hash,
+            last_at: *last_at,
+        },
+        nodes,
+    })
 }
 
 async fn ws_handler(
@@ -169,6 +272,7 @@ async fn register_node(
                     mode,
                     screen,
                     neighbors,
+                    connected_at: now_secs(),
                     sender,
                 },
             );
@@ -206,6 +310,7 @@ async fn handle_message(
                 return Ok(());
             }
             *last = Some(hash.clone());
+            *state.last_clipboard_at.write().await = Some(now_secs());
 
             let payload = encode_message(&Message::Clipboard {
                 msg_id,

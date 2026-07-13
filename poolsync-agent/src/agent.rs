@@ -1,0 +1,387 @@
+use crate::state::{clip_preview, AgentState};
+use anyhow::{Context, Result};
+use futures_util::{SinkExt, StreamExt};
+use poolsync_core::{
+    decode_message, encode_message, hash_text, AgentMode, Message,
+};
+use std::process::Stdio;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
+use tokio::{
+    process::Command,
+    sync::mpsc,
+    time::{sleep, Duration},
+};
+use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
+use tracing::{info, warn};
+
+pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
+    let cfg = &state.config;
+    let hub_url = format!(
+        "{}?token={}",
+        cfg.hub_url.trim_end_matches('/'),
+        cfg.token
+    );
+
+    state.set_connected(false);
+    let (ws, _) = connect_async(&hub_url)
+        .await
+        .context("connect hub websocket")?;
+    let (mut write, mut read) = ws.split();
+
+    write
+        .send(WsMessage::Text(
+            encode_message(&Message::Hello {
+                node: cfg.node.clone(),
+                mode: cfg.mode,
+                screen: cfg.screen.clone(),
+                neighbors: cfg.neighbors.clone(),
+            })?
+            .into(),
+        ))
+        .await?;
+
+    state.set_connected(true);
+    info!("connected to hub");
+
+    let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
+    let last_clip_hash = Arc::new(Mutex::new(String::new()));
+
+    let state_bg = state.clone();
+    let out_tx_bg = out_tx.clone();
+    let last_clip_hash_bg = last_clip_hash.clone();
+    let clip_task = tokio::spawn(async move {
+        clipboard_poll_loop(&state_bg, out_tx_bg, last_clip_hash_bg).await;
+    });
+
+    let state_in = state.clone();
+    let out_tx_in = out_tx.clone();
+    let input_task = tokio::spawn(async move {
+        if state_in.config.mode == AgentMode::Full {
+            input_poll_loop(&state_in, out_tx_in).await;
+        }
+    });
+
+    loop {
+        tokio::select! {
+            maybe_out = out_rx.recv() => {
+                if let Some(payload) = maybe_out {
+                    write.send(WsMessage::Text(payload.into())).await?;
+                } else {
+                    break;
+                }
+            }
+            maybe_in = read.next() => {
+                match maybe_in {
+                    Some(Ok(WsMessage::Text(text))) => {
+                        handle_incoming(&state, &text, &last_clip_hash).await?;
+                    }
+                    Some(Ok(WsMessage::Ping(payload))) => {
+                        write.send(WsMessage::Pong(payload)).await?;
+                    }
+                    Some(Ok(WsMessage::Close(_))) | None => break,
+                    Some(Err(err)) => return Err(err.into()),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    state.set_connected(false);
+    clip_task.abort();
+    input_task.abort();
+    Ok(())
+}
+
+async fn handle_incoming(
+    state: &AgentState,
+    text: &str,
+    last_clip_hash: &Mutex<String>,
+) -> Result<()> {
+    let msg = decode_message(text)?;
+    match msg {
+        Message::Clipboard {
+            hash, data, mime, ..
+        } => {
+            if !state.clipboard_sync_enabled() {
+                return Ok(());
+            }
+            {
+                let mut last = last_clip_hash
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("clip hash lock"))?;
+                if *last == hash {
+                    return Ok(());
+                }
+                *last = hash.clone();
+            }
+
+            set_clipboard(&data, &mime).await?;
+            let preview = clip_preview(&data);
+            state.record_clip_received(preview.clone());
+            info!("clipboard synced ({mime}, {} bytes)", data.len());
+
+            if state.should_notify(&hash, &preview) {
+                let preview = preview.clone();
+                tokio::spawn(async move {
+                    show_clip_notification(&preview).await;
+                });
+            }
+        }
+        Message::MasterChanged { node } => {
+            state.set_master(&node);
+            info!("master is now {node}");
+        }
+        Message::Input { kind, .. } if state.config.mode == AgentMode::Full => {
+            inject_input(&kind).await?;
+        }
+        Message::SwitchTo { x, y, .. } if state.config.mode == AgentMode::Full => {
+            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
+            state.set_master(&state.config.node);
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+async fn show_clip_notification(preview: &str) {
+    let body = if preview.is_empty() {
+        "Nouveau contenu dans le presse-papiers".to_string()
+    } else {
+        preview.to_string()
+    };
+    let icon = notify_icon_path();
+    let base_args = [
+        "-a",
+        "com.xavdp.poolsync",
+        "-i",
+        &icon,
+        "-t",
+        "4000",
+        "-u",
+        "normal",
+        "PoolSync",
+        &body,
+    ];
+    let with_replace = {
+        let mut args = vec!["-r", "87001"];
+        args.extend_from_slice(&base_args);
+        args
+    };
+    let status = Command::new("notify-send")
+        .args(&with_replace)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .status()
+        .await;
+    let ok = matches!(status, Ok(ref s) if s.success());
+    if !ok {
+        let _ = Command::new("notify-send")
+            .args(&base_args)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .await;
+    }
+    if ok {
+        info!("notification envoyée");
+    } else {
+        warn!("notify-send échoué");
+    }
+}
+
+fn notify_icon_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+    format!("{home}/.local/share/poolsync/poolsync-tray.png")
+}
+
+async fn clipboard_poll_loop(
+    state: &AgentState,
+    out_tx: mpsc::UnboundedSender<String>,
+    last_clip_hash: Arc<Mutex<String>>,
+) {
+    let poll = Duration::from_millis(state.config.clipboard_poll_ms);
+    let primary_stable = Duration::from_millis(2500);
+    let mut primary_pending: Option<(String, Instant)> = None;
+
+    loop {
+        if state.clipboard_sync_enabled() {
+            // Sélection souris → presse-papiers (équivalent Ctrl+C), puis envoi via clipboard.
+            if state.primary_sync_enabled() {
+                match get_selection_text("primary").await {
+                    Ok(text) if text.is_empty() => primary_pending = None,
+                    Ok(text) => {
+                        let now = Instant::now();
+                        let stable = match &primary_pending {
+                            Some((pending, since)) if pending == &text => {
+                                now.duration_since(*since) >= primary_stable
+                            }
+                            _ => {
+                                primary_pending = Some((text.clone(), now));
+                                false
+                            }
+                        };
+                        if stable {
+                            if write_selection("clipboard", &text).await.is_ok() {
+                                primary_pending = None;
+                            }
+                        }
+                    }
+                    Err(_) => primary_pending = None,
+                }
+            } else {
+                primary_pending = None;
+            }
+
+            // Canal unique d'envoi : clipboard (comme un copier classique).
+            if let Ok(text) = get_selection_text("clipboard").await {
+                if try_send_clip(&text, &out_tx, &last_clip_hash) {
+                    primary_pending = None;
+                }
+            }
+        } else {
+            primary_pending = None;
+        }
+        sleep(poll).await;
+    }
+}
+
+fn try_send_clip(
+    text: &str,
+    out_tx: &mpsc::UnboundedSender<String>,
+    last_clip_hash: &Mutex<String>,
+) -> bool {
+    if text.is_empty() {
+        return false;
+    }
+    let hash = hash_text(text);
+    let mut last = match last_clip_hash.lock() {
+        Ok(guard) => guard,
+        Err(_) => return false,
+    };
+    if *last == hash {
+        return false;
+    }
+    *last = hash.clone();
+    drop(last);
+    if let Ok(payload) = encode_message(&Message::Clipboard {
+        msg_id: uuid::Uuid::new_v4().to_string(),
+        hash,
+        mime: "text/plain".into(),
+        data: text.to_string(),
+    }) {
+        let _ = out_tx.send(payload);
+        return true;
+    }
+    false
+}
+
+async fn input_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) {
+    let poll = Duration::from_millis(state.config.input_poll_ms);
+    let mut last_pos = (0i32, 0i32);
+    loop {
+        if let Ok((x, y)) = get_mouse_location().await {
+            if (x, y) != last_pos {
+                last_pos = (x, y);
+                if let Ok(payload) = encode_message(&Message::MasterClaim {
+                    node: state.config.node.clone(),
+                    ts: 0,
+                }) {
+                    let _ = out_tx.send(payload);
+                }
+            }
+        }
+        sleep(poll).await;
+    }
+}
+
+async fn get_selection_text(selection: &str) -> Result<String> {
+    let output = Command::new("xclip")
+        .args(["-selection", selection, "-o"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .await?;
+    if !output.status.success() {
+        anyhow::bail!("xclip read {selection} failed");
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+async fn write_selection(selection: &str, text: &str) -> Result<()> {
+    let mut child = Command::new("xclip")
+        .args(["-selection", selection])
+        .stdin(Stdio::piped())
+        .spawn()
+        .with_context(|| format!("xclip -selection {selection}"))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        use tokio::io::AsyncWriteExt;
+        stdin.write_all(text.as_bytes()).await?;
+    }
+    child.wait().await?;
+    Ok(())
+}
+
+async fn set_clipboard(text: &str, mime: &str) -> Result<()> {
+    if mime != "text/plain" {
+        warn!("unsupported clipboard mime: {mime}");
+        return Ok(());
+    }
+    // Comme un Ctrl+C distant : clipman et collages standards utilisent clipboard.
+    write_selection("clipboard", text).await
+}
+
+async fn get_mouse_location() -> Result<(i32, i32)> {
+    let output = Command::new("xdotool")
+        .args(["getmouselocation", "--shell"])
+        .output()
+        .await?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut x = 0;
+    let mut y = 0;
+    for line in text.lines() {
+        if let Some(val) = line.strip_prefix("X=") {
+            x = val.parse().unwrap_or(0);
+        }
+        if let Some(val) = line.strip_prefix("Y=") {
+            y = val.parse().unwrap_or(0);
+        }
+    }
+    Ok((x, y))
+}
+
+async fn inject_input(kind: &poolsync_core::InputKind) -> Result<()> {
+    match kind {
+        poolsync_core::InputKind::MouseMove { x, y } => {
+            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
+        }
+        poolsync_core::InputKind::MouseButton {
+            button,
+            pressed,
+            x,
+            y,
+        } => {
+            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
+            let action = if *pressed { "mousedown" } else { "mouseup" };
+            xdotool(&[action, &button.to_string()]).await?;
+        }
+        poolsync_core::InputKind::Key { keycode, pressed } => {
+            let action = if *pressed { "keydown" } else { "keyup" };
+            xdotool(&[action, &keycode.to_string()]).await?;
+        }
+        poolsync_core::InputKind::MouseWheel { delta, x, y } => {
+            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
+            let button = if *delta > 0 { "4" } else { "5" };
+            xdotool(&["click", button]).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn xdotool(args: &[&str]) -> Result<()> {
+    let status = Command::new("xdotool").args(args).status().await?;
+    if !status.success() {
+        anyhow::bail!("xdotool {:?} failed", args);
+    }
+    Ok(())
+}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PoolSync
+Comment=Presse-papiers partagé NOW3
+Icon=poolsync-tray
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-GNOME-UsesNotifications=true

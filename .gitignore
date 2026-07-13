@@ -11,3 +11,7 @@
 # Deploy secrets (tokens locaux)
 deploy/*.local.toml
 deploy/secrets/
+
+# Web dashboard
+web/node_modules/
+web/dist/

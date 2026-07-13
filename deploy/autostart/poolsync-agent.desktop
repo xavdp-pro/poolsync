@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PoolSync Agent
+Comment=Presse-papiers partagé NOW3
+Exec=/home/zaza/.local/bin/poolsync-agent-launch.sh --config /home/zaza/.config/poolsync/agent.toml
+Terminal=false
+Categories=Utility;
+OnlyShowIn=XFCE;
+X-XFCE-Autostart-Phase=Application
+X-GNOME-Autostart-enabled=true
