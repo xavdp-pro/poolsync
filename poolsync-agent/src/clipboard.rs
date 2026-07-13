@@ -45,8 +45,29 @@ pub async fn clipboard_targets(selection: &str) -> Result<Vec<String>> {
 
 pub async fn read_clipboard_payload() -> Result<Option<ClipboardPayload>> {
     let targets = clipboard_targets("clipboard").await?;
+    let mut image_mimes: Vec<String> = targets
+        .iter()
+        .filter(|t| t.starts_with("image/"))
+        .cloned()
+        .collect();
+    image_mimes.sort_by_key(|m| match m.as_str() {
+        "image/png" => 0,
+        "image/jpeg" | "image/jpg" => 1,
+        _ => 2,
+    });
+    for mime in &image_mimes {
+        if let Ok(bytes) = read_selection_bytes("clipboard", mime).await {
+            if !bytes.is_empty() {
+                return Ok(Some(ClipboardPayload {
+                    mime: mime.clone(),
+                    wire_data: B64.encode(&bytes),
+                    hash: hash_bytes(&bytes),
+                }));
+            }
+        }
+    }
     for mime in IMAGE_MIMES {
-        if targets.iter().any(|t| t == mime) {
+        if targets.is_empty() || targets.iter().any(|t| t == mime) {
             if let Ok(bytes) = read_selection_bytes("clipboard", mime).await {
                 if !bytes.is_empty() {
                     return Ok(Some(ClipboardPayload {

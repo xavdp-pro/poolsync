@@ -214,17 +214,12 @@ async fn clipboard_poll_loop(
         if state.clipboard_sync_enabled() {
             let rdp_active =
                 state.config.pause_clipboard_when_rdp && rdp_client_active().await;
-            if rdp_active {
-                primary_pending = None;
-                sleep(poll).await;
-                continue;
-            }
 
             let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
             let image_on_clipboard = targets_have_image(&clip_targets);
 
-            // Sélection souris → presse-papiers (équivalent Ctrl+C), sauf si une image est déjà au clipboard.
-            if state.primary_sync_enabled() && !image_on_clipboard {
+            // Sélection souris → presse-papiers, sauf image déjà au clipboard ou RDP actif.
+            if state.primary_sync_enabled() && !image_on_clipboard && !rdp_active {
                 match read_selection_text("primary").await {
                     Ok(text) if text.is_empty() => primary_pending = None,
                     Ok(text) => {
@@ -253,6 +248,13 @@ async fn clipboard_poll_loop(
             }
 
             if let Ok(Some(payload)) = read_clipboard_payload().await {
+                if payload.mime.starts_with("image/") {
+                    let approx_bytes = payload.wire_data.len().saturating_mul(3) / 4;
+                    info!(
+                        "clipboard image send ({}, ~{approx_bytes} bytes)",
+                        payload.mime
+                    );
+                }
                 if try_send_payload(&payload, &out_tx, &last_clip_hash) {
                     primary_pending = None;
                 }
