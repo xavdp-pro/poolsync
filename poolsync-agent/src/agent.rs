@@ -2,6 +2,7 @@ use crate::clipboard::{
     clipboard_targets, read_clipboard_payload, read_selection_text, targets_have_image,
     try_send_payload, write_clipboard, write_selection_text,
 };
+use crate::notify_thumb::notify_thumbnail_path;
 use crate::rdp_detect::rdp_client_active;
 use crate::state::{clip_preview_mime, AgentState};
 use anyhow::{Context, Result};
@@ -129,8 +130,10 @@ async fn handle_incoming(
 
             if state.should_notify(&hash, &preview) {
                 let preview = preview.clone();
+                let mime = mime.clone();
+                let data = data.clone();
                 tokio::spawn(async move {
-                    show_clip_notification(&preview).await;
+                    show_clip_notification(&preview, &mime, &data).await;
                 });
             }
         }
@@ -150,13 +153,23 @@ async fn handle_incoming(
     Ok(())
 }
 
-async fn show_clip_notification(preview: &str) {
+async fn show_clip_notification(preview: &str, mime: &str, wire_data: &str) {
     let body = if preview.is_empty() {
         "Nouveau contenu dans le presse-papiers".to_string()
     } else {
         preview.to_string()
     };
-    let icon = notify_icon_path();
+    let icon = if mime.starts_with("image/") {
+        match notify_thumbnail_path(mime, wire_data) {
+            Ok(path) => path,
+            Err(err) => {
+                warn!("miniature notification: {err:#}");
+                notify_icon_path()
+            }
+        }
+    } else {
+        notify_icon_path()
+    };
     let base_args = [
         "-a",
         "com.xavdp.poolsync",
