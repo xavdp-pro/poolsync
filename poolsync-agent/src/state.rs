@@ -262,9 +262,9 @@ impl AgentState {
         if self.is_connected() {
             "● Connecté — tout OK".into()
         } else if let Some(err) = self.last_error() {
-            format!("● Déconnecté — {err}")
+            format!("● Reconnexion… — {err}")
         } else {
-            "● Reconnexion…".into()
+            "● Reconnexion VPN/hub…".into()
         }
     }
 

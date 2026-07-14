@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::info;
 
-const RECENTER_PX: i32 = 48;
+const RECENTER_PX: i32 = 32;
 const SWITCH_COOLDOWN_MS: u64 = 500;
 const EDGE_ARM_PX: i32 = 24;
 const EDGE_BLOCK_MS: u64 = 700;
@@ -85,8 +85,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 }
             }
 
-            let grab = input_grab.as_mut().expect("grab");
-            let events = match grab.poll() {
+            let events = match input_grab.as_mut().expect("grab").poll() {
                 Ok(ev) => ev,
                 Err(err) => {
                     tracing::warn!("poll KVM grab: {err:#}");
@@ -111,10 +110,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 }
             }
 
-            if relay_motion.0.abs() > RECENTER_PX || relay_motion.1.abs() > RECENTER_PX {
-                grab.recenter(screen.width, screen.height);
-                relay_motion = (0, 0);
-            } else if relay_motion.0 != 0 || relay_motion.1 != 0 {
+            if relay_motion.0 != 0 || relay_motion.1 != 0 {
                 let ts = target_screen(state, &focus);
                 remote_x = (remote_x + relay_motion.0).clamp(0, ts.width as i32 - 1);
                 remote_y = (remote_y + relay_motion.1).clamp(0, ts.height as i32 - 1);
@@ -171,6 +167,12 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                             last_switch = Instant::now();
                         }
                     }
+                }
+            }
+
+            if let Some(grab) = input_grab.as_mut() {
+                if grab.needs_recenter(RECENTER_PX) {
+                    grab.recenter(screen.width, screen.height);
                 }
             }
 
@@ -423,7 +425,8 @@ fn direction_key(dir: Direction) -> &'static str {
 
 fn map_coord(v: i32, from: u32, to: u32) -> i32 {
     let ratio = (v as f64 + 0.5) / from.max(1) as f64;
-    ((ratio * to.max(1) as f64) - 0.5).round() as i32
+    let mapped = ((ratio * to.max(1) as f64) - 0.5).round() as i32;
+    mapped.clamp(0, to.max(1) as i32 - 1)
 }
 
 fn send_master_claim(node: &str, out_tx: &mpsc::UnboundedSender<String>) {

@@ -134,11 +134,49 @@ pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
         let bytes = B64
             .decode(data)
             .with_context(|| format!("decode base64 image ({mime})"))?;
-        // Toujours écrire en PNG pour compatibilité clipman / collages.
-        write_selection_bytes("clipboard", "image/png", &bytes).await
+        write_image_clipboard(&bytes).await
     } else {
         anyhow::bail!("unsupported clipboard mime: {mime}");
     }
+}
+
+async fn write_image_clipboard(png_bytes: &[u8]) -> Result<()> {
+    let bytes = png_bytes.to_vec();
+    let gtk_ok = tokio::task::spawn_blocking(move || write_image_clipboard_gtk(&bytes))
+        .await
+        .context("gtk clipboard task")?;
+    if gtk_ok {
+        return Ok(());
+    }
+    write_selection_bytes("clipboard", "image/png", png_bytes).await
+}
+
+fn write_image_clipboard_gtk(png_bytes: &[u8]) -> bool {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+    let script = format!("{home}/.local/bin/write-image-clipboard.py");
+    if !std::path::Path::new(&script).exists() {
+        return false;
+    }
+    let mut child = match Command::new("python3")
+        .arg(&script)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        if stdin.write_all(png_bytes).is_err() {
+            let _ = child.kill();
+            return false;
+        }
+    }
+    child.wait().map(|s| s.success()).unwrap_or(false)
 }
 
 fn is_syncable_text(text: &str) -> bool {

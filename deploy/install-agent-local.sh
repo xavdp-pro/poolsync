@@ -21,8 +21,8 @@ source "${HOME}/.cargo/env" 2>/dev/null || true
 echo "==> Dépendances X11/GTK locales"
 if command -v apt-get >/dev/null; then
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    xclip xdotool libnotify-bin libgtk-3-dev libayatana-appindicator3-dev libnotify-dev libxdo-dev 2>/dev/null || \
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xclip xdotool libnotify-bin
+    xclip xdotool libnotify-bin python3-gi gir1.2-gtk-3.0 libgtk-3-dev libayatana-appindicator3-dev libnotify-dev libxdo-dev 2>/dev/null || \
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xclip xdotool libnotify-bin python3-gi gir1.2-gtk-3.0
 fi
 
 BIN_DIR="/home/$USER_NAME/.local/bin"
@@ -37,10 +37,14 @@ rm -f "$AUTO_DIR/poolsync-agent.desktop"
 install -m 755 "$ROOT/target/release/poolsync-agent" "$BIN_DIR/poolsync-agent"
 install -m 755 "$ROOT/deploy/poolsync-agent-launch.sh" "$BIN_DIR/poolsync-agent-launch.sh"
 install -m 755 "$ROOT/deploy/poolsync-logs.sh" "$BIN_DIR/poolsync-logs"
+install -m 755 "$ROOT/deploy/poolsync-watchdog.sh" "$BIN_DIR/poolsync-watchdog.sh"
+install -m 755 "$ROOT/deploy/write-image-clipboard.py" "$BIN_DIR/write-image-clipboard.py"
 install -m 644 "$ROOT/poolsync-agent/icons/poolsync-tray.png" "$ICON_DIR/poolsync-tray.png"
 install -m 644 "$ROOT/deploy/com.xavdp.poolsync.desktop" "$APP_DIR/com.xavdp.poolsync.desktop"
 sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$CONFIG_SRC" > "$CFG_DIR/agent.toml"
 cp "$ROOT/deploy/systemd/poolsync-agent.service" "$SVC_DIR/poolsync-agent.service"
+cp "$ROOT/deploy/systemd/poolsync-watchdog.service" "$SVC_DIR/poolsync-watchdog.service"
+cp "$ROOT/deploy/systemd/poolsync-watchdog.timer" "$SVC_DIR/poolsync-watchdog.timer"
 
 echo "==> Plugin Indicator XFCE (désactivé — casse le panneau si doublon)"
 # bash "$ROOT/deploy/setup-xfce-indicator.sh" "$USER_NAME" || true
@@ -50,4 +54,5 @@ export XDG_RUNTIME_DIR="/run/user/$(id -u $USER_NAME)"
 systemctl --user disable --now now3pool-agent.service 2>/dev/null || true
 systemctl --user daemon-reload
 systemctl --user enable --now poolsync-agent.service
+systemctl --user enable --now poolsync-watchdog.timer
 systemctl --user status poolsync-agent.service --no-pager | head -12

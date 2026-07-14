@@ -3,6 +3,7 @@ use crate::clipboard::{
 };
 use crate::kvm::{detect_screen, inject_input, kvm_poll_loop};
 use crate::kvm_x11;
+use crate::network::{hub_tcp_endpoint, hub_tcp_reachable, wait_for_hub};
 use crate::notify_thumb::notify_thumbnail_path;
 use crate::rdp_detect::rdp_client_active;
 use crate::state::{clip_preview_mime, AgentState};
@@ -14,10 +15,13 @@ use std::sync::{Arc, Mutex};
 use tokio::{
     process::Command,
     sync::mpsc,
-    time::{sleep, Duration},
+    time::{interval, sleep, timeout, Duration},
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use tracing::{info, warn};
+
+const WS_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+const HUB_LINK_CHECK: Duration = Duration::from_secs(10);
 
 pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
     let cfg = &state.config;
@@ -26,10 +30,14 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
         cfg.hub_url.trim_end_matches('/'),
         cfg.token
     );
+    let (hub_host, hub_port) = hub_tcp_endpoint(&cfg.hub_url)?;
 
     state.set_connected(false);
-    let (ws, _) = connect_async(&hub_url)
+    wait_for_hub(&hub_host, hub_port).await;
+
+    let (ws, _) = timeout(WS_CONNECT_TIMEOUT, connect_async(&hub_url))
         .await
+        .context("délai connexion hub dépassé (VPN/réseau?)")?
         .context("connect hub websocket")?;
     let (mut write, mut read) = ws.split();
 
@@ -77,6 +85,8 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
         tokio::task::spawn_blocking(|| std::thread::park())
     };
 
+    let mut link_check = interval(HUB_LINK_CHECK);
+
     loop {
         tokio::select! {
             maybe_out = out_rx.recv() => {
@@ -97,6 +107,12 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
                     Some(Ok(WsMessage::Close(_))) | None => break,
                     Some(Err(err)) => return Err(err.into()),
                     _ => {}
+                }
+            }
+            _ = link_check.tick() => {
+                if !hub_tcp_reachable(&hub_host, hub_port).await {
+                    warn!("liaison hub perdue ({hub_host}:{hub_port}) — reconnexion");
+                    break;
                 }
             }
         }

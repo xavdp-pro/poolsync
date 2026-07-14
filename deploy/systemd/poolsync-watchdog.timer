@@ -1,0 +1,10 @@
+[Unit]
+Description=PoolSync watchdog timer (toutes les 30s)
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=PoolSync watchdog (VPN/réseau → reconnexion hub)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/poolsync-watchdog.sh
+
+[Install]
+WantedBy=default.target

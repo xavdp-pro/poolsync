@@ -4,6 +4,7 @@ mod kvm;
 mod kvm_input;
 mod kvm_x11;
 mod logs_viewer;
+mod network;
 mod notify_thumb;
 mod rdp_detect;
 mod single;
@@ -18,7 +19,10 @@ use state::AgentState;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use tracing::info;
+use tracing::{info, warn};
+
+const RECONNECT_INITIAL: Duration = Duration::from_secs(2);
+const RECONNECT_MAX: Duration = Duration::from_secs(30);
 
 #[derive(Parser, Debug)]
 #[command(name = "poolsync-agent", about = "PoolSync agent — client presse-papiers + KVM")]
@@ -63,13 +67,23 @@ fn main() -> Result<()> {
 
     let state_agent = state.clone();
     rt.spawn(async move {
+        let mut backoff = RECONNECT_INITIAL;
         loop {
-            if let Err(err) = run_agent(state_agent.clone()).await {
-                state_agent.set_connected(false);
-                state_agent.set_error(Some(err.to_string()));
-                tracing::error!("agent session ended: {err:#}");
+            match run_agent(state_agent.clone()).await {
+                Ok(()) => {
+                    state_agent.set_error(None);
+                    backoff = RECONNECT_INITIAL;
+                    warn!("session hub terminée — reconnexion…");
+                }
+                Err(err) => {
+                    state_agent.set_connected(false);
+                    state_agent.set_error(Some(err.to_string()));
+                    tracing::error!("agent session ended: {err:#}");
+                }
             }
-            sleep(Duration::from_secs(3)).await;
+            info!("nouvelle tentative hub dans {}s", backoff.as_secs());
+            sleep(backoff).await;
+            backoff = std::cmp::min(backoff * 2, RECONNECT_MAX);
         }
     });
 

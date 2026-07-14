@@ -105,6 +105,17 @@ impl InputGrab {
         self.last_y = cy;
     }
 
+    /// Recentre la souris physique si elle s'éloigne du centre (Barrier s_size = 32).
+    pub fn needs_recenter(&self, threshold: i32) -> bool {
+        if !self.active {
+            return false;
+        }
+        let cx = (self.screen_w / 2) as i16;
+        let cy = (self.screen_h / 2) as i16;
+        i32::from(self.last_x - cx).abs() > threshold
+            || i32::from(self.last_y - cy).abs() > threshold
+    }
+
     pub fn poll(&mut self) -> Result<Vec<GrabEvent>> {
         let mut out = Vec::new();
         while let Some(event) = self.conn.poll_for_event()? {
