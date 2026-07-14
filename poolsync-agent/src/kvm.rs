@@ -1,3 +1,4 @@
+use crate::kvm_input::{hide_cursor_best_effort, GrabEvent, InputGrab};
 use crate::kvm_x11;
 use crate::state::AgentState;
 use anyhow::Result;
@@ -30,8 +31,8 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
     let mut remote_y = 0i32;
     let mut last_phys = (0i32, 0i32);
     let mut phys_seeded = false;
-    let mut relay_mode = false;
-    let mut cursor_hidden = false;
+    let mut input_grab: Option<InputGrab> = None;
+    let mut relay_motion = (0i32, 0i32);
     let mut last_sent = (-1i32, -1i32);
     let mut last_switch = Instant::now()
         .checked_sub(Duration::from_secs(1))
@@ -51,12 +52,8 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
         if !state.kvm_enabled() {
             focus = local.clone();
-            relay_mode = false;
+            input_grab = None;
             blocked_edges.clear();
-            if cursor_hidden {
-                kvm_x11::set_cursor_visible_best_effort(true);
-                cursor_hidden = false;
-            }
             thread::sleep(poll);
             continue;
         }
@@ -69,6 +66,118 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
         }
 
         prune_blocks(&mut blocked_edges);
+
+        focus = state.kvm_focus();
+        let edge = state.config.edge_px as i32;
+        let screen = local_screen_cache.clone();
+
+        // Écran distant : grab souris+clavier, pas de lecture locale.
+        if state.is_input_owner() && focus != local {
+            if input_grab.is_none() {
+                hide_cursor_best_effort(screen.width, screen.height);
+                match InputGrab::begin(screen.width, screen.height) {
+                    Ok(grab) => input_grab = Some(grab),
+                    Err(err) => {
+                        tracing::warn!("grab KVM distant: {err:#}");
+                        thread::sleep(poll);
+                        continue;
+                    }
+                }
+            }
+
+            let grab = input_grab.as_mut().expect("grab");
+            let events = match grab.poll() {
+                Ok(ev) => ev,
+                Err(err) => {
+                    tracing::warn!("poll KVM grab: {err:#}");
+                    input_grab = None;
+                    thread::sleep(poll);
+                    continue;
+                }
+            };
+
+            for ev in events {
+                match ev {
+                    GrabEvent::Motion { dx, dy } => {
+                        relay_motion.0 += dx;
+                        relay_motion.1 += dy;
+                    }
+                    GrabEvent::Button { button, pressed } => {
+                        send_mouse_button(&focus, remote_x, remote_y, button, pressed, &out_tx);
+                    }
+                    GrabEvent::Key { keycode, pressed } => {
+                        send_key(&focus, keycode, pressed, &out_tx);
+                    }
+                }
+            }
+
+            if relay_motion.0.abs() > RECENTER_PX || relay_motion.1.abs() > RECENTER_PX {
+                grab.recenter(screen.width, screen.height);
+                relay_motion = (0, 0);
+            } else if relay_motion.0 != 0 || relay_motion.1 != 0 {
+                let ts = target_screen(state, &focus);
+                remote_x = (remote_x + relay_motion.0).clamp(0, ts.width as i32 - 1);
+                remote_y = (remote_y + relay_motion.1).clamp(0, ts.height as i32 - 1);
+                if (remote_x, remote_y) != last_sent {
+                    send_mouse_absolute(&focus, remote_x, remote_y, &out_tx);
+                    last_sent = (remote_x, remote_y);
+                }
+                relay_motion = (0, 0);
+
+                if remote_x > edge + EDGE_ARM_PX {
+                    unblock(&mut blocked_edges, BlockedEdge::Left);
+                }
+                if remote_x < ts.width as i32 - edge - EDGE_ARM_PX {
+                    unblock(&mut blocked_edges, BlockedEdge::Right);
+                }
+
+                if last_switch.elapsed() >= Duration::from_millis(SWITCH_COOLDOWN_MS) {
+                    if remote_x <= edge && !is_blocked(&blocked_edges, BlockedEdge::Left) {
+                        if let Some(back) = neighbor_of(&focus, Direction::Left, state) {
+                            let bs = target_screen(state, &back);
+                            let ty = map_coord(remote_y, ts.height, bs.height);
+                            do_switch(
+                                &local,
+                                &back,
+                                bs.width as i32 - 1,
+                                ty,
+                                state,
+                                &out_tx,
+                                &mut focus,
+                                &mut remote_x,
+                                &mut remote_y,
+                            );
+                            block_edge(&mut blocked_edges, BlockedEdge::Right);
+                            if back == local {
+                                input_grab = None;
+                            } else if let Some(g) = input_grab.as_mut() {
+                                g.recenter(screen.width, screen.height);
+                            }
+                            last_switch = Instant::now();
+                        }
+                    } else if remote_x >= ts.width as i32 - edge
+                        && !is_blocked(&blocked_edges, BlockedEdge::Right)
+                    {
+                        if let Some(back) = neighbor_of(&focus, Direction::Right, state) {
+                            let bs = target_screen(state, &back);
+                            let ty = map_coord(remote_y, ts.height, bs.height);
+                            do_switch(&local, &back, 0, ty, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                            block_edge(&mut blocked_edges, BlockedEdge::Left);
+                            if back == local {
+                                input_grab = None;
+                            } else if let Some(g) = input_grab.as_mut() {
+                                g.recenter(screen.width, screen.height);
+                            }
+                            last_switch = Instant::now();
+                        }
+                    }
+                }
+            }
+
+            state.set_kvm_focus(&focus);
+            thread::sleep(poll);
+            continue;
+        }
 
         let Ok((px, py)) = kvm_x11::mouse_location() else {
             thread::sleep(poll);
@@ -97,9 +206,9 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                     state.set_kvm_input_node(&local);
                     state.set_master(&local);
                     send_master_claim(&local, &out_tx);
-                    do_switch(&local, &local, cx, cy, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(&local, &local, cx, cy, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
                     state.set_kvm_focus(&local);
-                    relay_mode = false;
+                    input_grab = None;
                     blocked_edges.clear();
                     last_switch = Instant::now();
                     last_phys = (px, py);
@@ -110,13 +219,8 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             continue;
         }
 
-        focus = state.kvm_focus();
-        let edge = state.config.edge_px as i32;
-        let screen = local_screen_cache.clone();
-
         if focus == local {
-            show_master_cursor(&mut cursor_hidden);
-            relay_mode = false;
+            input_grab = None;
             last_sent = (-1, -1);
 
             if last_switch.elapsed() < Duration::from_millis(SWITCH_COOLDOWN_MS) {
@@ -128,30 +232,27 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             if px >= screen.width as i32 - edge && !is_blocked(&blocked_edges, BlockedEdge::Right) {
                 if let Some(target) = neighbor(state, Direction::Right) {
                     let ty = map_coord(py, screen.height, target_screen(state, &target).height);
-                    do_switch(&local, &target, 0, ty, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(&local, &target, 0, ty, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
                     block_edge(&mut blocked_edges, BlockedEdge::Left);
                     let _ = warp_mouse(screen.width as i32 - edge - 1, py);
-                    enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
                     last_switch = Instant::now();
                 }
             } else if px < edge && !is_blocked(&blocked_edges, BlockedEdge::Left) {
                 if let Some(target) = neighbor(state, Direction::Left) {
                     let tw = target_screen(state, &target).width as i32;
                     let ty = map_coord(py, screen.height, target_screen(state, &target).height);
-                    do_switch(&local, &target, tw - 1, ty, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(&local, &target, tw - 1, ty, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
                     block_edge(&mut blocked_edges, BlockedEdge::Right);
                     let _ = warp_mouse(edge + 1, py);
-                    enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
                     last_switch = Instant::now();
                 }
             } else if py < edge && !is_blocked(&blocked_edges, BlockedEdge::Up) {
                 if let Some(target) = neighbor(state, Direction::Up) {
                     let th = target_screen(state, &target).height as i32;
                     let tx = map_coord(px, screen.width, target_screen(state, &target).width);
-                    do_switch(&local, &target, tx, th - 1, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(&local, &target, tx, th - 1, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
                     block_edge(&mut blocked_edges, BlockedEdge::Down);
                     let _ = warp_mouse(px, edge + 1);
-                    enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
                     last_switch = Instant::now();
                 }
             } else if py >= screen.height as i32 - edge
@@ -159,86 +260,10 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             {
                 if let Some(target) = neighbor(state, Direction::Down) {
                     let tx = map_coord(px, screen.width, target_screen(state, &target).width);
-                    do_switch(&local, &target, tx, 0, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(&local, &target, tx, 0, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
                     block_edge(&mut blocked_edges, BlockedEdge::Up);
                     let _ = warp_mouse(px, screen.height as i32 - edge - 1);
-                    enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
                     last_switch = Instant::now();
-                }
-            }
-        } else {
-            if !relay_mode {
-                enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
-            }
-
-            let cx = screen.width as i32 / 2;
-            let cy = screen.height as i32 / 2;
-            if (px - cx).abs() > RECENTER_PX || (py - cy).abs() > RECENTER_PX {
-                let _ = warp_mouse(cx, cy);
-                last_phys = (cx, cy);
-                thread::sleep(poll);
-                continue;
-            }
-
-            let dx = px - last_phys.0;
-            let dy = py - last_phys.1;
-            if dx != 0 || dy != 0 {
-                let ts = target_screen(state, &focus);
-                remote_x = (remote_x + dx).clamp(0, ts.width as i32 - 1);
-                remote_y = (remote_y + dy).clamp(0, ts.height as i32 - 1);
-                if (remote_x, remote_y) != last_sent {
-                    send_mouse_absolute(&focus, remote_x, remote_y, &out_tx);
-                    last_sent = (remote_x, remote_y);
-                }
-
-                if remote_x > edge + EDGE_ARM_PX {
-                    unblock(&mut blocked_edges, BlockedEdge::Left);
-                }
-                if remote_x < ts.width as i32 - edge - EDGE_ARM_PX {
-                    unblock(&mut blocked_edges, BlockedEdge::Right);
-                }
-
-                if last_switch.elapsed() >= Duration::from_millis(SWITCH_COOLDOWN_MS) {
-                    if remote_x <= edge && !is_blocked(&blocked_edges, BlockedEdge::Left) {
-                        if let Some(back) = neighbor_of(&focus, Direction::Left, state) {
-                            let bs = target_screen(state, &back);
-                            let ty = map_coord(remote_y, ts.height, bs.height);
-                            do_switch(
-                                &local,
-                                &back,
-                                bs.width as i32 - 1,
-                                ty,
-                                &out_tx,
-                                &mut focus,
-                                &mut remote_x,
-                                &mut remote_y,
-                            );
-                            block_edge(&mut blocked_edges, BlockedEdge::Right);
-                            if back == local {
-                                relay_mode = false;
-                                show_master_cursor(&mut cursor_hidden);
-                            } else {
-                                enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
-                            }
-                            last_switch = Instant::now();
-                        }
-                    } else if remote_x >= ts.width as i32 - edge
-                        && !is_blocked(&blocked_edges, BlockedEdge::Right)
-                    {
-                        if let Some(back) = neighbor_of(&focus, Direction::Right, state) {
-                            let bs = target_screen(state, &back);
-                            let ty = map_coord(remote_y, ts.height, bs.height);
-                            do_switch(&local, &back, 0, ty, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
-                            block_edge(&mut blocked_edges, BlockedEdge::Left);
-                            if back == local {
-                                relay_mode = false;
-                                show_master_cursor(&mut cursor_hidden);
-                            } else {
-                                enter_relay(&screen, &mut relay_mode, &mut last_phys, &mut cursor_hidden);
-                            }
-                            last_switch = Instant::now();
-                        }
-                    }
                 }
             }
         }
@@ -273,30 +298,40 @@ fn is_blocked(blocked: &[(BlockedEdge, Instant)], edge: BlockedEdge) -> bool {
         .any(|(e, until)| *e == edge && *until > now)
 }
 
-fn hide_master_cursor(cursor_hidden: &mut bool) {
-    if !*cursor_hidden {
-        kvm_x11::set_cursor_visible_best_effort(false);
-        *cursor_hidden = true;
+fn send_mouse_button(
+    target: &str,
+    x: i32,
+    y: i32,
+    button: u8,
+    pressed: bool,
+    out_tx: &mpsc::UnboundedSender<String>,
+) {
+    if let Ok(payload) = encode_message(&Message::Input {
+        target: target.to_string(),
+        kind: poolsync_core::InputKind::MouseButton {
+            button,
+            pressed,
+            x,
+            y,
+        },
+    }) {
+        let _ = out_tx.send(payload);
     }
 }
 
-fn show_master_cursor(cursor_hidden: &mut bool) {
-    if *cursor_hidden {
-        kvm_x11::set_cursor_visible_best_effort(true);
-        *cursor_hidden = false;
-    }
-}
-
-fn enter_relay(screen: &ScreenInfo, relay_mode: &mut bool, last_phys: &mut (i32, i32), cursor_hidden: &mut bool) {
-    hide_master_cursor(cursor_hidden);
-    if *relay_mode {
+fn send_key(target: &str, keycode: u8, pressed: bool, out_tx: &mpsc::UnboundedSender<String>) {
+    if keycode == 0 {
         return;
     }
-    let cx = screen.width as i32 / 2;
-    let cy = screen.height as i32 / 2;
-    let _ = warp_mouse(cx, cy);
-    *last_phys = (cx, cy);
-    *relay_mode = true;
+    if let Ok(payload) = encode_message(&Message::Input {
+        target: target.to_string(),
+        kind: poolsync_core::InputKind::Key {
+            keycode: u32::from(keycode),
+            pressed,
+        },
+    }) {
+        let _ = out_tx.send(payload);
+    }
 }
 
 fn do_switch(
@@ -304,12 +339,14 @@ fn do_switch(
     target: &str,
     x: i32,
     y: i32,
+    state: &AgentState,
     out_tx: &mpsc::UnboundedSender<String>,
     focus: &mut String,
     remote_x: &mut i32,
     remote_y: &mut i32,
 ) {
     switch_to(input, target, x, y, out_tx);
+    state.set_kvm_input_node(input);
     *focus = target.to_string();
     *remote_x = x;
     *remote_y = y;

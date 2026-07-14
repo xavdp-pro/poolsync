@@ -2,7 +2,6 @@ use crate::clipboard::{
     align_hash_after_write, read_clipboard_payload, try_send_payload, write_clipboard,
 };
 use crate::kvm::{detect_screen, inject_input, kvm_poll_loop};
-use crate::kvm_keyboard::keyboard_relay_loop;
 use crate::kvm_x11;
 use crate::notify_thumb::notify_thumbnail_path;
 use crate::rdp_detect::rdp_client_active;
@@ -57,7 +56,7 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
 
     state.set_connected(true);
     state.set_kvm_focus(&cfg.node);
-    state.set_kvm_input_node("");
+    state.set_kvm_input_node(&cfg.node);
     info!("connected to hub");
 
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
@@ -74,14 +73,6 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
     let out_tx_in = out_tx.clone();
     let kvm_task = if cfg.kvm_active() {
         tokio::task::spawn_blocking(move || kvm_poll_loop(&state_in, out_tx_in))
-    } else {
-        tokio::task::spawn_blocking(|| std::thread::park())
-    };
-
-    let state_kb = state.clone();
-    let out_tx_kb = out_tx.clone();
-    let kb_task = if cfg.kvm_active() {
-        tokio::task::spawn_blocking(move || keyboard_relay_loop(&state_kb, out_tx_kb))
     } else {
         tokio::task::spawn_blocking(|| std::thread::park())
     };
@@ -115,7 +106,6 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
     clip_task.abort();
     if cfg.kvm_active() {
         kvm_task.abort();
-        kb_task.abort();
     }
     Ok(())
 }

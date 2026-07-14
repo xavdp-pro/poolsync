@@ -1,7 +1,7 @@
 mod agent;
 mod clipboard;
 mod kvm;
-mod kvm_keyboard;
+mod kvm_input;
 mod kvm_x11;
 mod logs_viewer;
 mod notify_thumb;
