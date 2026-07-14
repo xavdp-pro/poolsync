@@ -1,5 +1,8 @@
 mod agent;
 mod clipboard;
+mod kvm;
+mod kvm_keyboard;
+mod kvm_x11;
 mod logs_viewer;
 mod notify_thumb;
 mod rdp_detect;

@@ -1,16 +1,17 @@
 use crate::clipboard::{
-    align_hash_after_write, clipboard_targets, read_clipboard_payload, read_selection_text,
-    targets_have_image, try_send_payload, write_clipboard, write_selection_text,
+    align_hash_after_write, read_clipboard_payload, try_send_payload, write_clipboard,
 };
+use crate::kvm::{detect_screen, inject_input, kvm_poll_loop};
+use crate::kvm_keyboard::keyboard_relay_loop;
+use crate::kvm_x11;
 use crate::notify_thumb::notify_thumbnail_path;
 use crate::rdp_detect::rdp_client_active;
 use crate::state::{clip_preview_mime, AgentState};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
-use poolsync_core::{decode_message, encode_message, AgentMode, Message};
+use poolsync_core::{decode_message, encode_message, Message};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use tokio::{
     process::Command,
     sync::mpsc,
@@ -33,19 +34,30 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
         .context("connect hub websocket")?;
     let (mut write, mut read) = ws.split();
 
+    let screen = detect_screen().await.unwrap_or_else(|| cfg.screen.clone());
+    if screen.width != cfg.screen.width || screen.height != cfg.screen.height {
+        info!(
+            "écran détecté {}x{} (config {}x{})",
+            screen.width, screen.height, cfg.screen.width, cfg.screen.height
+        );
+    }
+
     write
         .send(WsMessage::Text(
             encode_message(&Message::Hello {
                 node: cfg.node.clone(),
                 mode: cfg.mode,
-                screen: cfg.screen.clone(),
+                screen: screen.clone(),
                 neighbors: cfg.neighbors.clone(),
+                kvm_enabled: state.kvm_enabled(),
             })?
             .into(),
         ))
         .await?;
 
     state.set_connected(true);
+    state.set_kvm_focus(&cfg.node);
+    state.set_kvm_input_node("");
     info!("connected to hub");
 
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
@@ -60,11 +72,19 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
 
     let state_in = state.clone();
     let out_tx_in = out_tx.clone();
-    let input_task = tokio::spawn(async move {
-        if state_in.config.mode == AgentMode::Full {
-            input_poll_loop(&state_in, out_tx_in).await;
-        }
-    });
+    let kvm_task = if cfg.kvm_active() {
+        tokio::task::spawn_blocking(move || kvm_poll_loop(&state_in, out_tx_in))
+    } else {
+        tokio::task::spawn_blocking(|| std::thread::park())
+    };
+
+    let state_kb = state.clone();
+    let out_tx_kb = out_tx.clone();
+    let kb_task = if cfg.kvm_active() {
+        tokio::task::spawn_blocking(move || keyboard_relay_loop(&state_kb, out_tx_kb))
+    } else {
+        tokio::task::spawn_blocking(|| std::thread::park())
+    };
 
     loop {
         tokio::select! {
@@ -93,7 +113,10 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
 
     state.set_connected(false);
     clip_task.abort();
-    input_task.abort();
+    if cfg.kvm_active() {
+        kvm_task.abort();
+        kb_task.abort();
+    }
     Ok(())
 }
 
@@ -138,14 +161,42 @@ async fn handle_incoming(
         }
         Message::MasterChanged { node } => {
             state.set_master(&node);
-            info!("master is now {node}");
+            state.set_kvm_input_node(&node);
+            state.set_kvm_focus(&node);
+            info!("primary KVM → {node}");
         }
-        Message::Input { kind, .. } if state.config.mode == AgentMode::Full => {
+        Message::TopologyUpdate { topology } => {
+            state.set_topology(topology);
+            info!("topology updated from hub");
+        }
+        Message::Input { kind, .. } if state.kvm_enabled() => {
+            state.mark_kvm_inject();
             inject_input(&kind).await?;
         }
-        Message::SwitchTo { x, y, .. } if state.config.mode == AgentMode::Full => {
-            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
-            state.set_master(&state.config.node);
+        Message::SwitchTo {
+            node,
+            x,
+            y,
+            input_node,
+        } if state.kvm_enabled() => {
+            state.set_kvm_focus(&node);
+            let owner = if input_node.is_empty() {
+                state.config.node.clone()
+            } else {
+                input_node.clone()
+            };
+            state.set_kvm_input_node(&owner);
+            if node == state.config.node {
+                state.mark_kvm_inject();
+                let x = x;
+                let y = y;
+                tokio::task::spawn_blocking(move || kvm_x11::move_mouse_absolute(x, y))
+                    .await??;
+                info!("KVM cursor enter → {} ({x},{y})", state.config.node);
+            }
+            if !input_node.is_empty() {
+                state.set_master(&input_node);
+            }
         }
         _ => {}
     }
@@ -237,45 +288,11 @@ async fn clipboard_poll_loop(
     last_clip_hash: Arc<Mutex<String>>,
 ) {
     let poll = Duration::from_millis(state.config.clipboard_poll_ms);
-    let primary_stable = Duration::from_millis(2500);
-    let mut primary_pending: Option<(String, Instant)> = None;
 
     loop {
         if state.clipboard_sync_enabled() {
             let rdp_active =
                 state.config.pause_clipboard_when_rdp && rdp_client_active().await;
-
-            let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
-            let image_on_clipboard = targets_have_image(&clip_targets);
-
-            // Sélection souris → presse-papiers, sauf image déjà au clipboard ou RDP actif.
-            if state.primary_sync_enabled() && !image_on_clipboard && !rdp_active {
-                match read_selection_text("primary").await {
-                    Ok(text) if text.is_empty() => primary_pending = None,
-                    Ok(text) => {
-                        let now = Instant::now();
-                        let stable = match &primary_pending {
-                            Some((pending, since)) if pending == &text => {
-                                now.duration_since(*since) >= primary_stable
-                            }
-                            _ => {
-                                primary_pending = Some((text.clone(), now));
-                                false
-                            }
-                        };
-                        if stable {
-                            if write_selection_text("clipboard", &text).await.is_ok() {
-                                primary_pending = None;
-                            }
-                        }
-                    }
-                    Err(_) => primary_pending = None,
-                }
-            } else if image_on_clipboard {
-                primary_pending = None;
-            } else if !state.primary_sync_enabled() {
-                primary_pending = None;
-            }
 
             let skip_send = rdp_active && state.hub_apply_grace_active();
             if !skip_send {
@@ -288,87 +305,10 @@ async fn clipboard_poll_loop(
                                 payload.mime
                             );
                         }
-                        primary_pending = None;
                     }
                 }
             }
-        } else {
-            primary_pending = None;
         }
         sleep(poll).await;
     }
-}
-
-async fn input_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) {
-    let poll = Duration::from_millis(state.config.input_poll_ms);
-    let mut last_pos = (0i32, 0i32);
-    loop {
-        if let Ok((x, y)) = get_mouse_location().await {
-            if (x, y) != last_pos {
-                last_pos = (x, y);
-                if let Ok(payload) = encode_message(&Message::MasterClaim {
-                    node: state.config.node.clone(),
-                    ts: 0,
-                }) {
-                    let _ = out_tx.send(payload);
-                }
-            }
-        }
-        sleep(poll).await;
-    }
-}
-
-async fn get_mouse_location() -> Result<(i32, i32)> {
-    let output = Command::new("xdotool")
-        .args(["getmouselocation", "--shell"])
-        .output()
-        .await?;
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut x = 0;
-    let mut y = 0;
-    for line in text.lines() {
-        if let Some(val) = line.strip_prefix("X=") {
-            x = val.parse().unwrap_or(0);
-        }
-        if let Some(val) = line.strip_prefix("Y=") {
-            y = val.parse().unwrap_or(0);
-        }
-    }
-    Ok((x, y))
-}
-
-async fn inject_input(kind: &poolsync_core::InputKind) -> Result<()> {
-    match kind {
-        poolsync_core::InputKind::MouseMove { x, y } => {
-            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
-        }
-        poolsync_core::InputKind::MouseButton {
-            button,
-            pressed,
-            x,
-            y,
-        } => {
-            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
-            let action = if *pressed { "mousedown" } else { "mouseup" };
-            xdotool(&[action, &button.to_string()]).await?;
-        }
-        poolsync_core::InputKind::Key { keycode, pressed } => {
-            let action = if *pressed { "keydown" } else { "keyup" };
-            xdotool(&[action, &keycode.to_string()]).await?;
-        }
-        poolsync_core::InputKind::MouseWheel { delta, x, y } => {
-            xdotool(&["mousemove", &x.to_string(), &y.to_string()]).await?;
-            let button = if *delta > 0 { "4" } else { "5" };
-            xdotool(&["click", button]).await?;
-        }
-    }
-    Ok(())
-}
-
-async fn xdotool(args: &[&str]) -> Result<()> {
-    let status = Command::new("xdotool").args(args).status().await?;
-    if !status.success() {
-        anyhow::bail!("xdotool {:?} failed", args);
-    }
-    Ok(())
 }

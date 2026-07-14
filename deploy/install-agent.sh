@@ -40,9 +40,9 @@ scp "$TMP_CFG" "root@$HOST:/home/$USER_NAME/.config/poolsync/agent.toml"
 scp "$ROOT/deploy/systemd/poolsync-agent.service" "root@$HOST:/home/$USER_NAME/.config/systemd/user/poolsync-agent.service"
 ssh "root@$HOST" "chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.config/poolsync /home/$USER_NAME/.local/share/poolsync /home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop /home/$USER_NAME/.config/systemd/user/poolsync-agent.service /home/$USER_NAME/.local/bin/poolsync-agent-launch.sh /home/$USER_NAME/.local/bin/poolsync-logs && chmod 755 /home/$USER_NAME/.local/bin/poolsync-agent-launch.sh /home/$USER_NAME/.local/bin/poolsync-logs && chmod 644 /home/$USER_NAME/.local/share/poolsync/poolsync-tray.png /home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop"
 
-echo "==> Plugin Indicator XFCE"
-scp "$ROOT/deploy/setup-xfce-indicator.sh" "root@$HOST:/tmp/setup-xfce-indicator.sh"
-ssh "root@$HOST" "chmod +x /tmp/setup-xfce-indicator.sh && /tmp/setup-xfce-indicator.sh $USER_NAME || true"
+echo "==> Plugin Indicator XFCE (désactivé — casse le panneau si doublon)"
+# scp "$ROOT/deploy/setup-xfce-indicator.sh" "root@$HOST:/tmp/setup-xfce-indicator.sh"
+# ssh "root@$HOST" "chmod +x /tmp/setup-xfce-indicator.sh && /tmp/setup-xfce-indicator.sh $USER_NAME || true"
 
 echo "==> Active service user (sans toucher Barrier)"
 ssh "root@$HOST" "su - $USER_NAME -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u $USER_NAME); systemctl --user disable --now now3pool-agent.service 2>/dev/null || true; systemctl --user daemon-reload; systemctl --user enable --now poolsync-agent.service; systemctl --user status poolsync-agent.service --no-pager | head -15'"

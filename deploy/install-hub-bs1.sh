@@ -18,9 +18,9 @@ if [[ -f "$ROOT/web/package.json" ]]; then
     WEB_BUILT=1
   else
     echo "    build local échoué — tentative sur $BS1 (node 20)"
-    ssh "$BS1" "command -v npm >/dev/null && node -v" || { echo "npm absent sur bs1" >&2; }
+    ssh "$BS1" "command -v npm >/dev/null && node -v" || { echo "npm absent sur bs1" >&2; exit 1; }
     ssh "$BS1" "rm -rf /tmp/poolsync-web-build && mkdir -p /tmp/poolsync-web-build"
-    scp -r "$ROOT/web/"* "$BS1:/tmp/poolsync-web-build/"
+    rsync -az --exclude node_modules --exclude dist "$ROOT/web/" "$BS1:/tmp/poolsync-web-build/"
     ssh "$BS1" "cd /tmp/poolsync-web-build && npm ci --silent && npm run build && mkdir -p $REMOTE_DIR/web && cp -r dist/* $REMOTE_DIR/web/"
     WEB_BUILT=1
   fi
@@ -48,6 +48,7 @@ scp "$ROOT/deploy/systemd/poolsync-hub.service" "$BS1:/etc/systemd/system/poolsy
 echo "==> Installe hub systemd sur bs1"
 ssh "$BS1" bash -s <<REMOTE
 set -euo pipefail
+systemctl stop poolsync-hub.service 2>/dev/null || true
 chmod 755 $REMOTE_DIR/poolsync-hub
 systemctl disable --now now3pool-hub.service 2>/dev/null || true
 docker rm -f now3pool-hub 2>/dev/null || true

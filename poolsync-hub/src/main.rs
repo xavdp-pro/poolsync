@@ -11,6 +11,7 @@ use axum::{
         ws::{Message as WsMessage, WebSocket, WebSocketUpgrade},
         Query, State,
     },
+    http::StatusCode,
     response::IntoResponse,
     routing::get,
     Json, Router,
@@ -18,7 +19,7 @@ use axum::{
 use clap::Parser;
 use futures_util::StreamExt;
 use poolsync_core::{
-    decode_message, encode_message, AgentMode, Message, Neighbor, ScreenInfo,
+    decode_message, encode_message, AgentMode, Message, Neighbor, PoolTopology, ScreenInfo,
 };
 use serde::Serialize;
 use tokio::sync::{broadcast, RwLock};
@@ -39,6 +40,10 @@ struct Args {
     /// Répertoire des fichiers statiques (dashboard web)
     #[arg(long)]
     web_dir: Option<PathBuf>,
+
+    /// Fichier JSON de topologie KVM (mosaïque écrans)
+    #[arg(long, default_value = "/var/lib/poolsync/topology.json")]
+    topology_file: PathBuf,
 }
 
 #[derive(Clone)]
@@ -46,6 +51,7 @@ struct NodeInfo {
     mode: AgentMode,
     screen: ScreenInfo,
     neighbors: Vec<Neighbor>,
+    kvm_enabled: bool,
     connected_at: u64,
     sender: broadcast::Sender<String>,
 }
@@ -54,8 +60,11 @@ struct NodeInfo {
 struct HubState {
     token: String,
     started_at: u64,
+    topology_file: PathBuf,
+    topology: Arc<RwLock<PoolTopology>>,
     nodes: Arc<RwLock<HashMap<String, NodeInfo>>>,
     master: Arc<RwLock<Option<String>>>,
+    input_owner: Arc<RwLock<Option<String>>>,
     last_clipboard_hash: Arc<RwLock<Option<String>>>,
     last_clipboard_at: Arc<RwLock<Option<u64>>>,
 }
@@ -95,9 +104,44 @@ struct NodeStatus {
     mode: AgentMode,
     screen: ScreenInfo,
     neighbors: Vec<Neighbor>,
+    kvm_enabled: bool,
     connected_at: u64,
     online: bool,
     is_master: bool,
+}
+
+#[derive(Deserialize)]
+struct TokenQuery {
+    token: String,
+}
+
+fn load_topology(path: &PathBuf) -> PoolTopology {
+    match std::fs::read_to_string(path) {
+        Ok(raw) => serde_json::from_str(&raw).unwrap_or_else(|err| {
+            warn!("invalid topology {}: {err:#} — using default", path.display());
+            PoolTopology::default_now3()
+        }),
+        Err(_) => {
+            let topo = PoolTopology::default_now3();
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(json) = serde_json::to_string_pretty(&topo) {
+                let _ = std::fs::write(path, json);
+            }
+            topo
+        }
+    }
+}
+
+async fn save_topology(state: &HubState, topology: PoolTopology) -> Result<()> {
+    let json = serde_json::to_string_pretty(&topology)?;
+    if let Some(parent) = state.topology_file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&state.topology_file, &json)?;
+    *state.topology.write().await = topology;
+    Ok(())
 }
 
 fn now_secs() -> u64 {
@@ -123,11 +167,15 @@ async fn main() -> Result<()> {
         .with_context(|| format!("invalid listen address {}", args.listen))?;
 
     let started_at = now_secs();
+    let topology = load_topology(&args.topology_file);
     let state = HubState {
         token: args.token.clone(),
         started_at,
+        topology_file: args.topology_file.clone(),
+        topology: Arc::new(RwLock::new(topology)),
         nodes: Arc::new(RwLock::new(HashMap::new())),
         master: Arc::new(RwLock::new(None)),
+        input_owner: Arc::new(RwLock::new(None)),
         last_clipboard_hash: Arc::new(RwLock::new(None)),
         last_clipboard_at: Arc::new(RwLock::new(None)),
     };
@@ -135,6 +183,7 @@ async fn main() -> Result<()> {
     let mut app = Router::new()
         .route("/health", get(health))
         .route("/api/status", get(api_status))
+        .route("/api/topology", get(api_topology_get).post(api_topology_post))
         .route("/ws", get(ws_handler))
         .with_state(state);
 
@@ -176,6 +225,7 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
             mode: info.mode,
             screen: info.screen.clone(),
             neighbors: info.neighbors.clone(),
+            kvm_enabled: info.kvm_enabled,
             connected_at: info.connected_at,
             online: true,
             is_master: master.as_deref() == Some(name.as_str()),
@@ -196,6 +246,28 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
         },
         nodes,
     })
+}
+
+async fn api_topology_get(State(state): State<HubState>) -> Json<PoolTopology> {
+    Json(state.topology.read().await.clone())
+}
+
+async fn api_topology_post(
+    Query(query): Query<TokenQuery>,
+    State(state): State<HubState>,
+    Json(body): Json<PoolTopology>,
+) -> Result<StatusCode, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    save_topology(&state, body.clone())
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let payload = encode_message(&Message::TopologyUpdate { topology: body })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    broadcast_all(&state, &payload).await;
+    info!("topology saved and broadcast");
+    Ok(StatusCode::OK)
 }
 
 async fn ws_handler(
@@ -264,18 +336,59 @@ async fn register_node(
             mode,
             screen,
             neighbors,
+            kvm_enabled,
         } => {
-            let mut nodes = state.nodes.write().await;
-            nodes.insert(
-                node.clone(),
-                NodeInfo {
-                    mode,
-                    screen,
-                    neighbors,
-                    connected_at: now_secs(),
-                    sender,
-                },
-            );
+            let topology_update = {
+                let mut topo = state.topology.write().await;
+                if let Some(n) = topo.nodes.get_mut(&node) {
+                    if n.width != screen.width || n.height != screen.height {
+                        info!(
+                            "topology {node}: {}x{} → {}x{}",
+                            n.width, n.height, screen.width, screen.height
+                        );
+                        n.width = screen.width;
+                        n.height = screen.height;
+                    }
+                }
+                topo.clone()
+            };
+            if let Err(err) = save_topology(state, topology_update.clone()).await {
+                warn!("topology save: {err:#}");
+            }
+
+            {
+                let mut nodes = state.nodes.write().await;
+                nodes.insert(
+                    node.clone(),
+                    NodeInfo {
+                        mode,
+                        screen: screen.clone(),
+                        neighbors,
+                        kvm_enabled,
+                        connected_at: now_secs(),
+                        sender: sender.clone(),
+                    },
+                );
+            }
+
+            let payload = encode_message(&Message::TopologyUpdate {
+                topology: topology_update,
+            })?;
+            broadcast_all(state, &payload).await;
+            let _ = sender.send(payload);
+
+            let owner = {
+                let input_owner = state.input_owner.read().await.clone();
+                if input_owner.is_some() {
+                    input_owner
+                } else {
+                    state.master.read().await.clone()
+                }
+            };
+            if let Some(owner_node) = owner {
+                let payload = encode_message(&Message::MasterChanged { node: owner_node })?;
+                let _ = sender.send(payload);
+            }
             Ok(Some(node))
         }
         _ => Err(anyhow!("first message must be hello")),
@@ -288,6 +401,10 @@ async fn unregister_node(state: &HubState, node: &str) {
     let mut master = state.master.write().await;
     if master.as_deref() == Some(node) {
         *master = None;
+    }
+    let mut owner = state.input_owner.write().await;
+    if owner.as_deref() == Some(node) {
+        *owner = None;
     }
 }
 
@@ -321,9 +438,14 @@ async fn handle_message(
             broadcast_except(state, from, &payload).await;
         }
         Message::MasterClaim { node, ts: _ } => {
-            let mut master = state.master.write().await;
-            if master.as_deref() != Some(&node) {
-                *master = Some(node.clone());
+            let changed = {
+                let mut owner = state.input_owner.write().await;
+                let changed = owner.as_deref() != Some(node.as_str());
+                *owner = Some(node.clone());
+                changed
+            };
+            if changed {
+                *state.master.write().await = Some(node.clone());
                 let payload = encode_message(&Message::MasterChanged { node })?;
                 broadcast_all(state, &payload).await;
             }
@@ -335,17 +457,35 @@ async fn handle_message(
             })?;
             route_to_node(state, &target, &payload).await;
         }
-        Message::SwitchTo { node, x, y } => {
-            let node_name = node.clone();
-            let payload = encode_message(&Message::SwitchTo { node, x, y })?;
-            route_to_node(state, &node_name, &payload).await;
+        Message::SwitchTo {
+            node,
+            x,
+            y,
+            input_node,
+        } => {
+            let input = if input_node.is_empty() {
+                from.to_string()
+            } else {
+                input_node
+            };
+            let payload = encode_message(&Message::SwitchTo {
+                node: node.clone(),
+                x,
+                y,
+                input_node: input.clone(),
+            })?;
+            route_to_node(state, &node, &payload).await;
+            broadcast_all(state, &payload).await;
+            *state.input_owner.write().await = Some(input.clone());
             let mut master = state.master.write().await;
-            *master = Some(node_name.clone());
-            broadcast_all(
-                state,
-                &encode_message(&Message::MasterChanged { node: node_name })?,
-            )
-            .await;
+            if master.as_deref() != Some(input.as_str()) {
+                *master = Some(input.clone());
+                broadcast_all(
+                    state,
+                    &encode_message(&Message::MasterChanged { node: input })?,
+                )
+                .await;
+            }
         }
         Message::Ping => {
             local_tx.send(encode_message(&Message::Pong)?)?;

@@ -1,11 +1,12 @@
 node = "asus"
 hub_url = "ws://10.24.42.1:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
-mode = "clipboard_only"
+mode = "full"
+kvm_enabled = true
 
 [screen]
-width = 1920
-height = 1080
+width = 1344
+height = 756
 
 [[neighbors]]
 direction = "right"

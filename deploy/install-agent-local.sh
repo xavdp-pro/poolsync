@@ -42,8 +42,8 @@ install -m 644 "$ROOT/deploy/com.xavdp.poolsync.desktop" "$APP_DIR/com.xavdp.poo
 sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$CONFIG_SRC" > "$CFG_DIR/agent.toml"
 cp "$ROOT/deploy/systemd/poolsync-agent.service" "$SVC_DIR/poolsync-agent.service"
 
-echo "==> Plugin Indicator XFCE"
-bash "$ROOT/deploy/setup-xfce-indicator.sh" "$USER_NAME" || true
+echo "==> Plugin Indicator XFCE (désactivé — casse le panneau si doublon)"
+# bash "$ROOT/deploy/setup-xfce-indicator.sh" "$USER_NAME" || true
 
 echo "==> Active service user"
 export XDG_RUNTIME_DIR="/run/user/$(id -u $USER_NAME)"

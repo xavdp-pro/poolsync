@@ -1,4 +1,4 @@
-use poolsync_core::AgentConfig;
+use poolsync_core::{AgentConfig, PoolTopology, TopologyNode};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -8,9 +8,12 @@ pub struct AgentState {
     pub config: AgentConfig,
     connected: Arc<AtomicBool>,
     clipboard_sync: Arc<AtomicBool>,
-    primary_sync: Arc<AtomicBool>,
     notify_on_receive: Arc<AtomicBool>,
+    kvm_enabled: Arc<AtomicBool>,
     master_node: Arc<RwLock<String>>,
+    kvm_focus: Arc<RwLock<String>>,
+    kvm_input_node: Arc<RwLock<String>>,
+    topology: Arc<RwLock<Option<PoolTopology>>>,
     last_clip_preview: Arc<RwLock<String>>,
     last_clip_at: Arc<RwLock<Option<Instant>>>,
     last_error: Arc<RwLock<Option<String>>>,
@@ -19,17 +22,24 @@ pub struct AgentState {
     last_notify_at: Arc<RwLock<Option<Instant>>>,
     /// Dernier collage PoolSync depuis le hub (cohabitation cliprdr RDP).
     last_hub_apply_at: Arc<RwLock<Option<Instant>>>,
+    /// Ignore les mouvements souris causés par injection KVM distante.
+    kvm_inject_until: Arc<RwLock<Option<Instant>>>,
 }
 
 impl AgentState {
     pub fn new(config: AgentConfig) -> Self {
+        let kvm_default = config.kvm_active();
+        let local_node = config.node.clone();
         Self {
             config,
             connected: Arc::new(AtomicBool::new(false)),
             clipboard_sync: Arc::new(AtomicBool::new(true)),
-            primary_sync: Arc::new(AtomicBool::new(true)),
             notify_on_receive: Arc::new(AtomicBool::new(true)),
+            kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
             master_node: Arc::new(RwLock::new(String::from("—"))),
+            kvm_focus: Arc::new(RwLock::new(local_node.clone())),
+            kvm_input_node: Arc::new(RwLock::new(local_node)),
+            topology: Arc::new(RwLock::new(None)),
             last_clip_preview: Arc::new(RwLock::new(String::new())),
             last_clip_at: Arc::new(RwLock::new(None)),
             last_error: Arc::new(RwLock::new(None)),
@@ -37,7 +47,23 @@ impl AgentState {
             last_notified_preview: Arc::new(RwLock::new(String::new())),
             last_notify_at: Arc::new(RwLock::new(None)),
             last_hub_apply_at: Arc::new(RwLock::new(None)),
+            kvm_inject_until: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub fn mark_kvm_inject(&self) {
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(120);
+        if let Ok(mut until) = self.kvm_inject_until.write() {
+            *until = Some(Instant::now() + GRACE);
+        }
+    }
+
+    pub fn kvm_inject_grace_active(&self) -> bool {
+        self.kvm_inject_until
+            .read()
+            .ok()
+            .and_then(|u| *u)
+            .is_some_and(|t| t > Instant::now())
     }
 
     pub fn mark_hub_clipboard_applied(&self) {
@@ -83,20 +109,6 @@ impl AgentState {
         new
     }
 
-    pub fn primary_sync_enabled(&self) -> bool {
-        self.primary_sync.load(Ordering::SeqCst)
-    }
-
-    pub fn set_primary_sync(&self, value: bool) {
-        self.primary_sync.store(value, Ordering::SeqCst);
-    }
-
-    pub fn toggle_primary_sync(&self) -> bool {
-        let new = !self.primary_sync_enabled();
-        self.set_primary_sync(new);
-        new
-    }
-
     pub fn notify_enabled(&self) -> bool {
         self.notify_on_receive.load(Ordering::SeqCst)
     }
@@ -109,6 +121,74 @@ impl AgentState {
         let new = !self.notify_enabled();
         self.set_notify(new);
         new
+    }
+
+    pub fn kvm_enabled(&self) -> bool {
+        self.kvm_enabled.load(Ordering::SeqCst)
+    }
+
+    pub fn set_kvm_enabled(&self, value: bool) {
+        self.kvm_enabled.store(value, Ordering::SeqCst);
+    }
+
+    pub fn toggle_kvm(&self) -> bool {
+        let new = !self.kvm_enabled();
+        self.set_kvm_enabled(new);
+        new
+    }
+
+    pub fn set_topology(&self, topology: PoolTopology) {
+        if let Ok(mut t) = self.topology.write() {
+            *t = Some(topology);
+        }
+    }
+
+    pub fn topology(&self) -> Option<PoolTopology> {
+        self.topology.read().ok().and_then(|t| t.clone())
+    }
+
+    pub fn topology_node(&self, name: &str) -> Option<TopologyNode> {
+        self.topology()
+            .and_then(|t| t.nodes.get(name).cloned())
+    }
+
+    pub fn target_kvm_enabled(&self, node: &str) -> bool {
+        if node == self.config.node {
+            return self.kvm_enabled();
+        }
+        self.topology_node(node)
+            .map(|n| n.kvm_enabled)
+            .unwrap_or(true)
+    }
+
+    pub fn set_kvm_focus(&self, node: &str) {
+        if let Ok(mut f) = self.kvm_focus.write() {
+            *f = node.to_string();
+        }
+    }
+
+    pub fn kvm_focus(&self) -> String {
+        self.kvm_focus
+            .read()
+            .map(|f| f.clone())
+            .unwrap_or_else(|_| self.config.node.clone())
+    }
+
+    pub fn set_kvm_input_node(&self, node: &str) {
+        if let Ok(mut n) = self.kvm_input_node.write() {
+            *n = node.to_string();
+        }
+    }
+
+    pub fn kvm_input_node(&self) -> String {
+        self.kvm_input_node
+            .read()
+            .map(|n| n.clone())
+            .unwrap_or_else(|_| self.config.node.clone())
+    }
+
+    pub fn is_input_owner(&self) -> bool {
+        self.kvm_input_node() == self.config.node
     }
 
     /// Notifie à la réception si le hash clipboard est nouveau.

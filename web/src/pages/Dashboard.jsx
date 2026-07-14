@@ -97,6 +97,12 @@ function NodeCard({ nodeId, node, index }) {
               <span className="text-slate-600">{modeLabel(node.mode)}</span>
             </div>
             <div className="flex justify-between gap-2">
+              <span className="text-slate-400">KVM</span>
+              <span className={node.kvm_enabled ? 'font-semibold text-indigo-600' : 'text-slate-400'}>
+                {node.kvm_enabled ? 'Actif' : 'Désactivé'}
+              </span>
+            </div>
+            <div className="flex justify-between gap-2">
               <span className="text-slate-400">Écran</span>
               <span className="font-mono text-slate-600">
                 {node.screen?.width}×{node.screen?.height}

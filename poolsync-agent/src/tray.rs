@@ -15,8 +15,8 @@ const ID_HUB: &str = "hub";
 const ID_MASTER: &str = "master";
 const ID_LAST_CLIP: &str = "last_clip";
 const ID_CLIP_SYNC: &str = "clip_sync";
-const ID_PRIMARY_SYNC: &str = "primary_sync";
 const ID_NOTIFY: &str = "notify";
+const ID_KVM: &str = "kvm";
 const ID_VIEW_LOGS: &str = "view_logs";
 
 struct TrayUi {
@@ -26,8 +26,8 @@ struct TrayUi {
     master: MenuItem,
     last_clip: MenuItem,
     clip_sync: CheckMenuItem,
-    primary_sync: CheckMenuItem,
     notify: CheckMenuItem,
+    kvm: Option<CheckMenuItem>,
 }
 
 pub fn run_tray(state: Arc<AgentState>) -> Result<()> {
@@ -52,6 +52,7 @@ pub fn run_tray(state: Arc<AgentState>) -> Result<()> {
 fn run_tray_gtk(state: Arc<AgentState>, ready_tx: std::sync::mpsc::SyncSender<Result<()>>) -> Result<()> {
     gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
     let menu = build_menu(&state)?;
+    let kvm_item = find_check_optional(&menu, ID_KVM);
     let ui = Arc::new(TrayUi {
         status: find_item(&menu, ID_STATUS)?,
         node: find_item(&menu, ID_NODE)?,
@@ -59,8 +60,8 @@ fn run_tray_gtk(state: Arc<AgentState>, ready_tx: std::sync::mpsc::SyncSender<Re
         master: find_item(&menu, ID_MASTER)?,
         last_clip: find_item(&menu, ID_LAST_CLIP)?,
         clip_sync: find_check(&menu, ID_CLIP_SYNC)?,
-        primary_sync: find_check(&menu, ID_PRIMARY_SYNC)?,
         notify: find_check(&menu, ID_NOTIFY)?,
+        kvm: kvm_item,
     });
 
     let app_id = format!("com.xavdp.poolsync.{}", state.config.node);
@@ -81,13 +82,13 @@ fn run_tray_gtk(state: Arc<AgentState>, ready_tx: std::sync::mpsc::SyncSender<Re
                 let on = state_events.toggle_clipboard_sync();
                 tracing::info!("clipboard sync: {on}");
             }
-            ID_PRIMARY_SYNC => {
-                let on = state_events.toggle_primary_sync();
-                tracing::info!("primary selection sync: {on}");
-            }
             ID_NOTIFY => {
                 let on = state_events.toggle_notify();
                 tracing::info!("notify on receive: {on}");
+            }
+            ID_KVM => {
+                let on = state_events.toggle_kvm();
+                tracing::info!("kvm enabled: {on}");
             }
             ID_VIEW_LOGS => {
                 let ctx = gtk_ctx.clone();
@@ -158,14 +159,6 @@ fn build_menu(state: &AgentState) -> Result<Menu> {
         None,
     );
     menu.append(&clip_sync)?;
-    let primary_sync = CheckMenuItem::with_id(
-        ID_PRIMARY_SYNC,
-        "Sélection souris → partagé",
-        true,
-        state.primary_sync_enabled(),
-        None,
-    );
-    menu.append(&primary_sync)?;
     let notify = CheckMenuItem::with_id(
         ID_NOTIFY,
         "Notifier à la réception",
@@ -174,6 +167,16 @@ fn build_menu(state: &AgentState) -> Result<Menu> {
         None,
     );
     menu.append(&notify)?;
+    if state.config.kvm_active() || state.config.kvm_enabled.is_some() {
+        let kvm = CheckMenuItem::with_id(
+            ID_KVM,
+            "Clavier / souris KVM",
+            true,
+            state.kvm_enabled(),
+            None,
+        );
+        menu.append(&kvm)?;
+    }
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&MenuItem::with_id(ID_VIEW_LOGS, "Voir les logs…", true, None))?;
     Ok(menu)
@@ -200,8 +203,10 @@ fn refresh_menu(ui: &TrayUi, state: &AgentState) {
     let _ = ui.last_clip.set_text(last);
 
     let _ = ui.clip_sync.set_checked(state.clipboard_sync_enabled());
-    let _ = ui.primary_sync.set_checked(state.primary_sync_enabled());
     let _ = ui.notify.set_checked(state.notify_enabled());
+    if let Some(kvm) = &ui.kvm {
+        let _ = kvm.set_checked(state.kvm_enabled());
+    }
 }
 
 fn find_item(menu: &Menu, id: &str) -> Result<MenuItem> {
@@ -215,6 +220,16 @@ fn find_item(menu: &Menu, id: &str) -> Result<MenuItem> {
             }
         })
         .context(format!("menu item {id}"))
+}
+
+fn find_check_optional(menu: &Menu, id: &str) -> Option<CheckMenuItem> {
+    menu.items().into_iter().find_map(|item| {
+        if item.id().0 == id {
+            item.as_check_menuitem().cloned()
+        } else {
+            None
+        }
+    })
 }
 
 fn find_check(menu: &Menu, id: &str) -> Result<CheckMenuItem> {
