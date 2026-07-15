@@ -1,5 +1,6 @@
 mod agent;
 mod clipboard;
+mod config_window;
 mod kvm;
 mod kvm_input;
 mod kvm_x11;

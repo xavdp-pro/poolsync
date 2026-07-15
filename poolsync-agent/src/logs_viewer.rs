@@ -189,7 +189,7 @@ fn scroll_to_end(view: &TextView) {
     view.scroll_to_iter(&mut end, 0.0, false, 0.0, 0.0);
 }
 
-fn fetch_journal_logs() -> String {
+pub(crate) fn fetch_journal_logs() -> String {
     let runtime = std::env::var("XDG_RUNTIME_DIR")
         .unwrap_or_else(|_| format!("/run/user/{}", unsafe { libc::getuid() }));
 

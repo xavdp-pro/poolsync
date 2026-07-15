@@ -1,3 +1,4 @@
+use crate::config_window;
 use crate::logs_viewer;
 use crate::state::{format_time_ago, AgentState};
 use anyhow::{Context, Result};
@@ -17,6 +18,7 @@ const ID_LAST_CLIP: &str = "last_clip";
 const ID_CLIP_SYNC: &str = "clip_sync";
 const ID_NOTIFY: &str = "notify";
 const ID_KVM: &str = "kvm";
+const ID_CONFIG: &str = "config";
 const ID_VIEW_LOGS: &str = "view_logs";
 
 struct TrayUi {
@@ -92,6 +94,11 @@ fn run_tray_gtk(
             ID_KVM => {
                 let on = state_events.toggle_kvm();
                 tracing::info!("kvm enabled: {on}");
+            }
+            ID_CONFIG => {
+                let ctx = gtk_ctx.clone();
+                let st = state_events.clone();
+                let _ = ctx.invoke(move || config_window::show(st));
             }
             ID_VIEW_LOGS => {
                 let ctx = gtk_ctx.clone();
@@ -186,6 +193,12 @@ fn build_menu(state: &AgentState) -> Result<Menu> {
         menu.append(&kvm)?;
     }
     menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&MenuItem::with_id(
+        ID_CONFIG,
+        "Configuration du pool…",
+        true,
+        None,
+    ))?;
     menu.append(&MenuItem::with_id(
         ID_VIEW_LOGS,
         "Voir les logs…",

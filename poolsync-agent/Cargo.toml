@@ -29,3 +29,4 @@ uuid = { workspace = true }
 libc = "0.2"
 libxdo = "0.6"
 x11rb = { version = "0.13", features = ["xfixes", "xtest"] }
+ureq = { version = "2", default-features = false }
