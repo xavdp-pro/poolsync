@@ -32,8 +32,8 @@ APP_DIR="/home/$USER_NAME/.local/share/applications"
 SVC_DIR="/home/$USER_NAME/.config/systemd/user"
 AUTO_DIR="/home/$USER_NAME/.config/autostart"
 
-mkdir -p "$BIN_DIR" "$CFG_DIR" "$ICON_DIR" "$APP_DIR" "$SVC_DIR"
-rm -f "$AUTO_DIR/poolsync-agent.desktop"
+mkdir -p "$BIN_DIR" "$CFG_DIR" "$ICON_DIR" "$APP_DIR" "$SVC_DIR" "$AUTO_DIR"
+install -m 644 "$ROOT/deploy/autostart/poolsync-agent.desktop" "$AUTO_DIR/poolsync-agent.desktop"
 install -m 755 "$ROOT/target/release/poolsync-agent" "$BIN_DIR/poolsync-agent"
 install -m 755 "$ROOT/deploy/poolsync-agent-launch.sh" "$BIN_DIR/poolsync-agent-launch.sh"
 install -m 755 "$ROOT/deploy/poolsync-logs.sh" "$BIN_DIR/poolsync-logs"
@@ -51,8 +51,5 @@ echo "==> Plugin Indicator XFCE (désactivé — casse le panneau si doublon)"
 
 echo "==> Active service user"
 export XDG_RUNTIME_DIR="/run/user/$(id -u $USER_NAME)"
-systemctl --user disable --now now3pool-agent.service 2>/dev/null || true
-systemctl --user daemon-reload
-systemctl --user enable --now poolsync-agent.service
-systemctl --user enable --now poolsync-watchdog.timer
-systemctl --user status poolsync-agent.service --no-pager | head -12
+sudo loginctl enable-linger "$USER_NAME" 2>/dev/null || loginctl enable-linger "$USER_NAME" 2>/dev/null || true
+bash "$ROOT/deploy/poolsync-enable-user.sh" "$USER_NAME"

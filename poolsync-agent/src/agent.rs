@@ -167,8 +167,8 @@ async fn handle_incoming(
         }
         Message::MasterChanged { node } => {
             state.set_master(&node);
-            state.set_kvm_input_node(&node);
-            state.set_kvm_focus(&node);
+            // Ne pas modifier kvm_input_node / focus ici : sinon la machine
+            // distante « vole » le clavier et les bords ne répondent plus localement.
             info!("primary KVM → {node}");
         }
         Message::TopologyUpdate { topology } => {

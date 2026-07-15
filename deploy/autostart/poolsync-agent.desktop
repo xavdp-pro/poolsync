@@ -1,10 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=PoolSync Agent
-Comment=Presse-papiers partagé NOW3
-Exec=/home/zaza/.local/bin/poolsync-agent-launch.sh --config /home/zaza/.config/poolsync/agent.toml
-Terminal=false
-Categories=Utility;
-OnlyShowIn=XFCE;
-X-XFCE-Autostart-Phase=Application
+Comment=Démarre PoolSync à la connexion XFCE
+Exec=/bin/sh -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --user start poolsync-agent.service poolsync-watchdog.timer'
+Hidden=false
+NoDisplay=true
 X-GNOME-Autostart-enabled=true
+X-XFCE-Autostart-Trigger=on

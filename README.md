@@ -2,6 +2,8 @@
 
 Pool **presse-papiers + clavier/souris** pour machines NOW3 — remplacement progressif de Barrier.
 
+→ **[Pitch produit](PITCH.md)** (présentation, elevator pitch, comparaison Barrier)
+
 - **Hub** : coordinateur central (bs1, Asus, VPS ou container — au choix)
 - **Agent** : un daemon par machine du pool (XFCE + clipman)
 - **Transport** : WebSocket via VPN WireGuard (`wg-gbs` ou `wg-bs1`)
@@ -59,3 +61,7 @@ node = "acer"
 ## Licence
 
 MIT — usage interne NOW3 / xavdp-pro
+
+## Roadmap
+
+Voir **[ROADMAP.md](ROADMAP.md)** — prochaine tâche : fenêtre systray (config serveur + logs/paramètres).
