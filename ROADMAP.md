@@ -1,37 +1,37 @@
 # PoolSync — Roadmap
 
-## À faire (prochaine session)
+## Next up
 
-### Fenêtre native depuis le systray (config + logs)
+### Native window from systray (config + logs)
 
-**Contexte :** aujourd'hui le systray (`poolsync-agent/src/tray.rs`) affiche un menu contextuel + « Voir les logs… » qui ouvre `logs_viewer.rs` (journalctl, lecture seule). La config serveur / topologie n'est accessible que via le dashboard web (`web/src/pages/Config.jsx`).
+**Context:** today the systray (`poolsync-agent/src/tray.rs`) shows a context menu plus “View logs…” opening `logs_viewer.rs` (journalctl, read-only). Server / topology config is only available in the web dashboard (`web/src/pages/Config.jsx`).
 
-**Objectif :** depuis l'icône systray sur **chaque** agent, ouvrir une **fenêtre GTK native** (comme les logs) avec **onglets** :
+**Goal:** from the systray icon on **each** agent, open a **native GTK window** (like logs) with **tabs**:
 
-| Onglet | Contenu |
-|--------|---------|
-| **Configuration** | Équivalent local de la page web : topologie mosaïque (voisins gauche/droite/haut/bas), `kvm_enabled` par nœud, hub URL, token — via API hub (`/api/topology`) + édition `~/.config/poolsync/agent.toml` pour les champs locaux (`node`, `screen`, `neighbors`, `mode`, etc.) |
-| **Logs** | Vue logs actuelle (`logs_viewer.rs`) **+** panneau d'édition des paramètres agent (TOML ou formulaire) avec bouton Enregistrer / redémarrage agent optionnel |
+| Tab | Content |
+|-----|---------|
+| **Configuration** | Local equivalent of the web page: mosaic topology (left/right/up/down neighbours), `kvm_enabled` per node, hub URL, token — via hub API (`/api/topology`) plus editing `~/.config/poolsync/agent.toml` for local fields (`node`, `screen`, `neighbors`, `mode`, etc.) |
+| **Logs** | Current log view (`logs_viewer.rs`) **plus** agent settings editor (TOML or form) with Save / optional agent restart |
 
-**Comportement souhaité :**
+**Desired behaviour:**
 
-- Clic systray (ou entrée menu « Configuration… ») → fenêtre unique réutilisable (comme `OPEN_WINDOW` dans `logs_viewer.rs`)
-- Onglets : `Configuration` | `Logs & paramètres`
-- Réutiliser les patterns existants : GTK + `glib::MainContext::invoke`, API hub déjà exposée côté web (`web/src/api.js`)
-- Pas de remplacement du dashboard web — complément desktop pour configurer sans ouvrir le navigateur
+- Systray click (or menu entry “Configuration…”) → single reusable window (same pattern as `OPEN_WINDOW` in `logs_viewer.rs`)
+- Tabs: `Configuration` | `Logs & settings`
+- Reuse existing patterns: GTK + `glib::MainContext::invoke`, hub API already used by the web app (`web/src/api.js`)
+- Does **not** replace the web dashboard — desktop complement for config without a browser
 
-**Fichiers concernés (indicatif) :**
+**Likely files:**
 
-- `poolsync-agent/src/tray.rs` — entrée menu + ouverture fenêtre
-- `poolsync-agent/src/logs_viewer.rs` — fusionner ou factoriser en `settings_window.rs` avec onglets
-- Nouveau : `config_viewer.rs` (ou module `ui/`) — formulaire topologie + agent.toml
-- `poolsync-core` — helpers lecture/écriture config si besoin
+- `poolsync-agent/src/tray.rs` — menu entry + open window
+- `poolsync-agent/src/logs_viewer.rs` — merge or split into `settings_window.rs` with tabs
+- New: `config_viewer.rs` (or `ui/` module) — topology form + agent.toml
+- `poolsync-core` — config read/write helpers if needed
 
-**Référence web à reproduire (simplifié desktop) :** `web/src/pages/Config.jsx`, `web/src/api.js` (`fetchTopology`, `saveTopology`)
+**Web reference to mirror (simplified desktop):** `web/src/pages/Config.jsx`, `web/src/api.js` (`fetchTopology`, `saveTopology`)
 
 ---
 
-## Idées plus tard
+## Later ideas
 
-- Molette souris (`MouseWheel`) dans le grab KVM (`kvm_input.rs`)
-- Déploiement agents acer/inspiron si pas à jour (`./deploy/install-agent.sh`)
+- Mouse wheel (`MouseWheel`) in KVM grab (`kvm_input.rs`)
+- Packaging / install script polish for multi-host deploy

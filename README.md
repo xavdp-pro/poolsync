@@ -1,21 +1,21 @@
-# poolsync
+# PoolSync
 
-Pool **presse-papiers + clavier/souris** pour machines NOW3 — remplacement progressif de Barrier.
+Shared **clipboard + keyboard/mouse** across multiple Linux desktops — a modern alternative to Barrier.
 
-→ **[Pitch produit](PITCH.md)** (présentation, elevator pitch, comparaison Barrier)
+→ **[Product pitch](PITCH.md)** (overview, elevator pitch, Barrier comparison)
 
-- **Hub** : coordinateur central (bs1, Asus, VPS ou container — au choix)
-- **Agent** : un daemon par machine du pool (XFCE + clipman)
-- **Transport** : WebSocket via VPN WireGuard (`wg-gbs` ou `wg-bs1`)
-- **Maître dynamique** : la machine où vous tapez/bougez la souris devient maître
+- **Hub** — lightweight central coordinator (any host reachable over your VPN)
+- **Agent** — one daemon per machine in the pool (XFCE / X11)
+- **Transport** — WebSocket over WireGuard or any private network
+- **Dynamic master** — whichever machine you use becomes the input master
 
-## Workspace Rust
+## Rust workspace
 
-| Crate | Rôle |
+| Crate | Role |
 |-------|------|
-| `poolsync-core` | Protocole JSON, config TOML |
-| `poolsync-hub` | Serveur WebSocket |
-| `poolsync-agent` | Client X11 (xclip, xdotool) |
+| `poolsync-core` | JSON protocol, TOML config |
+| `poolsync-hub` | WebSocket server + web dashboard |
+| `poolsync-agent` | X11 client (clipboard, KVM, systray) |
 
 ## Build
 
@@ -23,25 +23,25 @@ Pool **presse-papiers + clavier/souris** pour machines NOW3 — remplacement pro
 cargo build --release
 ```
 
-Binaires : `target/release/poolsync-hub`, `target/release/poolsync-agent`
+Binaries: `target/release/poolsync-hub`, `target/release/poolsync-agent`
 
-## Hub (flexible)
+## Hub
 
 ```bash
-poolsync-hub --listen 0.0.0.0:9470 --token VOTRE_TOKEN
+poolsync-hub --listen 0.0.0.0:9470 --token YOUR_TOKEN
 ```
 
-Peut tourner sur **bs1**, **Asus**, ou n'importe quel nœud joignable par les agents via VPN.
+Run on any node your agents can reach (VPS, home server, container, etc.).
 
 ## Agent
 
-Fichier `~/.config/poolsync/agent.toml` :
+Config file: `~/.config/poolsync/agent.toml`
 
 ```toml
-node = "inspiron"
-hub_url = "ws://10.24.42.1:9470/ws"
-token = "VOTRE_TOKEN"
-mode = "full"   # ou "clipboard_only"
+node = "laptop-b"
+hub_url = "ws://10.0.0.1:9470/ws"
+token = "YOUR_TOKEN"
+mode = "full"   # or "clipboard_only"
 
 [screen]
 width = 1920
@@ -49,19 +49,23 @@ height = 1080
 
 [[neighbors]]
 direction = "left"
-node = "acer"
+node = "laptop-a"
 ```
 
-## Déploiement NOW3 (phase pilote)
+## Deploy (agent)
 
-- **Hub** : `bs1` (systemd)
-- **Agents** : `acer`, `inspiron` (Barrier reste actif sur les 3 portables)
-- **Asus** : agent plus tard
+```bash
+POOLSYNC_TOKEN=your_token ./deploy/install-agent-local.sh my-node-name
+# remote host:
+POOLSYNC_TOKEN=your_token ./deploy/install-agent.sh ssh-host my-node-name
+```
 
-## Licence
+Agents start via **systemd user** + **XFCE autostart** after graphical login.
 
-MIT — usage interne NOW3 / xavdp-pro
+## License
+
+MIT — see [LICENSE](LICENSE) if present, otherwise MIT as stated in project metadata.
 
 ## Roadmap
 
-Voir **[ROADMAP.md](ROADMAP.md)** — prochaine tâche : fenêtre systray (config serveur + logs/paramètres).
+See **[ROADMAP.md](ROADMAP.md)** — next up: native systray window (server config + logs/settings).
