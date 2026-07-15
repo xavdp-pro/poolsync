@@ -11,14 +11,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
-import {
-  fetchStatus,
-  formatTs,
-  modeLabel,
-  POOL_META,
-  POOL_ORDER,
-  shortHash,
-} from '../api'
+import { fetchStatus, formatTs, modeLabel, nodeLabel, shortHash } from '../api'
 
 function StatCard({ icon: Icon, label, value, hint, accent = 'indigo' }) {
   const accentMap = {
@@ -47,8 +40,7 @@ function StatCard({ icon: Icon, label, value, hint, accent = 'indigo' }) {
   )
 }
 
-function NodeCard({ nodeId, node, index }) {
-  const meta = POOL_META[nodeId] || { label: nodeId, vpn: '—', role: 'Nœud pool' }
+function NodeCard({ node, index }) {
   const online = Boolean(node?.online)
   const isMaster = Boolean(node?.is_master)
 
@@ -64,7 +56,7 @@ function NodeCard({ nodeId, node, index }) {
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-          <h3 className="text-base font-bold text-slate-800">{meta.label}</h3>
+          <h3 className="text-base font-bold text-slate-800">{nodeLabel(node.name)}</h3>
           {isMaster && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
               <Crown size={12} /> maître
@@ -77,49 +69,47 @@ function NodeCard({ nodeId, node, index }) {
           <WifiOff size={16} className="text-slate-400" />
         )}
       </div>
-      <p className="mt-1 text-sm text-slate-500">{meta.role}</p>
 
       <div className="mt-4 space-y-2 text-sm">
-        <div className="flex justify-between gap-2">
-          <span className="text-slate-400">VPN bs1</span>
-          <span className="font-mono text-slate-600">{meta.vpn}</span>
-        </div>
         <div className="flex justify-between gap-2">
           <span className="text-slate-400">Statut</span>
           <span className={online ? 'font-semibold text-emerald-600' : 'text-slate-400'}>
             {online ? 'Connecté' : 'Hors ligne'}
           </span>
         </div>
-        {online && (
-          <>
-            <div className="flex justify-between gap-2">
-              <span className="text-slate-400">Mode</span>
-              <span className="text-slate-600">{modeLabel(node.mode)}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-slate-400">KVM</span>
-              <span className={node.kvm_enabled ? 'font-semibold text-indigo-600' : 'text-slate-400'}>
-                {node.kvm_enabled ? 'Actif' : 'Désactivé'}
-              </span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-slate-400">Écran</span>
-              <span className="font-mono text-slate-600">
-                {node.screen?.width}×{node.screen?.height}
-              </span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-slate-400">Depuis</span>
-              <span className="text-slate-600">{formatTs(node.connected_at)}</span>
-            </div>
-          </>
-        )}
+        <div className="flex justify-between gap-2">
+          <span className="text-slate-400">Mode</span>
+          <span className="text-slate-600">{modeLabel(node.mode)}</span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-slate-400">KVM</span>
+          <span className={node.kvm_enabled ? 'font-semibold text-indigo-600' : 'text-slate-400'}>
+            {node.kvm_enabled ? 'Actif' : 'Désactivé'}
+          </span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-slate-400">Écran</span>
+          <span className="font-mono text-slate-600">
+            {node.screen?.width}×{node.screen?.height}
+          </span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-slate-400">Depuis</span>
+          <span className="text-slate-600">{formatTs(node.connected_at)}</span>
+        </div>
       </div>
     </motion.div>
   )
 }
 
-function TopologyBar({ nodesByName, master }) {
+function TopologyBar({ nodes, master }) {
+  if (!nodes.length) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-500 shadow-sm">
+        Aucun nœud connecté pour l'instant.
+      </div>
+    )
+  }
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
@@ -127,12 +117,11 @@ function TopologyBar({ nodesByName, master }) {
         <h2 className="text-base font-bold text-slate-800">Topologie pool</h2>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-        {POOL_ORDER.map((id, i) => {
-          const node = nodesByName[id]
+        {nodes.map((node, i) => {
           const online = Boolean(node?.online)
-          const isMaster = master === id
+          const isMaster = master === node.name
           return (
-            <div key={id} className="flex items-center gap-2 sm:gap-3">
+            <div key={node.name} className="flex items-center gap-2 sm:gap-3">
               <div
                 className={`min-w-[5.5rem] rounded-lg border px-3 py-2 text-center text-sm font-semibold sm:min-w-[6.5rem] ${
                   online
@@ -142,18 +131,13 @@ function TopologyBar({ nodesByName, master }) {
                     : 'border-slate-200 bg-slate-50 text-slate-400'
                 }`}
               >
-                {POOL_META[id]?.label || id}
+                {nodeLabel(node.name)}
               </div>
-              {i < POOL_ORDER.length - 1 && (
-                <span className="text-slate-300">→</span>
-              )}
+              {i < nodes.length - 1 && <span className="text-slate-300">→</span>}
             </div>
           )
         })}
       </div>
-      <p className="mt-4 text-center text-xs text-slate-500">
-        Hub bs1 · ws://10.24.42.1:9470/ws · Barrier reste actif en parallèle
-      </p>
     </div>
   )
 }
@@ -183,8 +167,8 @@ export default function Dashboard() {
     return () => clearInterval(id)
   }, [refresh])
 
-  const nodesByName = Object.fromEntries((data?.nodes || []).map((n) => [n.name, n]))
-  const onlineCount = data?.hub?.node_count ?? 0
+  const nodes = [...(data?.nodes || [])].sort((a, b) => a.name.localeCompare(b.name))
+  const onlineCount = data?.hub?.node_count ?? nodes.length
   const master = data?.master
 
   return (
@@ -192,7 +176,7 @@ export default function Dashboard() {
       <PageHeader
         icon={LayoutDashboard}
         title="PoolSync"
-        subtitle="Hub presse-papiers NOW3 — bs1 · tunnel cp.xavdp.pro"
+        subtitle="Presse-papiers + KVM · maître dynamique"
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -227,15 +211,15 @@ export default function Dashboard() {
         <StatCard
           icon={Wifi}
           label="Nœuds connectés"
-          value={`${onlineCount} / ${POOL_ORDER.length}`}
-          hint="asus · acer · inspiron"
+          value={onlineCount}
+          hint={nodes.length ? nodes.map((n) => n.name).join(' · ') : 'Aucun'}
           accent="indigo"
         />
         <StatCard
           icon={Crown}
           label="Maître KVM"
-          value={master || '—'}
-          hint="Machine active (phase pilote)"
+          value={master ? nodeLabel(master) : '—'}
+          hint="Machine active"
           accent="amber"
         />
         <StatCard
@@ -248,12 +232,12 @@ export default function Dashboard() {
       </div>
 
       <div className="mb-6">
-        <TopologyBar nodesByName={nodesByName} master={master} />
+        <TopologyBar nodes={nodes} master={master} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {POOL_ORDER.map((id, i) => (
-          <NodeCard key={id} nodeId={id} node={nodesByName[id]} index={i} />
+        {nodes.map((node, i) => (
+          <NodeCard key={node.name} node={node} index={i} />
         ))}
       </div>
     </div>

@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use axum::{
@@ -20,6 +15,7 @@ use clap::Parser;
 use futures_util::StreamExt;
 use poolsync_core::{
     decode_message, encode_message, AgentMode, Message, Neighbor, PoolTopology, ScreenInfo,
+    TopologyNode,
 };
 use serde::Serialize;
 use tokio::sync::{broadcast, RwLock};
@@ -27,7 +23,10 @@ use tower_http::services::{ServeDir, ServeFile};
 use tracing::{error, info, warn};
 
 #[derive(Parser, Debug)]
-#[command(name = "poolsync-hub", about = "PoolSync hub — presse-papiers + KVM maître dynamique")]
+#[command(
+    name = "poolsync-hub",
+    about = "PoolSync hub — presse-papiers + KVM maître dynamique"
+)]
 struct Args {
     /// Adresse d'écoute (0.0.0.0 pour LAN/VPN/public)
     #[arg(long, default_value = "0.0.0.0:9470")]
@@ -118,11 +117,14 @@ struct TokenQuery {
 fn load_topology(path: &PathBuf) -> PoolTopology {
     match std::fs::read_to_string(path) {
         Ok(raw) => serde_json::from_str(&raw).unwrap_or_else(|err| {
-            warn!("invalid topology {}: {err:#} — using default", path.display());
-            PoolTopology::default_now3()
+            warn!(
+                "invalid topology {}: {err:#} — using empty default",
+                path.display()
+            );
+            PoolTopology::default()
         }),
         Err(_) => {
-            let topo = PoolTopology::default_now3();
+            let topo = PoolTopology::default();
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
@@ -183,7 +185,10 @@ async fn main() -> Result<()> {
     let mut app = Router::new()
         .route("/health", get(health))
         .route("/api/status", get(api_status))
-        .route("/api/topology", get(api_topology_get).post(api_topology_post))
+        .route(
+            "/api/topology",
+            get(api_topology_get).post(api_topology_post),
+        )
         .route("/ws", get(ws_handler))
         .with_state(state);
 
@@ -340,14 +345,40 @@ async fn register_node(
         } => {
             let topology_update = {
                 let mut topo = state.topology.write().await;
-                if let Some(n) = topo.nodes.get_mut(&node) {
-                    if n.width != screen.width || n.height != screen.height {
+                match topo.nodes.get_mut(&node) {
+                    Some(n) => {
+                        if n.width != screen.width || n.height != screen.height {
+                            info!(
+                                "topology {node}: {}x{} → {}x{}",
+                                n.width, n.height, screen.width, screen.height
+                            );
+                            n.width = screen.width;
+                            n.height = screen.height;
+                        }
+                    }
+                    None => {
+                        // Nouveau nœud : placé à la suite horizontalement (mosaïque par défaut).
+                        let x = topo
+                            .nodes
+                            .values()
+                            .map(|n| n.x + n.width as i32)
+                            .max()
+                            .unwrap_or(0);
                         info!(
-                            "topology {node}: {}x{} → {}x{}",
-                            n.width, n.height, screen.width, screen.height
+                            "topology: nouveau nœud {node} ({}x{}) @ x={x}",
+                            screen.width, screen.height
                         );
-                        n.width = screen.width;
-                        n.height = screen.height;
+                        topo.nodes.insert(
+                            node.clone(),
+                            TopologyNode {
+                                x,
+                                y: 0,
+                                width: screen.width,
+                                height: screen.height,
+                                kvm_enabled,
+                                neighbors: HashMap::new(),
+                            },
+                        );
                     }
                 }
                 topo.clone()

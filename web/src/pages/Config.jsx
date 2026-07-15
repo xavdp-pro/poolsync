@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import {
   fetchTopology,
-  POOL_META,
+  nodeLabel,
   saveTopology,
 } from '../api'
 
@@ -150,7 +150,6 @@ export default function Config() {
           <div className="relative" style={{ width: layout.width, height: layout.height }}>
             {nodeIds.map((id) => {
               const n = topology.nodes[id]
-              const meta = POOL_META[id] || { label: id }
               return (
                 <motion.div
                   key={id}
@@ -174,7 +173,7 @@ export default function Config() {
                   <div className="flex items-center justify-between gap-1 font-bold">
                     <span className="flex items-center gap-1 truncate">
                       <GripVertical size={12} className="opacity-40" />
-                      {meta.label}
+                      {nodeLabel(id)}
                     </span>
                     <span className="font-mono opacity-60">{n.width}×{n.height}</span>
                   </div>
@@ -193,11 +192,10 @@ export default function Config() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {nodeIds.map((id) => {
           const n = topology.nodes[id]
-          const meta = POOL_META[id] || { label: id }
           return (
             <div key={id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800">{meta.label}</h3>
+                <h3 className="font-bold text-slate-800">{nodeLabel(id)}</h3>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -241,7 +239,7 @@ export default function Config() {
                         .filter((other) => other !== id)
                         .map((other) => (
                           <option key={other} value={other}>
-                            {POOL_META[other]?.label || other}
+                            {nodeLabel(other)}
                           </option>
                         ))}
                     </select>

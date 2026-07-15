@@ -62,6 +62,16 @@ POOLSYNC_TOKEN=your_token ./deploy/install-agent.sh ssh-host my-node-name
 
 Agents start via **systemd user** + **XFCE autostart** after graphical login.
 
+## Security model
+
+PoolSync is designed to run **inside a private network** (WireGuard VPN, LAN). Be aware of the current threat model:
+
+- **Transport is `ws://` (unencrypted).** Clipboard content — text *and* images — and keyboard/mouse events travel in clear text. Confidentiality relies entirely on the underlying VPN/LAN. Run the hub on `wss://` behind a reverse proxy (or over WireGuard) if the link is not already private.
+- **The token authenticates, it does not encrypt.** It is passed as a URL query parameter (`/ws?token=…`, `/api/topology?token=…`) and can therefore leak into proxy/access logs. Treat it as a shared secret and rotate it if exposed.
+- **No per-node authorization.** Any client presenting a valid token can join the pool, become master, and read/write the shared clipboard.
+
+Do **not** expose the hub port directly on the public internet without a TLS-terminating proxy and network-level access control.
+
 ## License
 
 MIT — see [LICENSE](LICENSE) if present, otherwise MIT as stated in project metadata.

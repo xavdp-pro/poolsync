@@ -148,8 +148,7 @@ impl AgentState {
     }
 
     pub fn topology_node(&self, name: &str) -> Option<TopologyNode> {
-        self.topology()
-            .and_then(|t| t.nodes.get(name).cloned())
+        self.topology().and_then(|t| t.nodes.get(name).cloned())
     }
 
     pub fn target_kvm_enabled(&self, node: &str) -> bool {

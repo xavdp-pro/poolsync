@@ -3,8 +3,8 @@ use std::cell::RefCell;
 use tracing::warn;
 use x11rb::connection::Connection;
 use x11rb::protocol::xfixes::{self, ConnectionExt as _};
-use x11rb::protocol::xtest::{self, ConnectionExt as _};
 use x11rb::protocol::xproto::ConnectionExt as _;
+use x11rb::protocol::xtest::{self, ConnectionExt as _};
 
 thread_local! {
     static XDO: RefCell<Option<libxdo::XDo>> = const { RefCell::new(None) };
@@ -17,9 +17,8 @@ where
     XDO.with(|cell| {
         let mut slot = cell.borrow_mut();
         if slot.is_none() {
-            *slot = Some(
-                libxdo::XDo::new(None).map_err(|e| anyhow::anyhow!("libxdo init: {e:?}"))?,
-            );
+            *slot =
+                Some(libxdo::XDo::new(None).map_err(|e| anyhow::anyhow!("libxdo init: {e:?}"))?);
         }
         f(slot.as_ref().expect("xdo")).map_err(|e| anyhow::anyhow!("{e:?}"))
     })
@@ -118,6 +117,9 @@ pub fn set_cursor_visible_best_effort(visible: bool) {
 pub fn display_size() -> Result<(u32, u32)> {
     with_x11_conn(|conn, screen_num| {
         let screen = &conn.setup().roots[screen_num];
-        Ok((screen.width_in_pixels as u32, screen.height_in_pixels as u32))
+        Ok((
+            screen.width_in_pixels as u32,
+            screen.height_in_pixels as u32,
+        ))
     })
 }

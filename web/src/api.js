@@ -1,14 +1,3 @@
-const POOL_ORDER = ['asus', 'acer', 'inspiron', 'gbs-p2']
-
-const POOL_META = {
-  asus: { label: 'Asus', vpn: '10.24.42.6', role: 'Portable principal' },
-  acer: { label: 'Acer', vpn: '10.24.42.4', role: 'Portable — client RDP gbs-p2' },
-  inspiron: { label: 'Inspiron', vpn: '10.24.42.5', role: 'Portable' },
-  'gbs-p2': { label: 'gbs-p2', vpn: '10.24.42.18', role: 'Session RDP — clipboard seul' },
-}
-
-export { POOL_ORDER, POOL_META }
-
 export async function fetchStatus() {
   const res = await fetch('/api/status', { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -28,6 +17,12 @@ export async function saveTopology(topology, token) {
     body: JSON.stringify(topology),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
+// Libellé lisible dérivé du nom de nœud (générique, aucune machine codée en dur).
+export function nodeLabel(name) {
+  if (!name) return '—'
+  return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
 export function formatTs(ts) {

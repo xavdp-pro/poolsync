@@ -25,7 +25,10 @@ const RECONNECT_INITIAL: Duration = Duration::from_secs(2);
 const RECONNECT_MAX: Duration = Duration::from_secs(30);
 
 #[derive(Parser, Debug)]
-#[command(name = "poolsync-agent", about = "PoolSync agent — client presse-papiers + KVM")]
+#[command(
+    name = "poolsync-agent",
+    about = "PoolSync agent — client presse-papiers + KVM"
+)]
 struct Args {
     #[arg(long, default_value = "/etc/poolsync/agent.toml")]
     config: PathBuf,

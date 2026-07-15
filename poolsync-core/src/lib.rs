@@ -79,66 +79,12 @@ pub struct TopologyNode {
 
 impl AgentConfig {
     pub fn kvm_active(&self) -> bool {
-        self.kvm_enabled.unwrap_or(matches!(self.mode, AgentMode::Full))
+        self.kvm_enabled
+            .unwrap_or(matches!(self.mode, AgentMode::Full))
     }
 
     pub fn kvm_capture_active(&self) -> bool {
         self.kvm_capture.unwrap_or(self.kvm_active())
-    }
-}
-
-impl PoolTopology {
-    pub fn default_now3() -> Self {
-        let mut nodes = HashMap::new();
-        nodes.insert(
-            "asus".into(),
-            TopologyNode {
-                x: 0,
-                y: 0,
-                width: 1344,
-                height: 756,
-                kvm_enabled: true,
-                neighbors: [("right".into(), "acer".into())].into(),
-            },
-        );
-        nodes.insert(
-            "acer".into(),
-            TopologyNode {
-                x: 1344,
-                y: 0,
-                width: 1366,
-                height: 768,
-                kvm_enabled: true,
-                neighbors: [
-                    ("left".into(), "asus".into()),
-                    ("right".into(), "inspiron".into()),
-                ]
-                .into(),
-            },
-        );
-        nodes.insert(
-            "inspiron".into(),
-            TopologyNode {
-                x: 2710,
-                y: 0,
-                width: 1366,
-                height: 768,
-                kvm_enabled: true,
-                neighbors: [("left".into(), "acer".into())].into(),
-            },
-        );
-        nodes.insert(
-            "gbs-p2".into(),
-            TopologyNode {
-                x: 1920,
-                y: 1080,
-                width: 1920,
-                height: 1080,
-                kvm_enabled: false,
-                neighbors: HashMap::new(),
-            },
-        );
-        Self { nodes }
     }
 }
 
@@ -207,11 +153,29 @@ pub enum Message {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum InputKind {
-    MouseMove { x: i32, y: i32 },
-    MouseMoveRelative { dx: i32, dy: i32 },
-    MouseButton { button: u8, pressed: bool, x: i32, y: i32 },
-    MouseWheel { delta: i32, x: i32, y: i32 },
-    Key { keycode: u32, pressed: bool },
+    MouseMove {
+        x: i32,
+        y: i32,
+    },
+    MouseMoveRelative {
+        dx: i32,
+        dy: i32,
+    },
+    MouseButton {
+        button: u8,
+        pressed: bool,
+        x: i32,
+        y: i32,
+    },
+    MouseWheel {
+        delta: i32,
+        x: i32,
+        y: i32,
+    },
+    Key {
+        keycode: u32,
+        pressed: bool,
+    },
 }
 
 pub fn hash_text(data: &str) -> String {
@@ -229,4 +193,95 @@ pub fn encode_message(msg: &Message) -> anyhow::Result<String> {
 
 pub fn decode_message(raw: &str) -> anyhow::Result<Message> {
     Ok(serde_json::from_str(raw)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(mode: AgentMode, kvm_enabled: Option<bool>, kvm_capture: Option<bool>) -> AgentConfig {
+        AgentConfig {
+            node: "n".into(),
+            hub_url: "ws://x/ws".into(),
+            token: "t".into(),
+            mode,
+            screen: ScreenInfo {
+                width: 100,
+                height: 100,
+            },
+            neighbors: vec![],
+            edge_px: default_edge_px(),
+            clipboard_poll_ms: default_poll_ms(),
+            input_poll_ms: default_input_poll_ms(),
+            pause_clipboard_when_rdp: true,
+            display: None,
+            kvm_enabled,
+            kvm_capture,
+        }
+    }
+
+    #[test]
+    fn kvm_active_defaults_from_mode() {
+        assert!(cfg(AgentMode::Full, None, None).kvm_active());
+        assert!(!cfg(AgentMode::ClipboardOnly, None, None).kvm_active());
+    }
+
+    #[test]
+    fn kvm_enabled_overrides_mode() {
+        assert!(!cfg(AgentMode::Full, Some(false), None).kvm_active());
+        assert!(cfg(AgentMode::ClipboardOnly, Some(true), None).kvm_active());
+    }
+
+    #[test]
+    fn kvm_capture_falls_back_to_kvm_active() {
+        let c = cfg(AgentMode::Full, None, None);
+        assert_eq!(c.kvm_capture_active(), c.kvm_active());
+        assert!(!cfg(AgentMode::Full, None, Some(false)).kvm_capture_active());
+    }
+
+    #[test]
+    fn message_round_trip() {
+        let msg = Message::Clipboard {
+            msg_id: "id".into(),
+            hash: "h".into(),
+            mime: "text/plain".into(),
+            data: "hello".into(),
+        };
+        let raw = encode_message(&msg).unwrap();
+        match decode_message(&raw).unwrap() {
+            Message::Clipboard { data, mime, .. } => {
+                assert_eq!(data, "hello");
+                assert_eq!(mime, "text/plain");
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn input_kind_tag_encoding() {
+        let raw = encode_message(&Message::Input {
+            target: "n".into(),
+            kind: InputKind::Key {
+                keycode: 65,
+                pressed: true,
+            },
+        })
+        .unwrap();
+        assert!(raw.contains("\"type\":\"input\""), "{raw}");
+        assert!(raw.contains("\"kind\":\"key\""), "{raw}");
+    }
+
+    #[test]
+    fn hash_is_stable_and_hex() {
+        // SHA-256("abc")
+        assert_eq!(
+            hash_text("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn topology_default_is_empty() {
+        assert!(PoolTopology::default().nodes.is_empty());
+    }
 }

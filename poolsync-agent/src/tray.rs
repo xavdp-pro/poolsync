@@ -49,7 +49,10 @@ pub fn run_tray(state: Arc<AgentState>) -> Result<()> {
     }
 }
 
-fn run_tray_gtk(state: Arc<AgentState>, ready_tx: std::sync::mpsc::SyncSender<Result<()>>) -> Result<()> {
+fn run_tray_gtk(
+    state: Arc<AgentState>,
+    ready_tx: std::sync::mpsc::SyncSender<Result<()>>,
+) -> Result<()> {
     gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
     let menu = build_menu(&state)?;
     let kvm_item = find_check_optional(&menu, ID_KVM);
@@ -124,7 +127,12 @@ fn install_icon_png() -> Result<(PathBuf, PathBuf)> {
 
 fn build_menu(state: &AgentState) -> Result<Menu> {
     let menu = Menu::new();
-    menu.append(&MenuItem::with_id(ID_STATUS, state.status_line(), false, None))?;
+    menu.append(&MenuItem::with_id(
+        ID_STATUS,
+        state.status_line(),
+        false,
+        None,
+    ))?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&MenuItem::with_id(
         ID_NODE,
@@ -178,15 +186,18 @@ fn build_menu(state: &AgentState) -> Result<Menu> {
         menu.append(&kvm)?;
     }
     menu.append(&PredefinedMenuItem::separator())?;
-    menu.append(&MenuItem::with_id(ID_VIEW_LOGS, "Voir les logs…", true, None))?;
+    menu.append(&MenuItem::with_id(
+        ID_VIEW_LOGS,
+        "Voir les logs…",
+        true,
+        None,
+    ))?;
     Ok(menu)
 }
 
 fn refresh_menu(ui: &TrayUi, state: &AgentState) {
     let _ = ui.status.set_text(state.status_line());
-    let _ = ui
-        .node
-        .set_text(format!("Nœud : {}", state.config.node));
+    let _ = ui.node.set_text(format!("Nœud : {}", state.config.node));
     let _ = ui.hub.set_text(format!("Hub : {}", state.hub_display()));
     let _ = ui
         .master

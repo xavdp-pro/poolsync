@@ -25,11 +25,7 @@ const HUB_LINK_CHECK: Duration = Duration::from_secs(10);
 
 pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
     let cfg = &state.config;
-    let hub_url = format!(
-        "{}?token={}",
-        cfg.hub_url.trim_end_matches('/'),
-        cfg.token
-    );
+    let hub_url = format!("{}?token={}", cfg.hub_url.trim_end_matches('/'), cfg.token);
     let (hub_host, hub_port) = hub_tcp_endpoint(&cfg.hub_url)?;
 
     state.set_connected(false);
@@ -196,8 +192,7 @@ async fn handle_incoming(
                 state.mark_kvm_inject();
                 let x = x;
                 let y = y;
-                tokio::task::spawn_blocking(move || kvm_x11::move_mouse_absolute(x, y))
-                    .await??;
+                tokio::task::spawn_blocking(move || kvm_x11::move_mouse_absolute(x, y)).await??;
                 info!("KVM cursor enter → {} ({x},{y})", state.config.node);
             }
             if !input_node.is_empty() {
@@ -297,8 +292,7 @@ async fn clipboard_poll_loop(
 
     loop {
         if state.clipboard_sync_enabled() {
-            let rdp_active =
-                state.config.pause_clipboard_when_rdp && rdp_client_active().await;
+            let rdp_active = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
 
             let skip_send = rdp_active && state.hub_apply_grace_active();
             if !skip_send {

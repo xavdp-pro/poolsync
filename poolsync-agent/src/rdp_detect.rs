@@ -19,10 +19,7 @@ pub async fn rdp_client_active() -> bool {
 }
 
 async fn process_matches(name: &str, needle: &str) -> bool {
-    let output = Command::new("pgrep")
-        .args(["-af", name])
-        .output()
-        .await;
+    let output = Command::new("pgrep").args(["-af", name]).output().await;
     match output {
         Ok(o) if o.status.success() => {
             let text = String::from_utf8_lossy(&o.stdout);

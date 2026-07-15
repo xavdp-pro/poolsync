@@ -233,18 +233,7 @@ fn create_blank_cursor(
     conn.create_pixmap(1, pixmap, root, 1, 1)?;
     let gc = conn.generate_id()?;
     conn.create_gc(gc, pixmap, &CreateGCAux::new())?;
-    conn.put_image(
-        ImageFormat::XY_BITMAP,
-        pixmap,
-        gc,
-        1,
-        1,
-        0,
-        0,
-        0,
-        1,
-        &[0u8],
-    )?;
+    conn.put_image(ImageFormat::XY_BITMAP, pixmap, gc, 1, 1, 0, 0, 0, 1, &[0u8])?;
     conn.free_gc(gc)?;
     let cursor = conn.generate_id()?;
     conn.create_cursor(cursor, pixmap, pixmap, 0, 0, 0, 0, 0, 0, 0, 0)?;
@@ -264,7 +253,13 @@ fn grab_mouse_and_keyboard(
     let deadline = Instant::now() + GRAB_TIMEOUT;
     loop {
         let kb = conn
-            .grab_keyboard(false, window, CURRENT_TIME, GrabMode::ASYNC, GrabMode::ASYNC)?
+            .grab_keyboard(
+                false,
+                window,
+                CURRENT_TIME,
+                GrabMode::ASYNC,
+                GrabMode::ASYNC,
+            )?
             .reply()?;
         if kb.status != GrabStatus::SUCCESS {
             if Instant::now() >= deadline {

@@ -17,7 +17,9 @@ pub fn hub_tcp_endpoint(hub_url: &str) -> Result<(String, u16)> {
         .with_context(|| format!("hub_url invalide: {url}"))?;
     let host_port = rest.split('/').next().unwrap_or(rest);
     if let Some((host, port)) = host_port.rsplit_once(':') {
-        let port: u16 = port.parse().with_context(|| format!("port hub invalide: {port}"))?;
+        let port: u16 = port
+            .parse()
+            .with_context(|| format!("port hub invalide: {port}"))?;
         return Ok((host.to_string(), port));
     }
     Ok((host_port.to_string(), 9470))

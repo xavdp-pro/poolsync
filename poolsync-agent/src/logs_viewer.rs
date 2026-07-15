@@ -210,10 +210,7 @@ fn fetch_journal_logs() -> String {
         Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).into_owned(),
         Ok(out) => {
             let err = String::from_utf8_lossy(&out.stderr);
-            format!(
-                "journalctl a échoué (code {:?})\n{err}",
-                out.status.code()
-            )
+            format!("journalctl a échoué (code {:?})\n{err}", out.status.code())
         }
         Err(err) => format!("Impossible de lancer journalctl: {err}"),
     }

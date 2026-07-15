@@ -2,7 +2,7 @@ use crate::kvm_input::{hide_cursor_best_effort, GrabEvent, InputGrab};
 use crate::kvm_x11;
 use crate::state::AgentState;
 use anyhow::Result;
-use poolsync_core::{decode_message, encode_message, Direction, Message, ScreenInfo};
+use poolsync_core::{encode_message, Direction, Message, ScreenInfo};
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -60,7 +60,10 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
         if last_screen_probe.elapsed() > Duration::from_secs(15) {
             if let Ok((w, h)) = kvm_x11::display_size() {
-                local_screen_cache = ScreenInfo { width: w, height: h };
+                local_screen_cache = ScreenInfo {
+                    width: w,
+                    height: h,
+                };
             }
             last_screen_probe = Instant::now();
         }
@@ -157,7 +160,17 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                         if let Some(back) = neighbor_of(&focus, Direction::Right, state) {
                             let bs = target_screen(state, &back);
                             let ty = map_coord(remote_y, ts.height, bs.height);
-                            do_switch(&local, &back, 0, ty, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                            do_switch(
+                                &local,
+                                &back,
+                                0,
+                                ty,
+                                state,
+                                &out_tx,
+                                &mut focus,
+                                &mut remote_x,
+                                &mut remote_y,
+                            );
                             block_edge(&mut blocked_edges, BlockedEdge::Left);
                             if back == local {
                                 input_grab = None;
@@ -208,7 +221,17 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                     state.set_kvm_input_node(&local);
                     state.set_master(&local);
                     send_master_claim(&local, &out_tx);
-                    do_switch(&local, &local, cx, cy, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(
+                        &local,
+                        &local,
+                        cx,
+                        cy,
+                        state,
+                        &out_tx,
+                        &mut focus,
+                        &mut remote_x,
+                        &mut remote_y,
+                    );
                     state.set_kvm_focus(&local);
                     input_grab = None;
                     blocked_edges.clear();
@@ -234,7 +257,17 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             if px >= screen.width as i32 - edge && !is_blocked(&blocked_edges, BlockedEdge::Right) {
                 if let Some(target) = neighbor(state, Direction::Right) {
                     let ty = map_coord(py, screen.height, target_screen(state, &target).height);
-                    do_switch(&local, &target, 0, ty, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(
+                        &local,
+                        &target,
+                        0,
+                        ty,
+                        state,
+                        &out_tx,
+                        &mut focus,
+                        &mut remote_x,
+                        &mut remote_y,
+                    );
                     block_edge(&mut blocked_edges, BlockedEdge::Left);
                     let _ = warp_mouse(screen.width as i32 - edge - 1, py);
                     last_switch = Instant::now();
@@ -243,7 +276,17 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 if let Some(target) = neighbor(state, Direction::Left) {
                     let tw = target_screen(state, &target).width as i32;
                     let ty = map_coord(py, screen.height, target_screen(state, &target).height);
-                    do_switch(&local, &target, tw - 1, ty, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(
+                        &local,
+                        &target,
+                        tw - 1,
+                        ty,
+                        state,
+                        &out_tx,
+                        &mut focus,
+                        &mut remote_x,
+                        &mut remote_y,
+                    );
                     block_edge(&mut blocked_edges, BlockedEdge::Right);
                     let _ = warp_mouse(edge + 1, py);
                     last_switch = Instant::now();
@@ -252,7 +295,17 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 if let Some(target) = neighbor(state, Direction::Up) {
                     let th = target_screen(state, &target).height as i32;
                     let tx = map_coord(px, screen.width, target_screen(state, &target).width);
-                    do_switch(&local, &target, tx, th - 1, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(
+                        &local,
+                        &target,
+                        tx,
+                        th - 1,
+                        state,
+                        &out_tx,
+                        &mut focus,
+                        &mut remote_x,
+                        &mut remote_y,
+                    );
                     block_edge(&mut blocked_edges, BlockedEdge::Down);
                     let _ = warp_mouse(px, edge + 1);
                     last_switch = Instant::now();
@@ -262,7 +315,17 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             {
                 if let Some(target) = neighbor(state, Direction::Down) {
                     let tx = map_coord(px, screen.width, target_screen(state, &target).width);
-                    do_switch(&local, &target, tx, 0, state, &out_tx, &mut focus, &mut remote_x, &mut remote_y);
+                    do_switch(
+                        &local,
+                        &target,
+                        tx,
+                        0,
+                        state,
+                        &out_tx,
+                        &mut focus,
+                        &mut remote_x,
+                        &mut remote_y,
+                    );
                     block_edge(&mut blocked_edges, BlockedEdge::Up);
                     let _ = warp_mouse(px, screen.height as i32 - edge - 1);
                     last_switch = Instant::now();
@@ -278,10 +341,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
 fn block_edge(blocked: &mut Vec<(BlockedEdge, Instant)>, edge: BlockedEdge) {
     blocked.retain(|(e, _)| *e != edge);
-    blocked.push((
-        edge,
-        Instant::now() + Duration::from_millis(EDGE_BLOCK_MS),
-    ));
+    blocked.push((edge, Instant::now() + Duration::from_millis(EDGE_BLOCK_MS)));
 }
 
 fn unblock(blocked: &mut Vec<(BlockedEdge, Instant)>, edge: BlockedEdge) {
@@ -295,9 +355,7 @@ fn prune_blocks(blocked: &mut Vec<(BlockedEdge, Instant)>) {
 
 fn is_blocked(blocked: &[(BlockedEdge, Instant)], edge: BlockedEdge) -> bool {
     let now = Instant::now();
-    blocked
-        .iter()
-        .any(|(e, until)| *e == edge && *until > now)
+    blocked.iter().any(|(e, until)| *e == edge && *until > now)
 }
 
 fn send_mouse_button(
@@ -366,9 +424,10 @@ fn local_screen_from_config(state: &AgentState) -> ScreenInfo {
 
 pub async fn detect_screen() -> Option<ScreenInfo> {
     tokio::task::spawn_blocking(|| {
-        kvm_x11::display_size()
-            .ok()
-            .map(|(w, h)| ScreenInfo { width: w, height: h })
+        kvm_x11::display_size().ok().map(|(w, h)| ScreenInfo {
+            width: w,
+            height: h,
+        })
     })
     .await
     .ok()
@@ -459,28 +518,16 @@ fn send_mouse_absolute(target: &str, x: i32, y: i32, out_tx: &mpsc::UnboundedSen
     }
 }
 
-#[allow(dead_code)]
-fn send_mouse_relative(target: &str, dx: i32, dy: i32, out_tx: &mpsc::UnboundedSender<String>) {
-    if dx == 0 && dy == 0 {
-        return;
-    }
-    if let Ok(payload) = encode_message(&Message::Input {
-        target: target.to_string(),
-        kind: poolsync_core::InputKind::MouseMoveRelative { dx, dy },
-    }) {
-        let _ = out_tx.send(payload);
-    }
-}
-
 pub async fn inject_input(kind: &poolsync_core::InputKind) -> Result<()> {
     let kind = kind.clone();
     tokio::task::spawn_blocking(move || inject_input_sync(&kind)).await?
 }
 
 fn inject_input_sync(kind: &poolsync_core::InputKind) -> Result<()> {
-    let screen = kvm_x11::display_size()
-        .ok()
-        .map(|(w, h)| ScreenInfo { width: w, height: h });
+    let screen = kvm_x11::display_size().ok().map(|(w, h)| ScreenInfo {
+        width: w,
+        height: h,
+    });
     let clamp = |x: i32, y: i32| {
         if let Some(s) = screen {
             (
@@ -521,7 +568,23 @@ fn inject_input_sync(kind: &poolsync_core::InputKind) -> Result<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
-pub fn parse_switch_message(text: &str) -> Option<Message> {
-    decode_message(text).ok()
+#[cfg(test)]
+mod tests {
+    use super::map_coord;
+
+    #[test]
+    fn map_coord_scales_between_screens() {
+        // Milieu d'un écran 1000 → milieu d'un écran 500.
+        assert_eq!(map_coord(500, 1000, 500), 250);
+        // Bords bornés dans l'écran cible.
+        assert_eq!(map_coord(0, 1000, 500), 0);
+        assert_eq!(map_coord(999, 1000, 500), 499);
+    }
+
+    #[test]
+    fn map_coord_same_size_keeps_position() {
+        assert_eq!(map_coord(0, 800, 800), 0);
+        assert_eq!(map_coord(400, 800, 800), 400);
+        assert_eq!(map_coord(799, 800, 800), 799);
+    }
 }
