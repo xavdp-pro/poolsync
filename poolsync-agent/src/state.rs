@@ -1,4 +1,5 @@
 use poolsync_core::{AgentConfig, PoolTopology, TopologyNode};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -6,6 +7,7 @@ use std::time::Instant;
 #[derive(Clone)]
 pub struct AgentState {
     pub config: AgentConfig,
+    pub config_path: PathBuf,
     connected: Arc<AtomicBool>,
     clipboard_sync: Arc<AtomicBool>,
     notify_on_receive: Arc<AtomicBool>,
@@ -27,11 +29,12 @@ pub struct AgentState {
 }
 
 impl AgentState {
-    pub fn new(config: AgentConfig) -> Self {
+    pub fn new(config: AgentConfig, config_path: PathBuf) -> Self {
         let kvm_default = config.kvm_active();
         let local_node = config.node.clone();
         Self {
             config,
+            config_path,
             connected: Arc::new(AtomicBool::new(false)),
             clipboard_sync: Arc::new(AtomicBool::new(true)),
             notify_on_receive: Arc::new(AtomicBool::new(true)),

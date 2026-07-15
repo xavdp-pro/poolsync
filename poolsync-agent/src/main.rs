@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     let raw = std::fs::read_to_string(&args.config)
         .with_context(|| format!("read config {}", args.config.display()))?;
     let cfg: AgentConfig = toml::from_str(&raw).context("parse agent config")?;
-    let state = Arc::new(AgentState::new(cfg.clone()));
+    let state = Arc::new(AgentState::new(cfg.clone(), args.config.clone()));
 
     info!(
         "starting agent node={} hub={} mode={:?}",
