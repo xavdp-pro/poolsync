@@ -1,9 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=PoolSync Agent
-Comment=Démarre PoolSync à la connexion XFCE
-Exec=/bin/sh -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --user start poolsync-agent.service poolsync-watchdog.timer'
+Comment=Start PoolSync after XFCE login (systray needs X11)
+Exec=%h/.local/bin/poolsync-session-start.sh
 Hidden=false
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
 X-XFCE-Autostart-Trigger=on
+X-XFCE-Autostart-Phase=Application

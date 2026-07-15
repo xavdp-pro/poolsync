@@ -51,5 +51,7 @@ echo "==> Plugin Indicator XFCE (désactivé — casse le panneau si doublon)"
 
 echo "==> Active service user"
 export XDG_RUNTIME_DIR="/run/user/$(id -u $USER_NAME)"
-sudo loginctl enable-linger "$USER_NAME" 2>/dev/null || loginctl enable-linger "$USER_NAME" 2>/dev/null || true
+# No linger: agent must start after XFCE (systray). Session autostart handles login.
+sudo loginctl disable-linger "$USER_NAME" 2>/dev/null || loginctl disable-linger "$USER_NAME" 2>/dev/null || true
+install -m 755 "$ROOT/deploy/poolsync-session-start.sh" "$BIN_DIR/poolsync-session-start.sh"
 bash "$ROOT/deploy/poolsync-enable-user.sh" "$USER_NAME"
