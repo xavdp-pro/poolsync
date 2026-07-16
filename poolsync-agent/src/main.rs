@@ -12,6 +12,7 @@ mod rdp_detect;
 mod single;
 mod state;
 mod thumb;
+mod topology_mosaic;
 mod tray;
 
 use agent::run_agent;

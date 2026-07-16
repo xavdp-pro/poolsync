@@ -1,0 +1,135 @@
+/** Géométrie mosaïque style Barrier (miroir de poolsync-core/src/topology.rs). */
+
+export const EDGE_TOLERANCE_PX = 48
+export const SNAP_GRID_PX = 20
+export const MIN_EDGE_OVERLAP_PX = 80
+export const CANVAS_PAD = 24
+
+export function snapPosition(x, y, grid = SNAP_GRID_PX) {
+  const g = Math.max(1, grid)
+  return [
+    Math.round(x / g) * g,
+    Math.round(y / g) * g,
+  ]
+}
+
+function overlapLen(a0, a1, b0, b1) {
+  return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
+}
+
+function setNeighbor(nodes, id, dir, other) {
+  if (!nodes[id].neighbors) nodes[id].neighbors = {}
+  nodes[id].neighbors[dir] = other
+}
+
+/** Recalcule les voisins bidirectionnels à partir des positions. */
+export function inferNeighbors(topology, tolerancePx = EDGE_TOLERANCE_PX) {
+  const tol = Math.max(1, tolerancePx)
+  const ids = Object.keys(topology?.nodes || {})
+  const nodes = {}
+  for (const id of ids) {
+    nodes[id] = { ...topology.nodes[id], neighbors: {} }
+  }
+
+  for (let i = 0; i < ids.length; i += 1) {
+    for (let j = i + 1; j < ids.length; j += 1) {
+      const aId = ids[i]
+      const bId = ids[j]
+      const a = nodes[aId]
+      const b = nodes[bId]
+      const aRight = a.x + a.width
+      const bRight = b.x + b.width
+      const aBottom = a.y + a.height
+      const bBottom = b.y + b.height
+      const vOverlap = overlapLen(a.y, aBottom, b.y, bBottom)
+      const hOverlap = overlapLen(a.x, aRight, b.x, bRight)
+
+      if (Math.abs(b.x - aRight) <= tol && vOverlap >= MIN_EDGE_OVERLAP_PX) {
+        setNeighbor(nodes, aId, 'right', bId)
+        setNeighbor(nodes, bId, 'left', aId)
+      }
+      if (Math.abs(a.x - bRight) <= tol && vOverlap >= MIN_EDGE_OVERLAP_PX) {
+        setNeighbor(nodes, aId, 'left', bId)
+        setNeighbor(nodes, bId, 'right', aId)
+      }
+      if (Math.abs(b.y - aBottom) <= tol && hOverlap >= MIN_EDGE_OVERLAP_PX) {
+        setNeighbor(nodes, aId, 'down', bId)
+        setNeighbor(nodes, bId, 'up', aId)
+      }
+      if (Math.abs(a.y - bBottom) <= tol && hOverlap >= MIN_EDGE_OVERLAP_PX) {
+        setNeighbor(nodes, aId, 'up', bId)
+        setNeighbor(nodes, bId, 'down', aId)
+      }
+    }
+  }
+  return { nodes }
+}
+
+export function scaleLayout(nodes, maxW = 720, maxH = 420) {
+  const entries = Object.entries(nodes || {})
+  if (!entries.length) {
+    return { scale: 0.2, width: 400, height: 200, maxX: 0, maxY: 0 }
+  }
+  let maxX = 0
+  let maxY = 0
+  for (const [, n] of entries) {
+    maxX = Math.max(maxX, n.x + n.width)
+    maxY = Math.max(maxY, n.y + n.height)
+  }
+  const scale = Math.min(maxW / Math.max(maxX, 1), maxH / Math.max(maxY, 1), 0.4)
+  return {
+    scale,
+    width: maxX * scale + CANVAS_PAD * 2,
+    height: maxY * scale + CANVAS_PAD * 2,
+    maxX,
+    maxY,
+  }
+}
+
+/** Segments SVG entre écrans voisins (centre des bords partagés). */
+export function connectionLines(nodes, scale) {
+  const lines = []
+  const seen = new Set()
+  const pad = CANVAS_PAD
+
+  const cx = (n) => pad + (n.x + n.width / 2) * scale
+  const cy = (n) => pad + (n.y + n.height / 2) * scale
+  const edge = (n, dir) => {
+    switch (dir) {
+      case 'left':
+        return [pad + n.x * scale, cy(n)]
+      case 'right':
+        return [pad + (n.x + n.width) * scale, cy(n)]
+      case 'up':
+        return [cx(n), pad + n.y * scale]
+      case 'down':
+        return [cx(n), pad + (n.y + n.height) * scale]
+      default:
+        return [cx(n), cy(n)]
+    }
+  }
+
+  for (const [id, n] of Object.entries(nodes || {})) {
+    for (const dir of ['left', 'right', 'up', 'down']) {
+      const other = n.neighbors?.[dir]
+      if (!other || !nodes[other]) continue
+      const key = [id, other].sort().join('|')
+      if (seen.has(key)) continue
+      seen.add(key)
+      const [x1, y1] = edge(n, dir)
+      const opp = { left: 'right', right: 'left', up: 'down', down: 'up' }[dir]
+      const [x2, y2] = edge(nodes[other], opp)
+      lines.push({ x1, y1, x2, y2, a: id, b: other })
+    }
+  }
+  return lines
+}
+
+export function nodeRect(n, scale) {
+  return {
+    left: CANVAS_PAD + n.x * scale,
+    top: CANVAS_PAD + n.y * scale,
+    width: n.width * scale,
+    height: n.height * scale,
+  }
+}

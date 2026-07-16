@@ -1,6 +1,12 @@
+mod topology;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+
+pub use topology::{
+    infer_neighbors, layout_scale, snap_position, DEFAULT_EDGE_TOLERANCE_PX, DEFAULT_SNAP_GRID_PX,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -228,6 +234,7 @@ mod tests {
             display: None,
             kvm_enabled,
             kvm_capture,
+            tray_history_count: default_tray_history_count(),
         }
     }
 

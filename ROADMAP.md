@@ -15,9 +15,11 @@ singleton pattern as `logs_viewer.rs`) with two tabs:
 
 Native desktop equivalent of `web/src/pages/Config.jsx`, no browser required.
 
-**Still open for this window:** editing `~/.config/poolsync/agent.toml` local
-fields (`node`, `mode`, `screen`, `neighbors`) with optional agent restart, and
-a drag mosaic like the web page (positions are currently preserved as-is).
+**Done (v1.2+):** drag mosaic in GTK config window + auto neighbor inference from
+screen positions (Barrier-style). Web config page has the same mosaic UX.
+
+**Still open:** editing `~/.config/poolsync/agent.toml` local fields is available
+in the Agent local tab; optional snap-to-edge polish.
 
 ---
 

@@ -16,7 +16,11 @@ use gtk::{
     Align, Box as GtkBox, Button, CheckButton, ComboBoxText, Entry, Frame, Grid, Label, Notebook,
     Orientation, ScrolledWindow, SpinButton, TextView, Window,
 };
-use poolsync_core::{AgentConfig, AgentMode, Direction, PoolTopology, TopologyNode};
+use crate::topology_mosaic::TopologyMosaic;
+use poolsync_core::{
+    infer_neighbors, AgentConfig, AgentMode, Direction, PoolTopology, TopologyNode,
+    DEFAULT_EDGE_TOLERANCE_PX,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -74,6 +78,7 @@ struct AgentForm {
 struct ConfigWindow {
     window: Window,
     state: Arc<AgentState>,
+    mosaic: Rc<TopologyMosaic>,
     nodes_box: GtkBox,
     status: Label,
     rows: RefCell<Vec<NodeRow>>,
@@ -93,7 +98,7 @@ impl ConfigWindow {
             let notebook = Notebook::new();
 
             // --- Onglet 1 : topologie du hub --------------------------------
-            let (config_page, nodes_box, status) = build_topology_page(weak);
+            let (config_page, mosaic, nodes_box, status) = build_topology_page(weak);
             notebook.append_page(&config_page, Some(&Label::new(Some("Config pool (hub)"))));
 
             // --- Onglet 2 : agent.toml local --------------------------------
@@ -112,6 +117,7 @@ impl ConfigWindow {
             ConfigWindow {
                 window,
                 state: state.clone(),
+                mosaic,
                 nodes_box,
                 status,
                 rows: RefCell::new(Vec::new()),
@@ -166,10 +172,62 @@ impl ConfigWindow {
             self.rows.borrow_mut().push(row);
         }
         self.nodes_box.show_all();
+        self.mosaic.rebuild(&topo);
         self.set_status(
             &format!("{} nœud(s) chargé(s) depuis le hub", ids.len()),
             false,
         );
+    }
+
+    /// Applique une topologie recalculée depuis la mosaïque (positions + voisins).
+    fn apply_topology_layout(&self, topo: PoolTopology) {
+        {
+            let mut rows = self.rows.borrow_mut();
+            for row in rows.iter_mut() {
+                if let Some(n) = topo.nodes.get(&row.id) {
+                    row.x = n.x;
+                    row.y = n.y;
+                    for (dir, combo) in &row.neighbors {
+                        let active = n.neighbors.get(dir).map(|s| s.as_str()).unwrap_or("");
+                        combo.set_active_id(Some(active));
+                    }
+                }
+            }
+        }
+        self.mosaic.rebuild(&topo);
+        self.set_status("Mosaïque — voisins recalculés depuis les positions", false);
+    }
+
+    fn collect_topology_from_rows(&self) -> PoolTopology {
+        let mut nodes = HashMap::new();
+        for row in self.rows.borrow().iter() {
+            let mut neighbors = HashMap::new();
+            for (dir, combo) in &row.neighbors {
+                if let Some(id) = combo.active_id() {
+                    let id = id.to_string();
+                    if !id.is_empty() {
+                        neighbors.insert(dir.clone(), id);
+                    }
+                }
+            }
+            nodes.insert(
+                row.id.clone(),
+                TopologyNode {
+                    x: row.x,
+                    y: row.y,
+                    width: row.width.value_as_int() as u32,
+                    height: row.height.value_as_int() as u32,
+                    kvm_enabled: row.kvm.is_active(),
+                    neighbors,
+                },
+            );
+        }
+        PoolTopology { nodes }
+    }
+
+    fn recalc_neighbors(&self) {
+        let topo = infer_neighbors(&self.collect_topology_from_rows(), DEFAULT_EDGE_TOLERANCE_PX);
+        self.apply_topology_layout(topo);
     }
 
     /// Construit le cadre d'un nœud et renvoie les widgets pour lecture au save.
@@ -233,36 +291,18 @@ impl ConfigWindow {
 
     /// Reconstruit la topologie depuis les widgets et l'envoie au hub.
     fn save(&self) {
-        let mut nodes = HashMap::new();
-        for row in self.rows.borrow().iter() {
-            let mut neighbors = HashMap::new();
-            for (dir, combo) in &row.neighbors {
-                if let Some(id) = combo.active_id() {
-                    let id = id.to_string();
-                    if !id.is_empty() {
-                        neighbors.insert(dir.clone(), id);
-                    }
-                }
-            }
-            nodes.insert(
-                row.id.clone(),
-                TopologyNode {
-                    x: row.x,
-                    y: row.y,
-                    width: row.width.value_as_int() as u32,
-                    height: row.height.value_as_int() as u32,
-                    kvm_enabled: row.kvm.is_active(),
-                    neighbors,
-                },
-            );
-        }
+        let topo = infer_neighbors(
+            &self.collect_topology_from_rows(),
+            DEFAULT_EDGE_TOLERANCE_PX,
+        );
+        self.apply_topology_layout(topo.clone());
 
-        if nodes.is_empty() {
+        if topo.nodes.is_empty() {
             self.set_status("Rien à enregistrer", true);
             return;
         }
 
-        match post_topology(&self.state, &PoolTopology { nodes }) {
+        match post_topology(&self.state, &topo) {
             Ok(()) => self.set_status("Topologie enregistrée et diffusée aux agents ✓", false),
             Err(err) => self.set_status(&format!("Échec enregistrement : {err}"), true),
         }
@@ -362,16 +402,27 @@ impl ConfigWindow {
 
 // --- Construction des pages (hors impl pour garder new() lisible) -----------
 
-fn build_topology_page(weak: &std::rc::Weak<ConfigWindow>) -> (GtkBox, GtkBox, Label) {
+fn build_topology_page(
+    weak: &std::rc::Weak<ConfigWindow>,
+) -> (GtkBox, Rc<TopologyMosaic>, GtkBox, Label) {
     let page = GtkBox::new(Orientation::Vertical, 0);
     let toolbar = toolbar_box();
     let reload_btn = Button::with_label("Recharger");
+    let recalc_btn = Button::with_label("Recalculer voisins");
     let save_btn = Button::with_label("Enregistrer → hub");
     let status = Label::new(None);
     status.set_halign(Align::Start);
     toolbar.pack_start(&reload_btn, false, false, 0);
+    toolbar.pack_start(&recalc_btn, false, false, 0);
     toolbar.pack_start(&save_btn, false, false, 0);
     toolbar.pack_start(&status, false, false, 8);
+
+    let w_mosaic = weak.clone();
+    let mosaic = Rc::new(TopologyMosaic::new(Rc::new(move |topo| {
+        if let Some(v) = w_mosaic.upgrade() {
+            v.apply_topology_layout(topo);
+        }
+    })));
 
     let scrolled = scrolled_area();
     let nodes_box = GtkBox::new(Orientation::Vertical, 10);
@@ -380,6 +431,7 @@ fn build_topology_page(weak: &std::rc::Weak<ConfigWindow>) -> (GtkBox, GtkBox, L
     scrolled.add(&nodes_box);
 
     page.pack_start(&toolbar, false, false, 0);
+    page.pack_start(mosaic.widget(), false, false, 8);
     page.pack_start(&scrolled, true, true, 0);
 
     let w = weak.clone();
@@ -389,13 +441,19 @@ fn build_topology_page(weak: &std::rc::Weak<ConfigWindow>) -> (GtkBox, GtkBox, L
         }
     });
     let w = weak.clone();
+    recalc_btn.connect_clicked(move |_| {
+        if let Some(v) = w.upgrade() {
+            v.recalc_neighbors();
+        }
+    });
+    let w = weak.clone();
     save_btn.connect_clicked(move |_| {
         if let Some(v) = w.upgrade() {
             v.save();
         }
     });
 
-    (page, nodes_box, status)
+    (page, mosaic, nodes_box, status)
 }
 
 fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (GtkBox, AgentForm) {

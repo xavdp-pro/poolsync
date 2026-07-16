@@ -1,28 +1,24 @@
 import { motion } from 'framer-motion'
-import { GripVertical, MousePointer2, Save, Settings2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { LayoutGrid, Link2, MousePointer2, Save, Settings2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import {
   fetchTopology,
   nodeLabel,
   saveTopology,
 } from '../api'
+import {
+  CANVAS_PAD,
+  connectionLines,
+  inferNeighbors,
+  nodeRect,
+  scaleLayout,
+  snapPosition,
+  SNAP_GRID_PX,
+} from '../topologyLayout'
 
 const DIRS = ['left', 'right', 'up', 'down']
 const DIR_LABEL = { left: '←', right: '→', up: '↑', down: '↓' }
-
-function scaleLayout(nodes) {
-  const entries = Object.entries(nodes || {})
-  if (!entries.length) return { nodes: {}, scale: 0.2, width: 400, height: 200 }
-  let maxX = 0
-  let maxY = 0
-  for (const [, n] of entries) {
-    maxX = Math.max(maxX, n.x + n.width)
-    maxY = Math.max(maxY, n.y + n.height)
-  }
-  const scale = Math.min(520 / Math.max(maxX, 1), 280 / Math.max(maxY, 1), 0.35)
-  return { nodes, scale, width: maxX * scale + 40, height: maxY * scale + 40 }
-}
 
 export default function Config() {
   const [topology, setTopology] = useState(null)
@@ -30,6 +26,8 @@ export default function Config() {
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [dragId, setDragId] = useState(null)
+  const dragStart = useRef({})
+  const canvasRef = useRef(null)
 
   const load = useCallback(async () => {
     try {
@@ -47,6 +45,11 @@ export default function Config() {
 
   const layout = useMemo(() => scaleLayout(topology?.nodes), [topology])
 
+  const lines = useMemo(
+    () => connectionLines(topology?.nodes, layout.scale),
+    [topology, layout.scale],
+  )
+
   const nodeIds = useMemo(
     () => Object.keys(topology?.nodes || {}).sort((a, b) => {
       const na = topology.nodes[a]
@@ -56,15 +59,16 @@ export default function Config() {
     [topology],
   )
 
-  const updateNode = (id, patch) => {
-    setTopology((prev) => ({
-      ...prev,
-      nodes: {
-        ...prev.nodes,
-        [id]: { ...prev.nodes[id], ...patch },
-      },
-    }))
+  const applyTopology = (nodes) => {
+    setTopology((prev) => ({ ...prev, nodes }))
     setSaved(false)
+  }
+
+  const updateNode = (id, patch) => {
+    applyTopology({
+      ...topology.nodes,
+      [id]: { ...topology.nodes[id], ...patch },
+    })
   }
 
   const setNeighbor = (id, dir, value) => {
@@ -75,13 +79,24 @@ export default function Config() {
     updateNode(id, { neighbors })
   }
 
-  const onDrag = (id, e) => {
-    if (!dragId) return
-    const scale = layout.scale
-    const rect = e.currentTarget.parentElement.getBoundingClientRect()
-    const x = Math.round((e.clientX - rect.left - 20) / scale)
-    const y = Math.round((e.clientY - rect.top - 20) / scale)
-    updateNode(id, { x: Math.max(0, x), y: Math.max(0, y) })
+  const recalcNeighbors = () => {
+    const next = inferNeighbors(topology)
+    applyTopology(next.nodes)
+  }
+
+  const onDragEnd = (id, _e, info) => {
+    setDragId(null)
+    const start = dragStart.current[id] || topology.nodes[id]
+    const [sx, sy] = snapPosition(
+      start.x + info.offset.x / layout.scale,
+      start.y + info.offset.y / layout.scale,
+    )
+    const patched = {
+      ...topology.nodes,
+      [id]: { ...topology.nodes[id], x: Math.max(0, sx), y: Math.max(0, sy) },
+    }
+    const next = inferNeighbors({ nodes: patched })
+    applyTopology(next.nodes)
   }
 
   const handleSave = async () => {
@@ -90,8 +105,10 @@ export default function Config() {
       return
     }
     localStorage.setItem('poolsync_token', token.trim())
+    const toSave = inferNeighbors(topology)
     try {
-      await saveTopology(topology, token.trim())
+      await saveTopology(toSave, token.trim())
+      setTopology(toSave)
       setSaved(true)
       setError(null)
     } catch (err) {
@@ -112,7 +129,7 @@ export default function Config() {
       <PageHeader
         icon={Settings2}
         title="Configuration KVM"
-        subtitle="Mosaïque d'écrans — voisins, position, activation clavier/souris par nœud"
+        subtitle="Glissez les écrans comme dans Barrier — les voisins se recalculent automatiquement"
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -128,6 +145,14 @@ export default function Config() {
         </label>
         <button
           type="button"
+          onClick={recalcNeighbors}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+        >
+          <Link2 size={16} />
+          Recalculer voisins
+        </button>
+        <button
+          type="button"
           onClick={handleSave}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
         >
@@ -139,54 +164,90 @@ export default function Config() {
       </div>
 
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <MousePointer2 size={16} className="text-indigo-600" />
-          Mosaïque (glisser pour repositionner)
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <MousePointer2 size={16} className="text-indigo-600" />
+            Mosaïque d&apos;écrans
+          </div>
+          <span className="text-xs text-slate-400">
+            Grille {SNAP_GRID_PX}px · alignez les bords pour lier les machines
+          </span>
         </div>
         <div
-          className="relative overflow-auto rounded-lg border border-dashed border-slate-200 bg-slate-50"
+          ref={canvasRef}
+          className="relative overflow-auto rounded-lg border border-dashed border-slate-300 bg-[repeating-linear-gradient(0deg,transparent,transparent_19px,#e2e8f0_19px,#e2e8f0_20px),repeating-linear-gradient(90deg,transparent,transparent_19px,#e2e8f0_19px,#e2e8f0_20px)] bg-slate-50"
           style={{ minHeight: layout.height + 20 }}
         >
           <div className="relative" style={{ width: layout.width, height: layout.height }}>
+            <svg
+              className="pointer-events-none absolute inset-0"
+              width={layout.width}
+              height={layout.height}
+              aria-hidden
+            >
+              {lines.map((ln) => (
+                <line
+                  key={`${ln.a}-${ln.b}`}
+                  x1={ln.x1}
+                  y1={ln.y1}
+                  x2={ln.x2}
+                  y2={ln.y2}
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  opacity={0.7}
+                />
+              ))}
+            </svg>
+
             {nodeIds.map((id) => {
               const n = topology.nodes[id]
+              const rect = nodeRect(n, layout.scale)
+              const active = dragId === id
               return (
                 <motion.div
                   key={id}
                   drag
                   dragMomentum={false}
-                  onDragStart={() => setDragId(id)}
-                  onDrag={(e) => onDrag(id, e)}
-                  onDragEnd={() => setDragId(null)}
-                  className={`absolute cursor-grab rounded-lg border-2 px-2 py-2 text-xs shadow-md active:cursor-grabbing ${
-                    n.kvm_enabled
-                      ? 'border-indigo-300 bg-indigo-50 text-indigo-900'
-                      : 'border-slate-300 bg-slate-100 text-slate-500'
-                  }`}
-                  style={{
-                    left: n.x * layout.scale + 20,
-                    top: n.y * layout.scale + 20,
-                    width: n.width * layout.scale,
-                    height: n.height * layout.scale,
+                  dragElastic={0}
+                  onDragStart={() => {
+                    setDragId(id)
+                    dragStart.current[id] = { x: n.x, y: n.y }
                   }}
+                  onDragEnd={(e, info) => onDragEnd(id, e, info)}
+                  className={`absolute flex cursor-grab flex-col items-center justify-center overflow-hidden rounded-md border-2 text-center shadow-lg active:cursor-grabbing ${
+                    n.kvm_enabled
+                      ? 'border-indigo-400 bg-indigo-100/90 text-indigo-950'
+                      : 'border-slate-400 bg-slate-200/90 text-slate-600'
+                  } ${active ? 'z-20 ring-2 ring-indigo-500' : 'z-10'}`}
+                  style={{
+                    left: rect.left,
+                    top: rect.top,
+                    width: Math.max(rect.width, 72),
+                    height: Math.max(rect.height, 48),
+                  }}
+                  title={`${id} — ${n.width}×${n.height}`}
                 >
-                  <div className="flex items-center justify-between gap-1 font-bold">
-                    <span className="flex items-center gap-1 truncate">
-                      <GripVertical size={12} className="opacity-40" />
-                      {nodeLabel(id)}
-                    </span>
-                    <span className="font-mono opacity-60">{n.width}×{n.height}</span>
-                  </div>
+                  <LayoutGrid size={14} className="mb-0.5 opacity-40" />
+                  <span className="px-1 text-sm font-bold leading-tight">{nodeLabel(id)}</span>
+                  <span className="font-mono text-[10px] opacity-60">{n.width}×{n.height}</span>
                   {!n.kvm_enabled && (
-                    <div className="mt-1 text-[10px] font-semibold uppercase text-slate-400">
-                      KVM off
-                    </div>
+                    <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      clip only
+                    </span>
                   )}
                 </motion.div>
               )
             })}
           </div>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Position ({CANVAS_PAD}px marge) :{' '}
+          {nodeIds.map((id) => {
+            const n = topology.nodes[id]
+            return `${nodeLabel(id)} (${n.x}, ${n.y})`
+          }).join(' · ')}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
