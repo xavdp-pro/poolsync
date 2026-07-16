@@ -1,6 +1,8 @@
 use crate::clipboard::{
-    align_hash_after_write, read_clipboard_payload, try_send_payload, write_clipboard,
+    align_hash_after_write, mark_image_clipboard_epoch, read_clipboard_payload,
+    should_reject_remote_text, try_send_payload, write_clipboard,
 };
+use crate::clipboard_history;
 use crate::kvm::{detect_screen, inject_input, kvm_poll_loop};
 use crate::kvm_x11;
 use crate::network::{hub_tcp_endpoint, hub_tcp_reachable, wait_for_hub};
@@ -64,7 +66,7 @@ pub async fn run_agent(state: Arc<AgentState>) -> Result<()> {
     info!("connected to hub");
 
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
-    let last_clip_hash = Arc::new(Mutex::new(String::new()));
+    let last_clip_hash = state.last_clip_hash_handle();
 
     let state_bg = state.clone();
     let out_tx_bg = out_tx.clone();
@@ -135,6 +137,10 @@ async fn handle_incoming(
             if !state.clipboard_sync_enabled() {
                 return Ok(());
             }
+            if mime == "text/plain" && should_reject_remote_text().await {
+                tracing::debug!("ignore remote text — image locale protégée");
+                return Ok(());
+            }
             {
                 let mut last = last_clip_hash
                     .lock()
@@ -147,6 +153,9 @@ async fn handle_incoming(
 
             write_clipboard(&data, &mime).await?;
             align_hash_after_write(last_clip_hash).await;
+            if mime.starts_with("image/") {
+                mark_image_clipboard_epoch();
+            }
             state.mark_hub_clipboard_applied();
             let preview = clip_preview_mime(&mime, &data);
             state.record_clip_received(preview.clone());
@@ -171,6 +180,9 @@ async fn handle_incoming(
             state.set_topology(topology);
             info!("topology updated from hub");
         }
+        Message::ClipboardHistoryUpdated { .. } => {
+            state.notify_tray_history_changed();
+        }
         Message::Input { kind, .. } if state.kvm_enabled() => {
             state.mark_kvm_inject();
             inject_input(&kind).await?;
@@ -189,6 +201,9 @@ async fn handle_incoming(
             };
             state.set_kvm_input_node(&owner);
             if node == state.config.node {
+                if state.should_skip_kvm_enter(x, y) {
+                    return Ok(());
+                }
                 state.mark_kvm_inject();
                 let x = x;
                 let y = y;
@@ -298,6 +313,7 @@ async fn clipboard_poll_loop(
             if !skip_send {
                 if let Ok(Some(payload)) = read_clipboard_payload().await {
                     if try_send_payload(&payload, &out_tx, &last_clip_hash) {
+                        clipboard_history::notify_local_clipboard_sent(state, &payload);
                         if payload.mime.starts_with("image/") {
                             let approx_bytes = payload.wire_data.len().saturating_mul(3) / 4;
                             info!(

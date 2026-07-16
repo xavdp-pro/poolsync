@@ -57,6 +57,9 @@ pub struct AgentConfig {
     /// Capture souris/bords (primary Barrier). False = injection seule sur ce nœud.
     #[serde(default)]
     pub kvm_capture: Option<bool>,
+    /// Nombre d'entrées presse-papiers dans le menu systray.
+    #[serde(default = "default_tray_history_count")]
+    pub tray_history_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -104,6 +107,10 @@ fn default_input_poll_ms() -> u64 {
     8
 }
 
+fn default_tray_history_count() -> u32 {
+    15
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Message {
@@ -120,6 +127,10 @@ pub enum Message {
         hash: String,
         mime: String,
         data: String,
+    },
+    /// Signal hub : l'historique presse-papiers a changé (menu systray / SSE).
+    ClipboardHistoryUpdated {
+        revision: u64,
     },
     MasterClaim {
         node: String,
@@ -253,6 +264,16 @@ mod tests {
                 assert_eq!(data, "hello");
                 assert_eq!(mime, "text/plain");
             }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn clipboard_history_updated_round_trip() {
+        let msg = Message::ClipboardHistoryUpdated { revision: 42 };
+        let raw = encode_message(&msg).unwrap();
+        match decode_message(&raw).unwrap() {
+            Message::ClipboardHistoryUpdated { revision } => assert_eq!(revision, 42),
             other => panic!("wrong variant: {other:?}"),
         }
     }

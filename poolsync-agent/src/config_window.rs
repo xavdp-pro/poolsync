@@ -65,6 +65,7 @@ struct AgentForm {
     edge_px: SpinButton,
     clip_poll: SpinButton,
     input_poll: SpinButton,
+    tray_history: SpinButton,
     pause_rdp: CheckButton,
     display: Entry,
     status: Label,
@@ -282,6 +283,8 @@ impl ConfigWindow {
         f.edge_px.set_value(cfg.edge_px as f64);
         f.clip_poll.set_value(cfg.clipboard_poll_ms as f64);
         f.input_poll.set_value(cfg.input_poll_ms as f64);
+        f.tray_history
+            .set_value(cfg.tray_history_count.clamp(5, 50) as f64);
         f.pause_rdp.set_active(cfg.pause_clipboard_when_rdp);
         f.display
             .set_text(cfg.display.as_deref().unwrap_or_default());
@@ -305,6 +308,7 @@ impl ConfigWindow {
         cfg.edge_px = f.edge_px.value_as_int() as u32;
         cfg.clipboard_poll_ms = f.clip_poll.value_as_int() as u64;
         cfg.input_poll_ms = f.input_poll.value_as_int() as u64;
+        cfg.tray_history_count = f.tray_history.value_as_int() as u32;
         cfg.pause_clipboard_when_rdp = f.pause_rdp.is_active();
         let disp = f.display.text().to_string();
         cfg.display = if disp.trim().is_empty() {
@@ -444,12 +448,15 @@ fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (
     let input_poll = SpinButton::with_range(1.0, 1000.0, 1.0);
     attach_field(&grid, 7, "Poll souris (ms)", &input_poll);
 
+    let tray_history = SpinButton::with_range(5.0, 50.0, 1.0);
+    attach_field(&grid, 8, "Entrées menu systray", &tray_history);
+
     let pause_rdp = CheckButton::with_label("Pause presse-papiers pendant RDP actif");
-    grid.attach(&pause_rdp, 1, 8, 1, 1);
+    grid.attach(&pause_rdp, 1, 9, 1, 1);
 
     let display = Entry::new();
     display.set_placeholder_text(Some("ex. :10 (vide = auto)"));
-    attach_field(&grid, 9, "Display X11", &display);
+    attach_field(&grid, 10, "Display X11", &display);
 
     page.pack_start(&toolbar, false, false, 0);
     page.pack_start(&grid, false, false, 0);
@@ -475,6 +482,7 @@ fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (
         edge_px,
         clip_poll,
         input_poll,
+        tray_history,
         pause_rdp,
         display,
         status,
@@ -584,6 +592,7 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
     let _ = writeln!(s, "edge_px = {}", cfg.edge_px);
     let _ = writeln!(s, "clipboard_poll_ms = {}", cfg.clipboard_poll_ms);
     let _ = writeln!(s, "input_poll_ms = {}", cfg.input_poll_ms);
+    let _ = writeln!(s, "tray_history_count = {}", cfg.tray_history_count);
     let _ = writeln!(
         s,
         "pause_clipboard_when_rdp = {}",

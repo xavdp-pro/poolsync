@@ -6,8 +6,10 @@ use poolsync_core::{encode_message, hash_bytes, hash_text, Message};
 use std::io::Cursor;
 use std::process::Stdio;
 use std::sync::Mutex;
+use std::time::Instant;
 use tokio::process::Command;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::time::{timeout, Duration};
 
 const IMAGE_MIMES: &[&str] = &[
     "image/png",
@@ -20,6 +22,73 @@ const IMAGE_MIMES: &[&str] = &[
 
 const MIN_TEXT_SYNC_LEN: usize = 2;
 const MAX_IMAGE_BYTES: usize = 4 * 1024 * 1024;
+/// Timeout dur sur chaque lecture xclip : un propriétaire de sélection figé
+/// (app morte, RDP…) ne doit jamais geler la boucle presse-papiers.
+const XCLIP_READ_TIMEOUT: Duration = Duration::from_secs(2);
+/// Après envoi d'une image, ignorer le texte résiduel sur le presse-papiers X11.
+const IMAGE_TEXT_GRACE: Duration = Duration::from_secs(4);
+
+static LAST_IMAGE_SENT_AT: Mutex<Option<Instant>> = Mutex::new(None);
+
+pub fn mark_image_clipboard_epoch() {
+    if let Ok(mut guard) = LAST_IMAGE_SENT_AT.lock() {
+        *guard = Some(Instant::now());
+    }
+}
+
+pub fn image_clipboard_grace_active() -> bool {
+    LAST_IMAGE_SENT_AT
+        .lock()
+        .ok()
+        .and_then(|g| *g)
+        .is_some_and(|t| t.elapsed() < IMAGE_TEXT_GRACE)
+}
+
+fn clear_image_clipboard_epoch() {
+    if let Ok(mut guard) = LAST_IMAGE_SENT_AT.lock() {
+        *guard = None;
+    }
+}
+
+fn clipboard_has_image_targets_sync() -> bool {
+    std::process::Command::new("xclip")
+        .args(["-selection", "clipboard", "-t", "TARGETS", "-o"])
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .any(|l| l.trim().starts_with("image/"))
+        })
+        .unwrap_or(false)
+}
+
+/// Ignore un texte distant qui écraserait une image locale récente.
+pub async fn should_reject_remote_text() -> bool {
+    if image_clipboard_grace_active() {
+        return true;
+    }
+    clipboard_targets("clipboard")
+        .await
+        .map(|t| targets_have_image(&t))
+        .unwrap_or(false)
+}
+
+/// Lance `xclip` en lecture avec timeout. `kill_on_drop` garantit qu'un xclip
+/// bloqué est tué (pas d'accumulation de processus zombies figés).
+async fn xclip_read(args: &[&str]) -> Result<std::process::Output> {
+    let child = Command::new("xclip")
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .context("spawn xclip")?;
+    match timeout(XCLIP_READ_TIMEOUT, child.wait_with_output()).await {
+        Ok(res) => res.context("xclip wait"),
+        Err(_) => anyhow::bail!("xclip timeout: {}", args.join(" ")),
+    }
+}
 
 pub struct ClipboardPayload {
     pub mime: String,
@@ -32,12 +101,7 @@ pub fn targets_have_image(targets: &[String]) -> bool {
 }
 
 pub async fn clipboard_targets(selection: &str) -> Result<Vec<String>> {
-    let output = Command::new("xclip")
-        .args(["-selection", selection, "-t", "TARGETS", "-o"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .await?;
+    let output = xclip_read(&["-selection", selection, "-t", "TARGETS", "-o"]).await?;
     if !output.status.success() {
         return Ok(Vec::new());
     }
@@ -77,6 +141,10 @@ pub async fn read_clipboard_payload() -> Result<Option<ClipboardPayload>> {
             }
         }
     }
+    // Ne pas synchroniser un vieux texte tant que le presse-papiers expose encore une image.
+    if targets_have_image(&targets) {
+        return Ok(None);
+    }
     if let Ok(text) = read_selection_text("clipboard").await {
         if is_syncable_text(&text) {
             return Ok(Some(ClipboardPayload {
@@ -103,8 +171,21 @@ pub fn try_send_payload(
     out_tx: &UnboundedSender<String>,
     last_clip_hash: &Mutex<String>,
 ) -> bool {
-    if payload.mime == "text/plain" && !is_syncable_text(&payload.wire_data) {
-        return false;
+    if payload.mime == "text/plain" {
+        if !is_syncable_text(&payload.wire_data) {
+            return false;
+        }
+        if let Ok(guard) = LAST_IMAGE_SENT_AT.lock() {
+            if guard
+                .as_ref()
+                .is_some_and(|t| t.elapsed() < IMAGE_TEXT_GRACE)
+            {
+                if clipboard_has_image_targets_sync() {
+                    return false;
+                }
+                clear_image_clipboard_epoch();
+            }
+        }
     }
     let mut last = match last_clip_hash.lock() {
         Ok(guard) => guard,
@@ -122,6 +203,9 @@ pub fn try_send_payload(
         data: payload.wire_data.clone(),
     }) {
         let _ = out_tx.send(encoded);
+        if payload.mime.starts_with("image/") {
+            mark_image_clipboard_epoch();
+        }
         return true;
     }
     false
@@ -137,6 +221,64 @@ pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
         write_image_clipboard(&bytes).await
     } else {
         anyhow::bail!("unsupported clipboard mime: {mime}");
+    }
+}
+
+/// Écriture presse-papiers depuis le thread GTK (systray / historique).
+pub fn write_clipboard_sync(data: &str, mime: &str) -> Result<()> {
+    if mime == "text/plain" {
+        write_selection_text_sync("clipboard", data)
+    } else if mime.starts_with("image/") {
+        let bytes = B64
+            .decode(data)
+            .with_context(|| format!("decode base64 image ({mime})"))?;
+        if write_image_clipboard_gtk(&bytes) {
+            Ok(())
+        } else {
+            write_selection_bytes_sync("clipboard", "image/png", &bytes)
+        }
+    } else {
+        anyhow::bail!("unsupported clipboard mime: {mime}");
+    }
+}
+
+fn write_selection_text_sync(selection: &str, text: &str) -> Result<()> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new("xclip")
+        .args(["-selection", selection])
+        .stdin(Stdio::piped())
+        .spawn()
+        .with_context(|| format!("xclip -selection {selection}"))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .context("xclip stdin")?;
+    }
+    let status = child.wait().context("xclip wait")?;
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("xclip write {selection} failed");
+    }
+}
+
+fn write_selection_bytes_sync(selection: &str, mime: &str, bytes: &[u8]) -> Result<()> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new("xclip")
+        .args(["-selection", selection, "-t", mime])
+        .stdin(Stdio::piped())
+        .spawn()
+        .with_context(|| format!("xclip -selection {selection} -t {mime}"))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(bytes).context("xclip stdin")?;
+    }
+    let status = child.wait().context("xclip wait")?;
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("xclip write {selection} {mime} failed");
     }
 }
 
@@ -206,12 +348,7 @@ fn image_payload_from_bytes(bytes: &[u8]) -> Result<ClipboardPayload> {
 }
 
 pub async fn read_selection_text(selection: &str) -> Result<String> {
-    let output = Command::new("xclip")
-        .args(["-selection", selection, "-o"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .await?;
+    let output = xclip_read(&["-selection", selection, "-o"]).await?;
     if !output.status.success() {
         anyhow::bail!("xclip read {selection} text failed");
     }
@@ -233,12 +370,7 @@ pub async fn write_selection_text(selection: &str, text: &str) -> Result<()> {
 }
 
 async fn read_selection_bytes(selection: &str, mime: &str) -> Result<Vec<u8>> {
-    let output = Command::new("xclip")
-        .args(["-selection", selection, "-t", mime, "-o"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .await?;
+    let output = xclip_read(&["-selection", selection, "-t", mime, "-o"]).await?;
     if !output.status.success() {
         anyhow::bail!("xclip read {selection} {mime} failed");
     }

@@ -51,6 +51,8 @@ impl InputGrab {
         let (blank_cursor, cursor_pixmap) = create_blank_cursor(&conn, root)?;
         let grab_window = create_grab_window(&conn, root, w, h, blank_cursor)?;
 
+        release_stale_grabs(&conn);
+
         conn.map_window(grab_window)?;
         conn.configure_window(
             grab_window,
@@ -166,7 +168,15 @@ impl Drop for InputGrab {
     }
 }
 
+/// Libère un grab clavier/souris orphelin (évite ALREADY_GRABBED après échec précédent).
+fn release_stale_grabs(conn: &x11rb::rust_connection::RustConnection) {
+    let _ = conn.ungrab_keyboard(CURRENT_TIME);
+    let _ = conn.ungrab_pointer(CURRENT_TIME);
+    let _ = conn.flush();
+}
+
 /// Masque rapide avant que le grab Barrier soit prêt (warp hors écran).
+/// Préférer InputGrab::begin seul — n'appeler qu'après grab réussi si besoin.
 pub fn hide_cursor_best_effort(screen_w: u32, screen_h: u32) {
     if let Err(err) = hide_and_warp_off(screen_w, screen_h) {
         warn!("masque curseur: {err:#}");

@@ -1,4 +1,9 @@
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{
+    collections::{HashMap, VecDeque},
+    net::SocketAddr,
+    path::PathBuf,
+    sync::Arc,
+};
 
 use anyhow::{anyhow, Context, Result};
 use axum::{
@@ -7,7 +12,10 @@ use axum::{
         Query, State,
     },
     http::StatusCode,
-    response::IntoResponse,
+    response::{
+        sse::{Event, KeepAlive, Sse},
+        IntoResponse,
+    },
     routing::get,
     Json, Router,
 };
@@ -19,8 +27,30 @@ use poolsync_core::{
 };
 use serde::Serialize;
 use tokio::sync::{broadcast, RwLock};
+use tokio_stream::wrappers::BroadcastStream;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{error, info, warn};
+
+use base64::{engine::general_purpose::STANDARD as B64, Engine};
+use image::imageops::FilterType;
+use image::{ImageFormat, ImageReader};
+use std::io::Cursor;
+
+const TRAY_THUMB_MAX_PX: u32 = 64;
+
+fn image_thumb_b64(data_b64: &str) -> Option<String> {
+    let bytes = B64.decode(data_b64).ok()?;
+    let reader = ImageReader::new(Cursor::new(&bytes))
+        .with_guessed_format()
+        .ok()?;
+    let img = reader.decode().ok()?;
+    let thumb = img.resize(TRAY_THUMB_MAX_PX, TRAY_THUMB_MAX_PX, FilterType::Triangle);
+    let mut out = Vec::new();
+    thumb
+        .write_to(&mut Cursor::new(&mut out), ImageFormat::Png)
+        .ok()?;
+    Some(B64.encode(out))
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -66,6 +96,61 @@ struct HubState {
     input_owner: Arc<RwLock<Option<String>>>,
     last_clipboard_hash: Arc<RwLock<Option<String>>>,
     last_clipboard_at: Arc<RwLock<Option<u64>>>,
+    clipboard_history: Arc<RwLock<VecDeque<ClipboardHistoryEntry>>>,
+    clipboard_history_revision: Arc<RwLock<u64>>,
+    clipboard_events: broadcast::Sender<u64>,
+}
+
+const CLIPBOARD_HISTORY_MAX: usize = 50;
+
+#[derive(Clone)]
+struct ClipboardHistoryEntry {
+    hash: String,
+    mime: String,
+    preview: String,
+    data: String,
+    thumb_b64: Option<String>,
+    source_node: String,
+    at: u64,
+}
+
+#[derive(Serialize)]
+struct ClipboardHistoryItem {
+    hash: String,
+    mime: String,
+    preview: String,
+    source_node: String,
+    at: u64,
+    is_image: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thumb_b64: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ClipboardHistoryResponse {
+    items: Vec<ClipboardHistoryItem>,
+}
+
+#[derive(Deserialize)]
+struct ClipboardPickBody {
+    hash: String,
+    #[serde(default)]
+    node: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ClipboardDeleteBody {
+    hashes: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct ClipboardItemResponse {
+    hash: String,
+    mime: String,
+    preview: String,
+    data: String,
+    source_node: String,
+    at: u64,
 }
 
 #[derive(Deserialize)]
@@ -170,6 +255,7 @@ async fn main() -> Result<()> {
 
     let started_at = now_secs();
     let topology = load_topology(&args.topology_file);
+    let (clipboard_events, _) = broadcast::channel(64);
     let state = HubState {
         token: args.token.clone(),
         started_at,
@@ -180,18 +266,28 @@ async fn main() -> Result<()> {
         input_owner: Arc::new(RwLock::new(None)),
         last_clipboard_hash: Arc::new(RwLock::new(None)),
         last_clipboard_at: Arc::new(RwLock::new(None)),
+        clipboard_history: Arc::new(RwLock::new(VecDeque::new())),
+        clipboard_history_revision: Arc::new(RwLock::new(0)),
+        clipboard_events,
     };
 
-    let mut app = Router::new()
+    let app = Router::new()
         .route("/health", get(health))
         .route("/api/status", get(api_status))
         .route(
             "/api/topology",
             get(api_topology_get).post(api_topology_post),
         )
+        .route("/api/clipboard/history", get(api_clipboard_history))
+        .route("/api/clipboard/item", get(api_clipboard_item))
+        .route("/api/clipboard/events", get(api_clipboard_events))
+        .route("/api/clipboard/pick", axum::routing::post(api_clipboard_pick))
+        .route("/api/clipboard/clear", axum::routing::post(api_clipboard_clear))
+        .route("/api/clipboard/delete", axum::routing::post(api_clipboard_delete))
         .route("/ws", get(ws_handler))
-        .with_state(state);
+        .with_state(state.clone());
 
+    let mut app = app;
     if let Some(web_dir) = args.web_dir.as_ref() {
         let index = web_dir.join("index.html");
         if web_dir.is_dir() && index.is_file() {
@@ -255,6 +351,227 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
 
 async fn api_topology_get(State(state): State<HubState>) -> Json<PoolTopology> {
     Json(state.topology.read().await.clone())
+}
+
+fn clip_preview_hub(mime: &str, data: &str) -> String {
+    if mime.starts_with("image/") {
+        let label = mime.strip_prefix("image/").unwrap_or(mime);
+        let bytes = data.len().saturating_mul(3) / 4;
+        let size = if bytes >= 1024 * 1024 {
+            format!("{:.1} Mo", bytes as f64 / (1024.0 * 1024.0))
+        } else if bytes >= 1024 {
+            format!("{} Ko", bytes / 1024)
+        } else {
+            format!("{bytes} o")
+        };
+        format!("[Image {label} — {size}]")
+    } else {
+        let one_line: String = data.chars().take(80).collect();
+        if data.len() > 80 {
+            format!("{one_line}…")
+        } else {
+            one_line
+        }
+    }
+}
+
+async fn push_clipboard_history(
+    state: &HubState,
+    source_node: &str,
+    hash: &str,
+    mime: &str,
+    data: &str,
+) {
+    let entry = ClipboardHistoryEntry {
+        hash: hash.to_string(),
+        mime: mime.to_string(),
+        preview: clip_preview_hub(mime, data),
+        data: data.to_string(),
+        thumb_b64: mime
+            .starts_with("image/")
+            .then(|| image_thumb_b64(data))
+            .flatten(),
+        source_node: source_node.to_string(),
+        at: now_secs(),
+    };
+    let mut hist = state.clipboard_history.write().await;
+    hist.retain(|e| e.hash != entry.hash);
+    hist.push_front(entry);
+    while hist.len() > CLIPBOARD_HISTORY_MAX {
+        hist.pop_back();
+    }
+}
+
+async fn notify_clipboard_history(state: &HubState) {
+    let revision = {
+        let mut rev = state.clipboard_history_revision.write().await;
+        *rev += 1;
+        *rev
+    };
+    let _ = state.clipboard_events.send(revision);
+    if let Ok(payload) = encode_message(&Message::ClipboardHistoryUpdated { revision }) {
+        broadcast_all(state, &payload).await;
+    }
+}
+
+async fn api_clipboard_events(
+    Query(query): Query<TokenQuery>,
+    State(state): State<HubState>,
+) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>>, StatusCode>
+{
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let initial = *state.clipboard_history_revision.read().await;
+    let initial_event = futures_util::stream::once(async move {
+        Ok(Event::default().data(format!("{{\"revision\":{initial}}}")))
+    });
+    let updates = BroadcastStream::new(state.clipboard_events.subscribe())
+        .filter_map(|r| async move { r.ok() })
+        .map(|revision| Ok(Event::default().data(format!("{{\"revision\":{revision}}}"))));
+    let stream = initial_event.chain(updates);
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+}
+
+#[derive(Deserialize)]
+struct HistoryQuery {
+    token: String,
+    limit: Option<usize>,
+}
+
+async fn api_clipboard_history(
+    Query(query): Query<HistoryQuery>,
+    State(state): State<HubState>,
+) -> Result<Json<ClipboardHistoryResponse>, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let limit = query.limit.unwrap_or(50).min(CLIPBOARD_HISTORY_MAX);
+    let hist = state.clipboard_history.read().await;
+    let items = hist
+        .iter()
+        .take(limit)
+        .map(|e| ClipboardHistoryItem {
+            hash: e.hash.clone(),
+            mime: e.mime.clone(),
+            preview: e.preview.clone(),
+            source_node: e.source_node.clone(),
+            at: e.at,
+            is_image: e.mime.starts_with("image/"),
+            thumb_b64: e.thumb_b64.clone(),
+        })
+        .collect();
+    Ok(Json(ClipboardHistoryResponse { items }))
+}
+
+#[derive(Deserialize)]
+struct ItemQuery {
+    token: String,
+    hash: String,
+}
+
+async fn api_clipboard_item(
+    Query(query): Query<ItemQuery>,
+    State(state): State<HubState>,
+) -> Result<Json<ClipboardItemResponse>, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let hist = state.clipboard_history.read().await;
+    let entry = hist
+        .iter()
+        .find(|e| e.hash == query.hash)
+        .ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(ClipboardItemResponse {
+        hash: entry.hash.clone(),
+        mime: entry.mime.clone(),
+        preview: entry.preview.clone(),
+        data: entry.data.clone(),
+        source_node: entry.source_node.clone(),
+        at: entry.at,
+    }))
+}
+
+async fn api_clipboard_pick(
+    Query(query): Query<TokenQuery>,
+    State(state): State<HubState>,
+    Json(body): Json<ClipboardPickBody>,
+) -> Result<StatusCode, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let entry = {
+        let hist = state.clipboard_history.read().await;
+        hist.iter()
+            .find(|e| e.hash == body.hash)
+            .cloned()
+            .ok_or(StatusCode::NOT_FOUND)?
+    };
+    *state.last_clipboard_hash.write().await = Some(entry.hash.clone());
+    *state.last_clipboard_at.write().await = Some(now_secs());
+    push_clipboard_history(
+        &state,
+        "pick",
+        &entry.hash,
+        &entry.mime,
+        &entry.data,
+    )
+    .await;
+    let payload = encode_message(&Message::Clipboard {
+        msg_id: uuid::Uuid::new_v4().to_string(),
+        hash: entry.hash,
+        mime: entry.mime,
+        data: entry.data,
+    })
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if let Some(ref node) = body.node {
+        broadcast_except(&state, node, &payload).await;
+    } else {
+        broadcast_all(&state, &payload).await;
+    }
+    notify_clipboard_history(&state).await;
+    Ok(StatusCode::OK)
+}
+
+async fn api_clipboard_clear(
+    Query(query): Query<TokenQuery>,
+    State(state): State<HubState>,
+) -> Result<StatusCode, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    state.clipboard_history.write().await.clear();
+    *state.last_clipboard_hash.write().await = None;
+    *state.last_clipboard_at.write().await = None;
+    notify_clipboard_history(&state).await;
+    info!("clipboard history cleared");
+    Ok(StatusCode::OK)
+}
+
+async fn api_clipboard_delete(
+    Query(query): Query<TokenQuery>,
+    State(state): State<HubState>,
+    Json(body): Json<ClipboardDeleteBody>,
+) -> Result<StatusCode, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    if body.hashes.is_empty() {
+        return Ok(StatusCode::OK);
+    }
+    let to_remove: std::collections::HashSet<String> =
+        body.hashes.iter().cloned().collect();
+    let mut hist = state.clipboard_history.write().await;
+    hist.retain(|e| !to_remove.contains(&e.hash));
+    let last = state.last_clipboard_hash.read().await.clone();
+    if last.as_ref().is_some_and(|h| to_remove.contains(h)) {
+        *state.last_clipboard_hash.write().await = hist.front().map(|e| e.hash.clone());
+        *state.last_clipboard_at.write().await = hist.front().map(|e| e.at);
+    }
+    drop(hist);
+    notify_clipboard_history(&state).await;
+    info!("clipboard history deleted {} item(s)", to_remove.len());
+    Ok(StatusCode::OK)
 }
 
 async fn api_topology_post(
@@ -420,6 +737,12 @@ async fn register_node(
                 let payload = encode_message(&Message::MasterChanged { node: owner_node })?;
                 let _ = sender.send(payload);
             }
+            let revision = *state.clipboard_history_revision.read().await;
+            if revision > 0 {
+                let payload =
+                    encode_message(&Message::ClipboardHistoryUpdated { revision })?;
+                let _ = sender.send(payload);
+            }
             Ok(Some(node))
         }
         _ => Err(anyhow!("first message must be hello")),
@@ -453,12 +776,20 @@ async fn handle_message(
             mime,
             data,
         } => {
-            let mut last = state.last_clipboard_hash.write().await;
-            if last.as_deref() == Some(&hash) {
+            let duplicate = {
+                let last = state.last_clipboard_hash.read().await;
+                last.as_deref() == Some(&hash)
+            };
+            if !duplicate {
+                *state.last_clipboard_hash.write().await = Some(hash.clone());
+            }
+            *state.last_clipboard_at.write().await = Some(now_secs());
+            // Toujours remonter en tête (même hash recopié) ; broadcast seulement si nouveau.
+            push_clipboard_history(&state, from, &hash, &mime, &data).await;
+            notify_clipboard_history(state).await;
+            if duplicate {
                 return Ok(());
             }
-            *last = Some(hash.clone());
-            *state.last_clipboard_at.write().await = Some(now_secs());
 
             let payload = encode_message(&Message::Clipboard {
                 msg_id,

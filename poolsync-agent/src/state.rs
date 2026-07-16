@@ -1,7 +1,7 @@
 use poolsync_core::{AgentConfig, PoolTopology, TopologyNode};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
 #[derive(Clone)]
@@ -26,6 +26,14 @@ pub struct AgentState {
     last_hub_apply_at: Arc<RwLock<Option<Instant>>>,
     /// Ignore les mouvements souris causés par injection KVM distante.
     kvm_inject_until: Arc<RwLock<Option<Instant>>>,
+    /// Révision hub de l'historique presse-papiers (rafraîchit le menu systray).
+    tray_history_revision: Arc<AtomicU64>,
+    /// Entrée locale envoyée au hub — affichée tout de suite dans le systray (sans attendre le WS retour).
+    optimistic_tray: Arc<RwLock<Option<crate::clipboard_history::HistoryItem>>>,
+    /// Dernier hash clipboard connu (évite reboucles poll / echo hub après pick).
+    last_clip_hash: Arc<Mutex<String>>,
+    /// Dernier positionnement KVM local (évite doublons SwitchTo).
+    last_kvm_enter: Arc<RwLock<Option<(i32, i32, Instant)>>>,
 }
 
 impl AgentState {
@@ -51,11 +59,73 @@ impl AgentState {
             last_notify_at: Arc::new(RwLock::new(None)),
             last_hub_apply_at: Arc::new(RwLock::new(None)),
             kvm_inject_until: Arc::new(RwLock::new(None)),
+            tray_history_revision: Arc::new(AtomicU64::new(0)),
+            optimistic_tray: Arc::new(RwLock::new(None)),
+            last_clip_hash: Arc::new(Mutex::new(String::new())),
+            last_kvm_enter: Arc::new(RwLock::new(None)),
         }
     }
 
+    pub fn last_clip_hash_handle(&self) -> Arc<Mutex<String>> {
+        Arc::clone(&self.last_clip_hash)
+    }
+
+    pub fn set_last_clip_hash(&self, hash: &str) {
+        if let Ok(mut guard) = self.last_clip_hash.lock() {
+            *guard = hash.to_string();
+        }
+    }
+
+    /// Ignore un SwitchTo local identique reçu en double (hub / nœuds voisins).
+    pub fn should_skip_kvm_enter(&self, x: i32, y: i32) -> bool {
+        const DEDUP_MS: u128 = 250;
+        let now = Instant::now();
+        if let Ok(mut slot) = self.last_kvm_enter.write() {
+            if let Some((lx, ly, t)) = *slot {
+                if lx == x && ly == y && now.duration_since(t).as_millis() < DEDUP_MS {
+                    return true;
+                }
+            }
+            *slot = Some((x, y, now));
+        }
+        false
+    }
+
+    /// Affiche immédiatement la copie locale en tête du menu systray.
+    pub fn set_optimistic_tray_item(&self, item: crate::clipboard_history::HistoryItem) {
+        if let Ok(mut slot) = self.optimistic_tray.write() {
+            *slot = Some(item);
+        }
+        self.notify_tray_history_changed();
+    }
+
+    /// Incrémente le compteur local — ne jamais écraser avec la révision hub (évite régressions).
+    pub fn notify_tray_history_changed(&self) {
+        self.tray_history_revision
+            .fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn clear_optimistic_tray(&self, hash: &str) {
+        if let Ok(mut slot) = self.optimistic_tray.write() {
+            if slot.as_ref().is_some_and(|i| i.hash == hash) {
+                *slot = None;
+            }
+        }
+    }
+
+    pub fn optimistic_tray_item(&self) -> Option<crate::clipboard_history::HistoryItem> {
+        self.optimistic_tray
+            .read()
+            .ok()
+            .and_then(|g| g.clone())
+    }
+
+    pub fn tray_history_revision(&self) -> u64 {
+        self.tray_history_revision.load(Ordering::SeqCst)
+    }
+
     pub fn mark_kvm_inject(&self) {
-        const GRACE: std::time::Duration = std::time::Duration::from_millis(120);
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(350);
         if let Ok(mut until) = self.kvm_inject_until.write() {
             *until = Some(Instant::now() + GRACE);
         }

@@ -5,8 +5,8 @@ mode = "full"
 kvm_enabled = true
 
 [screen]
-width = 1343
-height = 755
+width = 1344
+height = 756
 
 [[neighbors]]
 direction = "right"

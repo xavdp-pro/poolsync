@@ -3,7 +3,7 @@ hub_url = "ws://10.24.42.1:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "clipboard_only"
 kvm_enabled = false
-display = ":10"
+display = ":11"
 pause_clipboard_when_rdp = false
 
 [screen]

@@ -1,5 +1,5 @@
-use crate::kvm_input::{hide_cursor_best_effort, GrabEvent, InputGrab};
-use crate::kvm_x11;
+use crate::kvm_x11::{self, set_cursor_visible_best_effort};
+use crate::kvm_input::{GrabEvent, InputGrab};
 use crate::state::AgentState;
 use anyhow::Result;
 use poolsync_core::{encode_message, Direction, Message, ScreenInfo};
@@ -38,6 +38,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
         .checked_sub(Duration::from_secs(1))
         .unwrap_or_else(Instant::now);
     let mut blocked_edges: Vec<(BlockedEdge, Instant)> = Vec::new();
+    let mut grab_fail_streak: u32 = 0;
 
     let mut last_screen_probe = Instant::now()
         .checked_sub(Duration::from_secs(60))
@@ -77,11 +78,35 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
         // Écran distant : grab souris+clavier, pas de lecture locale.
         if state.is_input_owner() && focus != local {
             if input_grab.is_none() {
-                hide_cursor_best_effort(screen.width, screen.height);
                 match InputGrab::begin(screen.width, screen.height) {
-                    Ok(grab) => input_grab = Some(grab),
+                    Ok(grab) => {
+                        input_grab = Some(grab);
+                        grab_fail_streak = 0;
+                    }
                     Err(err) => {
                         tracing::warn!("grab KVM distant: {err:#}");
+                        set_cursor_visible_best_effort(true);
+                        grab_fail_streak += 1;
+                        if grab_fail_streak >= 25 {
+                            tracing::warn!(
+                                "grab KVM impossible ({grab_fail_streak}x) — retour local {local}"
+                            );
+                            let cx = screen.width as i32 / 2;
+                            let cy = screen.height as i32 / 2;
+                            do_switch(
+                                &local,
+                                &local,
+                                cx,
+                                cy,
+                                state,
+                                &out_tx,
+                                &mut focus,
+                                &mut remote_x,
+                                &mut remote_y,
+                            );
+                            state.set_kvm_focus(&local);
+                            grab_fail_streak = 0;
+                        }
                         thread::sleep(poll);
                         continue;
                     }
@@ -93,6 +118,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 Err(err) => {
                     tracing::warn!("poll KVM grab: {err:#}");
                     input_grab = None;
+                    set_cursor_visible_best_effort(true);
                     thread::sleep(poll);
                     continue;
                 }

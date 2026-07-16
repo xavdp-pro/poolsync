@@ -1,32 +1,42 @@
+use crate::clipboard_history::{self, HistoryItem};
 use crate::config_window;
 use crate::logs_viewer;
-use crate::state::{format_time_ago, AgentState};
+use crate::state::AgentState;
 use anyhow::{Context, Result};
 use glib::ControlFlow;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-use muda::{CheckMenuItem, ContextMenu, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
+use muda::{
+    CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem,
+    Submenu,
+};
+use std::cell::{Cell, RefCell};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+const ID_OPTIONS: &str = "options";
 const ID_STATUS: &str = "status";
 const ID_NODE: &str = "node";
 const ID_HUB: &str = "hub";
 const ID_MASTER: &str = "master";
-const ID_LAST_CLIP: &str = "last_clip";
 const ID_CLIP_SYNC: &str = "clip_sync";
 const ID_NOTIFY: &str = "notify";
 const ID_KVM: &str = "kvm";
+const ID_CLIP_HISTORY: &str = "clip_history";
+const ID_CLIP_CLEAR: &str = "clip_clear";
 const ID_CONFIG: &str = "config";
 const ID_VIEW_LOGS: &str = "view_logs";
+const CLIP_ID_PREFIX: &str = "clip:";
 
 struct TrayUi {
+    root_menu: Menu,
+    last_tray_revision: RefCell<u64>,
+    last_tray_fingerprint: RefCell<String>,
     status: MenuItem,
     node: MenuItem,
     hub: MenuItem,
     master: MenuItem,
-    last_clip: MenuItem,
     clip_sync: CheckMenuItem,
     notify: CheckMenuItem,
     kvm: Option<CheckMenuItem>,
@@ -56,18 +66,8 @@ fn run_tray_gtk(
     ready_tx: std::sync::mpsc::SyncSender<Result<()>>,
 ) -> Result<()> {
     gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
-    let menu = build_menu(&state)?;
-    let kvm_item = find_check_optional(&menu, ID_KVM);
-    let ui = Arc::new(TrayUi {
-        status: find_item(&menu, ID_STATUS)?,
-        node: find_item(&menu, ID_NODE)?,
-        hub: find_item(&menu, ID_HUB)?,
-        master: find_item(&menu, ID_MASTER)?,
-        last_clip: find_item(&menu, ID_LAST_CLIP)?,
-        clip_sync: find_check(&menu, ID_CLIP_SYNC)?,
-        notify: find_check(&menu, ID_NOTIFY)?,
-        kvm: kvm_item,
-    });
+    let ui = Arc::new(build_menu(&state)?);
+    refresh_clipboard_items(&ui, &state);
 
     let app_id = format!("com.xavdp.poolsync.{}", state.config.node);
     let mut indicator = AppIndicator::new(&app_id, "poolsync");
@@ -76,12 +76,26 @@ fn run_tray_gtk(
     let (icon_dir, icon_path) = install_icon_png()?;
     indicator.set_icon_theme_path(&icon_dir.to_string_lossy());
     indicator.set_icon_full(&icon_path.to_string_lossy(), "PoolSync");
-    indicator.set_menu(&mut menu.gtk_context_menu());
+    // Une seule liaison menu ↔ indicateur (ne pas rappeler set_menu : casse MenuEvent muda).
+    indicator.set_menu(&mut ui.root_menu.gtk_context_menu());
 
     let gtk_ctx = glib::MainContext::ref_thread_default();
     let state_events = state.clone();
     MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
         let id = event.id().0.as_str();
+        if let Some(hash) = id.strip_prefix(CLIP_ID_PREFIX) {
+            if hash == "empty" {
+                return;
+            }
+            let st = state_events.clone();
+            let hash = hash.to_string();
+            std::thread::spawn(move || {
+                if let Err(err) = clipboard_history::pick_and_paste(&st, &hash) {
+                    tracing::warn!("clipboard pick from tray: {err:#}");
+                }
+            });
+            return;
+        }
         match id {
             ID_CLIP_SYNC => {
                 let on = state_events.toggle_clipboard_sync();
@@ -94,6 +108,16 @@ fn run_tray_gtk(
             ID_KVM => {
                 let on = state_events.toggle_kvm();
                 tracing::info!("kvm enabled: {on}");
+            }
+            ID_CLIP_HISTORY => {
+                let ctx = gtk_ctx.clone();
+                let st = state_events.clone();
+                let _ = ctx.invoke(move || clipboard_history::show(st));
+            }
+            ID_CLIP_CLEAR => {
+                let ctx = gtk_ctx.clone();
+                let st = state_events.clone();
+                let _ = ctx.invoke(move || clipboard_history::confirm_clear_from_tray(st));
             }
             ID_CONFIG => {
                 let ctx = gtk_ctx.clone();
@@ -111,8 +135,19 @@ fn run_tray_gtk(
 
     let ui_refresh = ui.clone();
     let state_refresh = state.clone();
-    glib::timeout_add_local(Duration::from_secs(2), move || {
-        refresh_menu(&ui_refresh, &state_refresh);
+    let tick = std::rc::Rc::new(Cell::new(0u32));
+    let tick_refresh = tick.clone();
+    glib::timeout_add_local(Duration::from_millis(120), move || {
+        let rev = state_refresh.tray_history_revision();
+        if rev != *ui_refresh.last_tray_revision.borrow() {
+            *ui_refresh.last_tray_revision.borrow_mut() = rev;
+            refresh_clipboard_items(&ui_refresh, &state_refresh);
+        }
+        let n = tick_refresh.get().wrapping_add(1);
+        tick_refresh.set(n);
+        if n % 12 == 0 {
+            refresh_options_menu(&ui_refresh, &state_refresh);
+        }
         ControlFlow::Continue
     });
 
@@ -132,40 +167,56 @@ fn install_icon_png() -> Result<(PathBuf, PathBuf)> {
     Ok((icon_dir, icon_path))
 }
 
-fn build_menu(state: &AgentState) -> Result<Menu> {
-    let menu = Menu::new();
-    menu.append(&MenuItem::with_id(
-        ID_STATUS,
-        state.status_line(),
-        false,
-        None,
-    ))?;
-    menu.append(&PredefinedMenuItem::separator())?;
-    menu.append(&MenuItem::with_id(
+fn build_menu(state: &AgentState) -> Result<TrayUi> {
+    let root_menu = Menu::new();
+    let options = build_options_submenu(state)?;
+
+    let status = find_item_in_submenu(&options, ID_STATUS)?;
+    let node = find_item_in_submenu(&options, ID_NODE)?;
+    let hub = find_item_in_submenu(&options, ID_HUB)?;
+    let master = find_item_in_submenu(&options, ID_MASTER)?;
+    let clip_sync = find_check_in_submenu(&options, ID_CLIP_SYNC)?;
+    let notify = find_check_in_submenu(&options, ID_NOTIFY)?;
+    let kvm = find_check_optional_in_submenu(&options, ID_KVM);
+
+    root_menu.append(&PredefinedMenuItem::separator())?;
+    root_menu.append(&options)?;
+
+    Ok(TrayUi {
+        root_menu,
+        last_tray_revision: RefCell::new(0),
+        last_tray_fingerprint: RefCell::new(String::new()),
+        status,
+        node,
+        hub,
+        master,
+        clip_sync,
+        notify,
+        kvm,
+    })
+}
+
+fn build_options_submenu(state: &AgentState) -> Result<Submenu> {
+    let status = MenuItem::with_id(ID_STATUS, state.status_line(), false, None);
+    let node = MenuItem::with_id(
         ID_NODE,
         format!("Nœud : {}", state.config.node),
         false,
         None,
-    ))?;
-    menu.append(&MenuItem::with_id(
+    );
+    let hub = MenuItem::with_id(
         ID_HUB,
         format!("Hub : {}", state.hub_display()),
         false,
         None,
-    ))?;
-    menu.append(&MenuItem::with_id(
+    );
+    let master = MenuItem::with_id(
         ID_MASTER,
         format!("Maître : {}", state.master_node()),
         false,
         None,
-    ))?;
-    menu.append(&MenuItem::with_id(
-        ID_LAST_CLIP,
-        "Dernier reçu : —",
-        false,
-        None,
-    ))?;
-    menu.append(&PredefinedMenuItem::separator())?;
+    );
+    let sep1 = PredefinedMenuItem::separator();
     let clip_sync = CheckMenuItem::with_id(
         ID_CLIP_SYNC,
         "Presse-papiers synchronisé",
@@ -173,7 +224,6 @@ fn build_menu(state: &AgentState) -> Result<Menu> {
         state.clipboard_sync_enabled(),
         None,
     );
-    menu.append(&clip_sync)?;
     let notify = CheckMenuItem::with_id(
         ID_NOTIFY,
         "Notifier à la réception",
@@ -181,60 +231,49 @@ fn build_menu(state: &AgentState) -> Result<Menu> {
         state.notify_enabled(),
         None,
     );
-    menu.append(&notify)?;
-    if state.config.kvm_active() || state.config.kvm_enabled.is_some() {
-        let kvm = CheckMenuItem::with_id(
+    let kvm_item = if state.config.kvm_active() || state.config.kvm_enabled.is_some() {
+        Some(CheckMenuItem::with_id(
             ID_KVM,
             "Clavier / souris KVM",
             true,
             state.kvm_enabled(),
             None,
-        );
-        menu.append(&kvm)?;
-    }
-    menu.append(&PredefinedMenuItem::separator())?;
-    menu.append(&MenuItem::with_id(
-        ID_CONFIG,
-        "Configuration du pool…",
-        true,
-        None,
-    ))?;
-    menu.append(&MenuItem::with_id(
-        ID_VIEW_LOGS,
-        "Voir les logs…",
-        true,
-        None,
-    ))?;
-    Ok(menu)
-}
-
-fn refresh_menu(ui: &TrayUi, state: &AgentState) {
-    let _ = ui.status.set_text(state.status_line());
-    let _ = ui.node.set_text(format!("Nœud : {}", state.config.node));
-    let _ = ui.hub.set_text(format!("Hub : {}", state.hub_display()));
-    let _ = ui
-        .master
-        .set_text(format!("Maître : {}", state.master_node()));
-
-    let last = match state.last_clip_ago_secs() {
-        Some(secs) => format!(
-            "Dernier reçu : {} — {}",
-            format_time_ago(secs),
-            state.last_clip_preview()
-        ),
-        None => "Dernier reçu : —".into(),
+        ))
+    } else {
+        None
     };
-    let _ = ui.last_clip.set_text(last);
+    let sep2 = PredefinedMenuItem::separator();
+    let clip_history = MenuItem::with_id(ID_CLIP_HISTORY, "Historique complet…", true, None);
+    let clip_clear = MenuItem::with_id(ID_CLIP_CLEAR, "Vider l'historique…", true, None);
+    let config = MenuItem::with_id(ID_CONFIG, "Configuration du pool…", true, None);
+    let logs = MenuItem::with_id(ID_VIEW_LOGS, "Voir les logs…", true, None);
+    let sep_mid = PredefinedMenuItem::separator();
 
-    let _ = ui.clip_sync.set_checked(state.clipboard_sync_enabled());
-    let _ = ui.notify.set_checked(state.notify_enabled());
-    if let Some(kvm) = &ui.kvm {
-        let _ = kvm.set_checked(state.kvm_enabled());
+    let mut items: Vec<&dyn muda::IsMenuItem> = vec![
+        &status,
+        &sep1,
+        &node,
+        &hub,
+        &master,
+        &sep_mid,
+        &clip_sync,
+        &notify,
+    ];
+    if let Some(ref kvm) = kvm_item {
+        items.push(kvm);
     }
+    items.push(&sep2);
+    items.push(&clip_history);
+    items.push(&clip_clear);
+    items.push(&config);
+    items.push(&logs);
+
+    Submenu::with_id_and_items(ID_OPTIONS, "Options PoolSync", true, &items)
+        .context("options submenu")
 }
 
-fn find_item(menu: &Menu, id: &str) -> Result<MenuItem> {
-    menu.items()
+fn find_item_in_submenu(sub: &Submenu, id: &str) -> Result<MenuItem> {
+    sub.items()
         .into_iter()
         .find_map(|item| {
             if item.id().0 == id {
@@ -246,18 +285,8 @@ fn find_item(menu: &Menu, id: &str) -> Result<MenuItem> {
         .context(format!("menu item {id}"))
 }
 
-fn find_check_optional(menu: &Menu, id: &str) -> Option<CheckMenuItem> {
-    menu.items().into_iter().find_map(|item| {
-        if item.id().0 == id {
-            item.as_check_menuitem().cloned()
-        } else {
-            None
-        }
-    })
-}
-
-fn find_check(menu: &Menu, id: &str) -> Result<CheckMenuItem> {
-    menu.items()
+fn find_check_in_submenu(sub: &Submenu, id: &str) -> Result<CheckMenuItem> {
+    sub.items()
         .into_iter()
         .find_map(|item| {
             if item.id().0 == id {
@@ -267,4 +296,111 @@ fn find_check(menu: &Menu, id: &str) -> Result<CheckMenuItem> {
             }
         })
         .context(format!("check item {id}"))
+}
+
+fn find_check_optional_in_submenu(sub: &Submenu, id: &str) -> Option<CheckMenuItem> {
+    sub.items().into_iter().find_map(|item| {
+        if item.id().0 == id {
+            item.as_check_menuitem().cloned()
+        } else {
+            None
+        }
+    })
+}
+
+fn clear_clipboard_menu_items(menu: &Menu) {
+    loop {
+        let Some(first) = menu.items().into_iter().next() else {
+            break;
+        };
+        if !first.id().0.starts_with(CLIP_ID_PREFIX) {
+            break;
+        }
+        let _ = menu.remove_at(0);
+    }
+}
+
+fn prepend_clip_item(menu: &Menu, entry: &HistoryItem, state: &AgentState) -> Result<()> {
+    let id = format!("{CLIP_ID_PREFIX}{}", entry.hash);
+    let label = clipboard_history::tray_label(entry);
+    if entry.is_image {
+        let icon = clipboard_history::tray_image_icon(state, entry);
+        let item = IconMenuItem::with_id(id, label, true, icon, None);
+        menu.prepend(&item)?;
+    } else {
+        let item = MenuItem::with_id(id, label, true, None);
+        menu.prepend(&item)?;
+    }
+    Ok(())
+}
+
+fn tray_fingerprint(entries: &[HistoryItem]) -> String {
+    if entries.is_empty() {
+        return String::from("empty");
+    }
+    entries
+        .iter()
+        .map(|e| e.hash.as_str())
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+fn refresh_clipboard_items(ui: &TrayUi, state: &AgentState) {
+    let entries: Vec<HistoryItem> = match clipboard_history::fetch_history_tray(state) {
+        Ok(items) => items,
+        Err(err) => {
+            tracing::debug!("tray history fetch: {err:#}");
+            Vec::new()
+        }
+    };
+
+    let fingerprint = tray_fingerprint(&entries);
+    if fingerprint == *ui.last_tray_fingerprint.borrow() {
+        return;
+    }
+    *ui.last_tray_fingerprint.borrow_mut() = fingerprint;
+
+    clear_clipboard_menu_items(&ui.root_menu);
+
+    if entries.is_empty() {
+        let empty = MenuItem::with_id(
+            format!("{CLIP_ID_PREFIX}empty"),
+            "(presse-papiers vide)",
+            false,
+            None,
+        );
+        if let Err(err) = ui.root_menu.prepend(&empty) {
+            tracing::debug!("tray empty item: {err}");
+        }
+        return;
+    }
+
+    for entry in entries.iter().rev() {
+        if let Err(err) = prepend_clip_item(&ui.root_menu, entry, state) {
+            tracing::debug!("tray clip item: {err}");
+        }
+    }
+}
+
+fn refresh_options_menu(ui: &TrayUi, state: &AgentState) {
+    let _ = ui.status.set_text(state.status_line());
+    let _ = ui.node.set_text(format!("Nœud : {}", state.config.node));
+    let _ = ui.hub.set_text(format!("Hub : {}", state.hub_display()));
+    let _ = ui
+        .master
+        .set_text(format!("Maître : {}", state.master_node()));
+    let clip_on = state.clipboard_sync_enabled();
+    if ui.clip_sync.is_checked() != clip_on {
+        ui.clip_sync.set_checked(clip_on);
+    }
+    let notify_on = state.notify_enabled();
+    if ui.notify.is_checked() != notify_on {
+        ui.notify.set_checked(notify_on);
+    }
+    if let Some(kvm) = &ui.kvm {
+        let kvm_on = state.kvm_enabled();
+        if kvm.is_checked() != kvm_on {
+            kvm.set_checked(kvm_on);
+        }
+    }
 }

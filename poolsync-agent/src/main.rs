@@ -1,5 +1,6 @@
 mod agent;
 mod clipboard;
+mod clipboard_history;
 mod config_window;
 mod kvm;
 mod kvm_input;
@@ -10,6 +11,7 @@ mod notify_thumb;
 mod rdp_detect;
 mod single;
 mod state;
+mod thumb;
 mod tray;
 
 use agent::run_agent;
