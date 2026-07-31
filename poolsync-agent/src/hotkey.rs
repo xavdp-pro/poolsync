@@ -3,15 +3,18 @@ use crate::notify_util;
 use crate::state::AgentState;
 use global_hotkey::{
     hotkey::{Code, HotKey, Modifiers},
-    GlobalHotKeyEvent, GlobalHotKeyManager,
+    GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState,
 };
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
 /// Combinaison recommandée : rarement utilisée par le OS / les apps, mémorable (P = PoolSync).
 pub const HOTKEY_LABEL: &str = "Ctrl+Alt+Shift+P";
+
+/// Ignore les doubles événements (Pressed+Released ou auto-repeat) pour un vrai toggle.
+const TOGGLE_DEBOUNCE: Duration = Duration::from_millis(600);
 
 fn default_hotkey() -> HotKey {
     HotKey::new(
@@ -44,10 +47,20 @@ fn hotkey_loop(state: Arc<AgentState>) {
     info!("raccourci {HOTKEY_LABEL} enregistré (toggle PoolSync local)");
 
     let receiver = GlobalHotKeyEvent::receiver();
+    let mut last_toggle = Instant::now()
+        .checked_sub(TOGGLE_DEBOUNCE)
+        .unwrap_or_else(Instant::now);
     loop {
         if let Ok(event) = receiver.try_recv() {
-            if event.id == hotkey.id() {
-                on_hotkey(&state);
+            // X11 envoie Pressed puis Released — un seul toggle par appui.
+            if event.id == hotkey.id() && event.state == HotKeyState::Pressed {
+                let now = Instant::now();
+                if now.duration_since(last_toggle) >= TOGGLE_DEBOUNCE {
+                    last_toggle = now;
+                    on_hotkey(&state);
+                } else {
+                    tracing::debug!("raccourci ignoré (debounce / double événement)");
+                }
             }
         }
         thread::sleep(Duration::from_millis(50));
@@ -60,15 +73,20 @@ fn on_hotkey(state: &AgentState) {
     if active {
         info!("PoolSync activé localement ({node}) via {HOTKEY_LABEL}");
         notify_util::notify_local(
-            "PoolSync activé",
-            &format!("PoolSync est actif sur {node} (cette machine uniquement)."),
+            "PoolSync — ACTIVÉ",
+            &format!(
+                "État : ACTIVÉ sur {node}\n\
+                 KVM + presse-papiers PoolSync rebranchés (cette machine).\n\
+                 Raccourci {HOTKEY_LABEL} pour désactiver."
+            ),
         );
     } else {
         info!("PoolSync désactivé localement ({node}) via {HOTKEY_LABEL}");
         notify_util::notify_local(
-            "PoolSync désactivé",
+            "PoolSync — DÉSACTIVÉ",
             &format!(
-                "KVM et presse-papiers suspendus sur {node} (cette machine uniquement).\n\
+                "État : DÉSACTIVÉ sur {node}\n\
+                 KVM + presse-papiers PoolSync suspendus (clipboard / souris locaux).\n\
                  Raccourci {HOTKEY_LABEL} pour réactiver."
             ),
         );

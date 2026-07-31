@@ -17,3 +17,9 @@ direction = "left"
 node = "asus"
 peer_url = "ws://192.168.1.17:9472/ws"
 peer_url_vpn = "ws://10.24.42.6:9472/ws"
+
+[[neighbors]]
+direction = "right"
+node = "inspiron"
+peer_url = "ws://192.168.1.238:9472/ws"
+peer_url_vpn = "ws://10.24.42.5:9472/ws"

@@ -1,6 +1,7 @@
 use crate::clipboard_history::{self, HistoryItem};
 use crate::config_window;
 use crate::logs_viewer;
+use crate::notify_util;
 use crate::state::AgentState;
 use anyhow::{Context, Result};
 use glib::ControlFlow;
@@ -100,7 +101,7 @@ fn run_tray_gtk(
         }
         match id {
             ID_CLIP_SYNC => {
-                let on = state_events.toggle_clipboard_sync();
+                let on = apply_clipboard_sync_toggle(&state_events);
                 tracing::info!("clipboard sync: {on}");
             }
             ID_NOTIFY => {
@@ -185,6 +186,37 @@ fn install_icon_png() -> Result<(PathBuf, PathBuf)> {
     Ok((icon_dir, icon_path))
 }
 
+fn clip_sync_label(enabled: bool) -> String {
+    if enabled {
+        "Presse-papiers PoolSync — ON".into()
+    } else {
+        "Presse-papiers PoolSync — OFF (local)".into()
+    }
+}
+
+/// Bascule le sync clipboard sur ce nœud + notification ; OFF = clipboard système seul.
+fn apply_clipboard_sync_toggle(state: &AgentState) -> bool {
+    let on = state.toggle_clipboard_sync();
+    let node = &state.config.node;
+    if on {
+        notify_util::notify_local(
+            "Presse-papiers PoolSync activé",
+            &format!("Copier-coller synchronisé avec le pool sur {node}."),
+        );
+    } else {
+        // Absorbe le contenu actuel pour ne pas le renvoyer au retour ON.
+        state.mark_hub_clipboard_applied();
+        notify_util::notify_local(
+            "Presse-papiers local",
+            &format!(
+                "PoolSync ne touche plus le presse-papiers sur {node}.\n\
+                 Recochez « Presse-papiers PoolSync » pour resynchroniser."
+            ),
+        );
+    }
+    on
+}
+
 fn build_menu(state: &AgentState) -> Result<TrayUi> {
     let root_menu = Menu::new();
     let options = build_options_submenu(state)?;
@@ -193,10 +225,18 @@ fn build_menu(state: &AgentState) -> Result<TrayUi> {
     let node = find_item_in_submenu(&options, ID_NODE)?;
     let hub = find_item_in_submenu(&options, ID_HUB)?;
     let master = find_item_in_submenu(&options, ID_MASTER)?;
-    let clip_sync = find_check_in_submenu(&options, ID_CLIP_SYNC)?;
     let notify = find_check_in_submenu(&options, ID_NOTIFY)?;
     let kvm = find_check_optional_in_submenu(&options, ID_KVM);
 
+    // Switch visible tout en haut du menu (pas seulement dans Options).
+    let clip_sync = CheckMenuItem::with_id(
+        ID_CLIP_SYNC,
+        clip_sync_label(state.clipboard_sync_enabled()),
+        true,
+        state.clipboard_sync_enabled(),
+        None,
+    );
+    root_menu.append(&clip_sync)?;
     root_menu.append(&PredefinedMenuItem::separator())?;
     root_menu.append(&options)?;
 
@@ -235,16 +275,9 @@ fn build_options_submenu(state: &AgentState) -> Result<Submenu> {
         None,
     );
     let sep1 = PredefinedMenuItem::separator();
-    let clip_sync = CheckMenuItem::with_id(
-        ID_CLIP_SYNC,
-        "Presse-papiers synchronisé",
-        true,
-        state.clipboard_sync_enabled(),
-        None,
-    );
     let notify = CheckMenuItem::with_id(
         ID_NOTIFY,
-        "Notifier à la réception",
+        "Notifier copie / réception",
         true,
         state.notify_enabled(),
         None,
@@ -276,7 +309,6 @@ fn build_options_submenu(state: &AgentState) -> Result<Submenu> {
         &hub,
         &master,
         &sep_mid,
-        &clip_sync,
         &notify,
     ];
     if let Some(ref kvm) = kvm_item {
@@ -412,6 +444,7 @@ fn refresh_options_menu(ui: &TrayUi, state: &AgentState) {
         .master
         .set_text(format!("Maître : {}", state.master_node()));
     let clip_on = state.clipboard_sync_enabled();
+    let _ = ui.clip_sync.set_text(clip_sync_label(clip_on));
     if ui.clip_sync.is_checked() != clip_on {
         ui.clip_sync.set_checked(clip_on);
     }

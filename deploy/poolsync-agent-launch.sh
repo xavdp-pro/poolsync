@@ -51,6 +51,20 @@ if [[ ! -f "${XAUTHORITY}" ]]; then
 fi
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
 export GDK_BACKEND=x11
+
+# Notifications : xfce4-notifyd souvent absent après reboot → notify-send timeout.
+if ! pgrep -x xfce4-notifyd >/dev/null 2>&1; then
+  for notifyd in \
+    /usr/lib/x86_64-linux-gnu/xfce4/notifyd/xfce4-notifyd \
+    /usr/lib/xfce4/notifyd/xfce4-notifyd
+  do
+    if [[ -x "$notifyd" ]]; then
+      "$notifyd" >/dev/null 2>&1 &
+      break
+    fi
+  done
+fi
+
 if pgrep -x poolsync-agent >/dev/null 2>&1; then
   exit 0
 fi

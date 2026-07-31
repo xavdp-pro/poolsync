@@ -533,12 +533,19 @@ impl AgentState {
     }
 
     pub fn status_line(&self) -> String {
-        if self.is_connected() {
-            "● Connecté — tout OK".into()
+        let clip = if self.clipboard_sync_enabled() {
+            "clip ON"
+        } else {
+            "clip OFF"
+        };
+        if !self.local_poolsync_active() {
+            format!("● Suspendu localement ({clip})")
+        } else if self.is_connected() {
+            format!("● Connecté — {clip}")
         } else if let Some(err) = self.last_error() {
             format!("● Reconnexion… — {err}")
         } else {
-            "● Reconnexion VPN/hub…".into()
+            format!("● Reconnexion VPN/hub… ({clip})")
         }
     }
 

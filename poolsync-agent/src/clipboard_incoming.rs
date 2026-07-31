@@ -76,7 +76,7 @@ pub async fn apply_incoming_clipboard(
         let mime = mime.to_string();
         let data = data.to_string();
         tokio::spawn(async move {
-            crate::agent::show_clip_notification(&preview, &mime, &data).await;
+            crate::agent::show_clip_notification("PoolSync — Reçu", &preview, &mime, &data).await;
         });
     }
     Ok(())

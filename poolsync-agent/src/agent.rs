@@ -204,9 +204,14 @@ async fn handle_incoming(
     Ok(())
 }
 
-pub async fn show_clip_notification(preview: &str, mime: &str, wire_data: &str) {
+pub async fn show_clip_notification(title: &str, preview: &str, mime: &str, wire_data: &str) {
+    crate::notify_util::ensure_notify_daemon();
     let body = if preview.is_empty() {
-        "Nouveau contenu dans le presse-papiers".to_string()
+        if mime.starts_with("image/") {
+            "Image copiée".to_string()
+        } else {
+            "Nouveau contenu dans le presse-papiers".to_string()
+        }
     } else {
         preview.to_string()
     };
@@ -227,10 +232,10 @@ pub async fn show_clip_notification(preview: &str, mime: &str, wire_data: &str) 
         "-i",
         &icon,
         "-t",
-        "5000",
+        "4000",
         "-u",
         "normal",
-        "PoolSync",
+        title,
         &body,
     ];
     let with_replace = {
@@ -239,11 +244,11 @@ pub async fn show_clip_notification(preview: &str, mime: &str, wire_data: &str) 
         args
     };
     if run_notify_send(&with_replace).await {
-        info!("notification envoyée");
+        info!("notification envoyée ({title})");
         return;
     }
     if run_notify_send(&base_args).await {
-        info!("notification envoyée");
+        info!("notification envoyée ({title})");
     } else {
         warn!("notify-send échoué");
     }
@@ -310,6 +315,15 @@ async fn clipboard_poll_loop(
                 if prepare_local_clipboard(&payload, &last_clip_hash) {
                     // Local-first: cache + systray avant tout envoi réseau (bs1 / peer).
                     clipboard_history::notify_local_clipboard_sent(state, &payload);
+                    let preview = crate::state::clip_preview_mime(&payload.mime, &payload.wire_data);
+                    if state.should_notify(&payload.hash, &preview) {
+                        let mime = payload.mime.clone();
+                        let wire = payload.wire_data.clone();
+                        tokio::spawn(async move {
+                            show_clip_notification("PoolSync — Copié", &preview, &mime, &wire)
+                                .await;
+                        });
+                    }
                     let hub_tx_net = hub_tx.clone();
                     let peer_tx_net = peer_tx.clone();
                     let payload_net = payload.clone();
