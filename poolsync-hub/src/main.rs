@@ -646,6 +646,76 @@ async fn run_session(mut socket: WebSocket, state: HubState) -> Result<()> {
     Ok(())
 }
 
+/// Applique géométrie écran / bureau (connexion initiale ou hotplug HDMI).
+async fn apply_hello_geometry(
+    state: &HubState,
+    node: &str,
+    screen: &ScreenInfo,
+    kvm_desktop: &poolsync_core::KvmDesktopInfo,
+    kvm_enabled: bool,
+) -> Result<PoolTopology> {
+    let topology_update = {
+        let mut topo = state.topology.write().await;
+        match topo.nodes.get_mut(node) {
+            Some(n) => {
+                if n.width != screen.width || n.height != screen.height {
+                    info!(
+                        "topology {node}: {}x{} → {}x{}",
+                        n.width, n.height, screen.width, screen.height
+                    );
+                    n.width = screen.width;
+                    n.height = screen.height;
+                }
+                n.monitor_x = kvm_desktop.monitor_x;
+                n.monitor_y = kvm_desktop.monitor_y;
+                n.desktop_x = kvm_desktop.desktop_x;
+                n.desktop_y = kvm_desktop.desktop_y;
+                n.desktop_width = kvm_desktop.desktop_width;
+                n.desktop_height = kvm_desktop.desktop_height;
+            }
+            None => {
+                // Nouveau nœud : placé à la suite horizontalement (mosaïque par défaut).
+                let x = topo
+                    .nodes
+                    .values()
+                    .map(|n| n.x + n.width as i32)
+                    .max()
+                    .unwrap_or(0);
+                info!(
+                    "topology: nouveau nœud {node} ({}x{}) @ x={x}",
+                    screen.width, screen.height
+                );
+                topo.nodes.insert(
+                    node.to_string(),
+                    TopologyNode {
+                        x,
+                        y: 0,
+                        width: screen.width,
+                        height: screen.height,
+                        kvm_enabled,
+                        neighbors: HashMap::new(),
+                        monitor_x: kvm_desktop.monitor_x,
+                        monitor_y: kvm_desktop.monitor_y,
+                        desktop_x: kvm_desktop.desktop_x,
+                        desktop_y: kvm_desktop.desktop_y,
+                        desktop_width: kvm_desktop.desktop_width,
+                        desktop_height: kvm_desktop.desktop_height,
+                    },
+                );
+            }
+        }
+        topo.clone()
+    };
+    if let Err(err) = save_topology(state, topology_update.clone()).await {
+        warn!("topology save: {err:#}");
+    }
+    let payload = encode_message(&Message::TopologyUpdate {
+        topology: topology_update.clone(),
+    })?;
+    broadcast_all(state, &payload).await;
+    Ok(topology_update)
+}
+
 async fn register_node(
     state: &HubState,
     text: &str,
@@ -659,50 +729,10 @@ async fn register_node(
             screen,
             neighbors,
             kvm_enabled,
+            kvm_desktop,
         } => {
-            let topology_update = {
-                let mut topo = state.topology.write().await;
-                match topo.nodes.get_mut(&node) {
-                    Some(n) => {
-                        if n.width != screen.width || n.height != screen.height {
-                            info!(
-                                "topology {node}: {}x{} → {}x{}",
-                                n.width, n.height, screen.width, screen.height
-                            );
-                            n.width = screen.width;
-                            n.height = screen.height;
-                        }
-                    }
-                    None => {
-                        // Nouveau nœud : placé à la suite horizontalement (mosaïque par défaut).
-                        let x = topo
-                            .nodes
-                            .values()
-                            .map(|n| n.x + n.width as i32)
-                            .max()
-                            .unwrap_or(0);
-                        info!(
-                            "topology: nouveau nœud {node} ({}x{}) @ x={x}",
-                            screen.width, screen.height
-                        );
-                        topo.nodes.insert(
-                            node.clone(),
-                            TopologyNode {
-                                x,
-                                y: 0,
-                                width: screen.width,
-                                height: screen.height,
-                                kvm_enabled,
-                                neighbors: HashMap::new(),
-                            },
-                        );
-                    }
-                }
-                topo.clone()
-            };
-            if let Err(err) = save_topology(state, topology_update.clone()).await {
-                warn!("topology save: {err:#}");
-            }
+            let topology_update =
+                apply_hello_geometry(state, &node, &screen, &kvm_desktop, kvm_enabled).await?;
 
             {
                 let mut nodes = state.nodes.write().await;
@@ -722,7 +752,6 @@ async fn register_node(
             let payload = encode_message(&Message::TopologyUpdate {
                 topology: topology_update,
             })?;
-            broadcast_all(state, &payload).await;
             let _ = sender.send(payload);
 
             let owner = {
@@ -848,6 +877,34 @@ async fn handle_message(
                 )
                 .await;
             }
+        }
+        Message::Hello {
+            node,
+            mode,
+            screen,
+            neighbors,
+            kvm_enabled,
+            kvm_desktop,
+        } => {
+            // Mise à jour hotplug (HDMI etc.) — même message Hello après la connexion initiale.
+            if node != from {
+                warn!("hello update ignored: node={node} from={from}");
+                return Ok(());
+            }
+            apply_hello_geometry(state, &node, &screen, &kvm_desktop, kvm_enabled).await?;
+            {
+                let mut nodes = state.nodes.write().await;
+                if let Some(info) = nodes.get_mut(&node) {
+                    info.mode = mode;
+                    info.screen = screen;
+                    info.neighbors = neighbors;
+                    info.kvm_enabled = kvm_enabled;
+                }
+            }
+            info!(
+                "screen/layout update from {from}: {}x{}",
+                screen.width, screen.height
+            );
         }
         Message::Ping => {
             local_tx.send(encode_message(&Message::Pong)?)?;

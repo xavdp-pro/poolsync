@@ -1,13 +1,18 @@
 mod agent;
+mod clip_cache;
 mod clipboard;
 mod clipboard_history;
+mod clipboard_incoming;
 mod config_window;
+mod hotkey;
+mod notify_util;
 mod kvm;
 mod kvm_input;
 mod kvm_x11;
 mod logs_viewer;
 mod network;
 mod notify_thumb;
+mod peer_mesh;
 mod rdp_detect;
 mod single;
 mod state;
@@ -67,16 +72,21 @@ fn main() -> Result<()> {
         cfg.node, cfg.hub_url, cfg.mode
     );
 
+    hotkey::spawn_hotkey_listener(state.clone());
+
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("tokio runtime")?;
 
+    let peer_tx = rt.block_on(async { peer_mesh::spawn(state.clone()) });
+
     let state_agent = state.clone();
+    let peer_tx_agent = peer_tx.clone();
     rt.spawn(async move {
         let mut backoff = RECONNECT_INITIAL;
         loop {
-            match run_agent(state_agent.clone()).await {
+            match run_agent(state_agent.clone(), peer_tx_agent.clone()).await {
                 Ok(()) => {
                     state_agent.set_error(None);
                     backoff = RECONNECT_INITIAL;

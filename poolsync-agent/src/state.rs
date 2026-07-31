@@ -12,6 +12,8 @@ pub struct AgentState {
     clipboard_sync: Arc<AtomicBool>,
     notify_on_receive: Arc<AtomicBool>,
     kvm_enabled: Arc<AtomicBool>,
+    /// Pause locale (raccourci clavier) — n'affecte que cette machine.
+    local_active: Arc<AtomicBool>,
     master_node: Arc<RwLock<String>>,
     kvm_focus: Arc<RwLock<String>>,
     kvm_input_node: Arc<RwLock<String>>,
@@ -22,18 +24,47 @@ pub struct AgentState {
     last_notified_hash: Arc<RwLock<String>>,
     last_notified_preview: Arc<RwLock<String>>,
     last_notify_at: Arc<RwLock<Option<Instant>>>,
-    /// Dernier collage PoolSync depuis le hub (cohabitation cliprdr RDP).
-    last_hub_apply_at: Arc<RwLock<Option<Instant>>>,
-    /// Ignore les mouvements souris causés par injection KVM distante.
-    kvm_inject_until: Arc<RwLock<Option<Instant>>>,
+    /// Dernier collage entrant (hub ou peer) — évite reboucle poll / double hub+peer.
+    last_incoming_apply_at: Arc<RwLock<Option<Instant>>>,
+    last_incoming_mime: Arc<RwLock<String>>,
+    /// Dernière position injectée (ignore le warp KVM, pas l'activité physique).
+    kvm_inject_pos: Arc<RwLock<Option<(i32, i32, Instant)>>>,
+    /// Court délai après injection clavier synthétique (xtest).
+    kvm_inject_key_until: Arc<RwLock<Option<Instant>>>,
+    /// Court délai après injection clic synthétique.
+    kvm_inject_button_until: Arc<RwLock<Option<Instant>>>,
+    /// Après un SwitchTo local (warp curseur) — ne pas confondre avec activité physique.
+    kvm_switch_enter_until: Arc<RwLock<Option<Instant>>>,
     /// Révision hub de l'historique presse-papiers (rafraîchit le menu systray).
     tray_history_revision: Arc<AtomicU64>,
     /// Entrée locale envoyée au hub — affichée tout de suite dans le systray (sans attendre le WS retour).
     optimistic_tray: Arc<RwLock<Option<crate::clipboard_history::HistoryItem>>>,
     /// Dernier hash clipboard connu (évite reboucles poll / echo hub après pick).
     last_clip_hash: Arc<Mutex<String>>,
+    /// Après vidage historique : ne pas ré-uploader le presse-papiers local tout de suite.
+    history_clear_until: Arc<RwLock<Option<Instant>>>,
     /// Dernier positionnement KVM local (évite doublons SwitchTo).
     last_kvm_enter: Arc<RwLock<Option<(i32, i32, Instant)>>>,
+}
+
+fn incoming_grace_elapsed_less_than(
+    state: &AgentState,
+    grace_for: impl Fn(&str) -> std::time::Duration,
+) -> bool {
+    let Some(started) = state
+        .last_incoming_apply_at
+        .read()
+        .ok()
+        .and_then(|t| *t)
+    else {
+        return false;
+    };
+    let mime = state
+        .last_incoming_mime
+        .read()
+        .map(|m| m.clone())
+        .unwrap_or_default();
+    started.elapsed() < grace_for(&mime)
 }
 
 impl AgentState {
@@ -47,6 +78,7 @@ impl AgentState {
             clipboard_sync: Arc::new(AtomicBool::new(true)),
             notify_on_receive: Arc::new(AtomicBool::new(true)),
             kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
+            local_active: Arc::new(AtomicBool::new(true)),
             master_node: Arc::new(RwLock::new(String::from("—"))),
             kvm_focus: Arc::new(RwLock::new(local_node.clone())),
             kvm_input_node: Arc::new(RwLock::new(local_node)),
@@ -57,11 +89,16 @@ impl AgentState {
             last_notified_hash: Arc::new(RwLock::new(String::new())),
             last_notified_preview: Arc::new(RwLock::new(String::new())),
             last_notify_at: Arc::new(RwLock::new(None)),
-            last_hub_apply_at: Arc::new(RwLock::new(None)),
-            kvm_inject_until: Arc::new(RwLock::new(None)),
+            last_incoming_apply_at: Arc::new(RwLock::new(None)),
+            last_incoming_mime: Arc::new(RwLock::new(String::new())),
+            kvm_inject_pos: Arc::new(RwLock::new(None)),
+            kvm_inject_key_until: Arc::new(RwLock::new(None)),
+            kvm_inject_button_until: Arc::new(RwLock::new(None)),
+            kvm_switch_enter_until: Arc::new(RwLock::new(None)),
             tray_history_revision: Arc::new(AtomicU64::new(0)),
             optimistic_tray: Arc::new(RwLock::new(None)),
             last_clip_hash: Arc::new(Mutex::new(String::new())),
+            history_clear_until: Arc::new(RwLock::new(None)),
             last_kvm_enter: Arc::new(RwLock::new(None)),
         }
     }
@@ -74,6 +111,22 @@ impl AgentState {
         if let Ok(mut guard) = self.last_clip_hash.lock() {
             *guard = hash.to_string();
         }
+    }
+
+    /// Après vidage historique hub : aligner le hash local sans ré-envoyer au hub.
+    pub fn mark_history_cleared(&self) {
+        const SUPPRESS_MS: u64 = 8000;
+        if let Ok(mut until) = self.history_clear_until.write() {
+            *until = Some(Instant::now() + std::time::Duration::from_millis(SUPPRESS_MS));
+        }
+    }
+
+    pub fn history_clear_suppress_active(&self) -> bool {
+        self.history_clear_until
+            .read()
+            .ok()
+            .and_then(|u| *u)
+            .is_some_and(|deadline| Instant::now() < deadline)
     }
 
     /// Ignore un SwitchTo local identique reçu en double (hub / nœuds voisins).
@@ -113,6 +166,12 @@ impl AgentState {
         }
     }
 
+    pub fn clear_optimistic_tray_all(&self) {
+        if let Ok(mut slot) = self.optimistic_tray.write() {
+            *slot = None;
+        }
+    }
+
     pub fn optimistic_tray_item(&self) -> Option<crate::clipboard_history::HistoryItem> {
         self.optimistic_tray
             .read()
@@ -124,35 +183,154 @@ impl AgentState {
         self.tray_history_revision.load(Ordering::SeqCst)
     }
 
-    pub fn mark_kvm_inject(&self) {
-        const GRACE: std::time::Duration = std::time::Duration::from_millis(350);
-        if let Ok(mut until) = self.kvm_inject_until.write() {
+    pub fn mark_kvm_inject_at(&self, x: i32, y: i32) {
+        if let Ok(mut pos) = self.kvm_inject_pos.write() {
+            *pos = Some((x, y, Instant::now()));
+        }
+    }
+
+    pub fn mark_kvm_inject_key(&self) {
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(40);
+        if let Ok(mut until) = self.kvm_inject_key_until.write() {
             *until = Some(Instant::now() + GRACE);
         }
     }
 
-    pub fn kvm_inject_grace_active(&self) -> bool {
-        self.kvm_inject_until
+    pub fn mark_kvm_inject_button(&self) {
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(50);
+        if let Ok(mut until) = self.kvm_inject_button_until.write() {
+            *until = Some(Instant::now() + GRACE);
+        }
+    }
+
+    pub fn mark_kvm_switch_enter(&self) {
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(450);
+        if let Ok(mut until) = self.kvm_switch_enter_until.write() {
+            *until = Some(Instant::now() + GRACE);
+        }
+    }
+
+    pub fn switch_enter_grace_active(&self) -> bool {
+        self.kvm_switch_enter_until
             .read()
             .ok()
             .and_then(|u| *u)
             .is_some_and(|t| t > Instant::now())
     }
 
-    pub fn mark_hub_clipboard_applied(&self) {
-        if let Ok(mut t) = self.last_hub_apply_at.write() {
+    /// Pilotage KVM distant actif (injections récentes sur cette machine).
+    pub fn remote_drive_active(&self) -> bool {
+        const GRACE: std::time::Duration = std::time::Duration::from_millis(350);
+        self.kvm_inject_pos
+            .read()
+            .ok()
+            .and_then(|p| *p)
+            .map(|(_, _, t)| t.elapsed() < GRACE)
+            .unwrap_or(false)
+    }
+
+    /// Le mouvement souris peut reprendre le master (pas un warp / injection KVM).
+    pub fn motion_claim_allowed(&self, local: &str, px: i32, py: i32) -> bool {
+        if self.remote_drive_active() {
+            return false;
+        }
+        if self.kvm_focus() != local {
+            return false;
+        }
+        if self.switch_enter_grace_active() {
+            return false;
+        }
+        const INJECT_GRACE: std::time::Duration = std::time::Duration::from_millis(300);
+        const DIST_MIN: i32 = 20;
+        if let Ok(pos) = self.kvm_inject_pos.read() {
+            if let Some((ix, iy, t)) = *pos {
+                if t.elapsed() < INJECT_GRACE {
+                    let dist = (px - ix).abs() + (py - iy).abs();
+                    if dist < DIST_MIN {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+
+    pub fn inject_blocks_key_claim(&self) -> bool {
+        self.kvm_inject_key_until
+            .read()
+            .ok()
+            .and_then(|u| *u)
+            .is_some_and(|t| t > Instant::now())
+    }
+
+    pub fn inject_blocks_button_claim(&self) -> bool {
+        self.kvm_inject_button_until
+            .read()
+            .ok()
+            .and_then(|u| *u)
+            .is_some_and(|t| t > Instant::now())
+    }
+
+    pub fn note_kvm_inject(&self, kind: &poolsync_core::InputKind) {
+        use poolsync_core::InputKind;
+        match kind {
+            InputKind::MouseMove { x, y } | InputKind::MouseWheel { x, y, .. } => {
+                self.mark_kvm_inject_at(*x, *y);
+            }
+            InputKind::MouseButton { x, y, .. } => {
+                self.mark_kvm_inject_at(*x, *y);
+                self.mark_kvm_inject_button();
+            }
+            InputKind::Key { .. } => self.mark_kvm_inject_key(),
+            InputKind::MouseMoveRelative { .. } => {}
+        }
+    }
+
+    pub fn mark_incoming_clipboard_applied(&self, mime: &str) {
+        if let Ok(mut t) = self.last_incoming_apply_at.write() {
             *t = Some(Instant::now());
         }
+        if let Ok(mut m) = self.last_incoming_mime.write() {
+            *m = mime.to_string();
+        }
+    }
+
+    /// Alias RDP / legacy.
+    pub fn mark_hub_clipboard_applied(&self) {
+        self.mark_incoming_clipboard_applied("text/plain");
+    }
+
+    /// Après collage entrant : ne pas relayer immédiatement ce qu'on vient d'écrire.
+    pub fn incoming_poll_suppress_active(&self) -> bool {
+        incoming_grace_elapsed_less_than(self, |mime| {
+            if mime.starts_with("image/") {
+                // Long enough for xclip/GTK settle + peer echo without re-send.
+                std::time::Duration::from_millis(4000)
+            } else {
+                std::time::Duration::from_millis(900)
+            }
+        })
+    }
+
+    /// Hub + peer livrent parfois la même image deux fois (hash différent).
+    pub fn incoming_duplicate_suppress_active(&self) -> bool {
+        incoming_grace_elapsed_less_than(self, |mime| {
+            if mime.starts_with("image/") {
+                std::time::Duration::from_millis(5000)
+            } else {
+                std::time::Duration::from_millis(1200)
+            }
+        })
     }
 
     /// Court délai après un collage hub : laisse cliprdr RDP digérer le clipboard X11.
     pub fn hub_apply_grace_active(&self) -> bool {
-        const GRACE: std::time::Duration = std::time::Duration::from_millis(900);
-        self.last_hub_apply_at
-            .read()
-            .ok()
-            .and_then(|t| *t)
-            .is_some_and(|t| t.elapsed() < GRACE)
+        self.incoming_poll_suppress_active()
+    }
+
+    /// Alias legacy.
+    pub fn incoming_apply_grace_active(&self) -> bool {
+        self.incoming_poll_suppress_active()
     }
 
     pub fn set_connected(&self, value: bool) {
@@ -202,6 +380,22 @@ impl AgentState {
 
     pub fn set_kvm_enabled(&self, value: bool) {
         self.kvm_enabled.store(value, Ordering::SeqCst);
+    }
+
+
+    pub fn local_poolsync_active(&self) -> bool {
+        self.local_active.load(Ordering::SeqCst)
+    }
+
+    pub fn set_local_poolsync_active(&self, value: bool) {
+        self.local_active.store(value, Ordering::SeqCst);
+    }
+
+    /// Bascule KVM + presse-papiers sur cette machine (raccourci global).
+    pub fn toggle_local_poolsync(&self) -> bool {
+        let new = !self.local_poolsync_active();
+        self.set_local_poolsync_active(new);
+        new
     }
 
     pub fn toggle_kvm(&self) -> bool {
@@ -263,10 +457,18 @@ impl AgentState {
         self.kvm_input_node() == self.config.node
     }
 
-    /// Notifie à la réception si le hash clipboard est nouveau.
+    /// Notifie à la réception si le hash clipboard est nouveau (anti-rafale hub+peer).
     pub fn should_notify(&self, hash: &str, preview: &str) -> bool {
         if !self.notify_enabled() {
             return false;
+        }
+        const MIN_INTERVAL: std::time::Duration = std::time::Duration::from_millis(2000);
+        if let Ok(last_at) = self.last_notify_at.read() {
+            if last_at
+                .is_some_and(|t| t.elapsed() < MIN_INTERVAL)
+            {
+                return false;
+            }
         }
         let Ok(mut last_hash) = self.last_notified_hash.write() else {
             return false;

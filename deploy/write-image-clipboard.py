@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Écrit image/png dans le presse-papiers via GTK (comme xfce4-screenshooter)."""
+"""Écrit une image PNG/JPEG dans le presse-papiers via GTK (apps GTK / XFCE)."""
 from __future__ import annotations
 
 import sys
@@ -17,13 +17,13 @@ except ImportError:
 
 
 def main() -> int:
-    png = sys.stdin.buffer.read()
-    if not png:
+    raw = sys.stdin.buffer.read()
+    if not raw:
         return 1
 
     Gtk.init([])
-    loader = GdkPixbuf.PixbufLoader.new_with_type("png")
-    loader.write(png)
+    loader = GdkPixbuf.PixbufLoader.new()
+    loader.write(raw)
     loader.close()
     pixbuf = loader.get_pixbuf()
     if pixbuf is None:
@@ -32,10 +32,12 @@ def main() -> int:
     clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     clipboard.set_image(pixbuf)
     clipboard.store()
+    deadline = time.time() + 0.4
+    while time.time() < deadline:
+        while Gtk.events_pending():
+            Gtk.main_iteration_do(False)
+        time.sleep(0.02)
 
-    time.sleep(0.2)
-    while Gtk.events_pending():
-        Gtk.main_iteration_do(False)
     return 0
 
 

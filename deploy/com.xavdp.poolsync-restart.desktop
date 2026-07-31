@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Redémarrer PoolSync
+Comment=Redémarre l'agent PoolSync (systray, presse-papiers, KVM)
+Icon=poolsync-tray
+Exec=/home/zaza/.local/bin/poolsync-ctl restart
+Terminal=false
+Categories=Utility;
+StartupNotify=true

@@ -669,6 +669,25 @@ fn http_base(state: &AgentState) -> Result<String> {
 }
 
 fn fetch_history(state: &AgentState) -> Result<Vec<HistoryItem>> {
+    let mut items = crate::clip_cache::list_recent(50);
+    if items.len() < 50 {
+        if let Ok(hub_items) = fetch_history_from_hub(state) {
+            for item in hub_items {
+                if items.iter().any(|i| i.hash == item.hash) {
+                    continue;
+                }
+                items.push(item);
+                if items.len() >= 50 {
+                    break;
+                }
+            }
+        }
+    }
+    merge_optimistic_tray(state, &mut items);
+    Ok(items)
+}
+
+fn fetch_history_from_hub(state: &AgentState) -> Result<Vec<HistoryItem>> {
     let url = format!(
         "{}/api/clipboard/history?token={}&limit=50",
         http_base(state)?,
@@ -679,12 +698,22 @@ fn fetch_history(state: &AgentState) -> Result<Vec<HistoryItem>> {
         .call()
         .map_err(|e| anyhow!("{e}"))?
         .into_string()?;
-    let mut items = serde_json::from_str::<HistoryResponse>(&body)?.items;
-    merge_optimistic_tray(state, &mut items);
-    Ok(items)
+    Ok(serde_json::from_str::<HistoryResponse>(&body)?.items)
+}
+
+/// Historique hub uniquement (sans cache local) — ex. après vidage distant.
+pub fn fetch_history_hub_only(state: &AgentState) -> Result<Vec<HistoryItem>> {
+    fetch_history_from_hub(state)
 }
 
 fn fetch_item(state: &AgentState, hash: &str) -> Result<ItemResponse> {
+    if let Some((mime, data)) = crate::clip_cache::get(hash) {
+        return Ok(ItemResponse {
+            hash: hash.to_string(),
+            mime,
+            data,
+        });
+    }
     let url = format!(
         "{}/api/clipboard/item?token={}&hash={}",
         http_base(state)?,
@@ -709,6 +738,10 @@ pub fn clear_history(state: &AgentState) -> Result<()> {
         .timeout(HTTP_TIMEOUT)
         .call()
         .map_err(|e| anyhow!("{e}"))?;
+    crate::clip_cache::clear_all();
+    state.clear_optimistic_tray_all();
+    state.mark_history_cleared();
+    state.notify_tray_history_changed();
     Ok(())
 }
 
@@ -727,6 +760,8 @@ pub fn delete_hashes(state: &AgentState, hashes: &[String]) -> Result<()> {
         .set("Content-Type", "application/json")
         .send_string(&body)
         .map_err(|e| anyhow!("{e}"))?;
+    crate::clip_cache::remove_hashes(hashes);
+    state.notify_tray_history_changed();
     Ok(())
 }
 
@@ -772,13 +807,20 @@ fn truncate_one_line(s: &str, max: usize) -> String {
 /// Entrées récentes pour le menu systray (léger, timeout court).
 pub fn fetch_history_tray(state: &AgentState) -> Result<Vec<HistoryItem>> {
     let limit = state.config.tray_history_count.clamp(5, 50) as usize;
-    let mut items = match fetch_history_tray_from_hub(state, limit) {
-        Ok(items) => items,
-        Err(err) => {
-            tracing::debug!("tray history hub fetch: {err:#}");
-            Vec::new()
+    let mut items = crate::clip_cache::list_recent(limit);
+    if items.len() < limit {
+        if let Ok(hub_items) = fetch_history_tray_from_hub(state, limit) {
+            for item in hub_items {
+                if items.iter().any(|i| i.hash == item.hash) {
+                    continue;
+                }
+                items.push(item);
+                if items.len() >= limit {
+                    break;
+                }
+            }
         }
-    };
+    }
     merge_optimistic_tray(state, &mut items);
     items.truncate(limit);
     Ok(items)
@@ -815,6 +857,7 @@ pub fn notify_local_clipboard_sent(
     payload: &crate::clipboard::ClipboardPayload,
 ) {
     let preview = crate::state::clip_preview_mime(&payload.mime, &payload.wire_data);
+    crate::clip_cache::store_payload(payload, &preview, &state.config.node);
     let thumb_b64 = payload.mime.starts_with("image/").then(|| {
         thumb_b64_from_wire(&payload.wire_data, crate::thumb::TRAY_MENU_SOURCE_PX).ok()
     }).flatten();
@@ -833,7 +876,7 @@ pub fn notify_local_clipboard_sent(
     });
 }
 
-/// Colle localement et diffuse l'entrée à tout le pool.
+/// Colle localement depuis le cache ; relais hub en arrière-plan (si hub_clipboard).
 pub fn pick_and_paste(state: &AgentState, hash: &str) -> Result<()> {
     let item = fetch_item(state, hash)?;
     write_clipboard_sync(&item.data, &item.mime)?;
@@ -842,20 +885,27 @@ pub fn pick_and_paste(state: &AgentState, hash: &str) -> Result<()> {
     if item.mime.starts_with("image/") {
         crate::clipboard::mark_image_clipboard_epoch();
     }
-    let url = format!(
-        "{}/api/clipboard/pick?token={}",
-        http_base(state)?,
-        state.config.token
-    );
-    let body = serde_json::json!({
-        "hash": hash,
-        "node": state.config.node,
-    })
-    .to_string();
-    ureq::post(&url)
-        .timeout(HTTP_TIMEOUT)
-        .set("Content-Type", "application/json")
-        .send_string(&body)
-        .map_err(|e| anyhow!("{e}"))?;
+    if !state.config.hub_clipboard {
+        return Ok(());
+    }
+    let hash = hash.to_string();
+    let node = state.config.node.clone();
+    let token = state.config.token.clone();
+    let hub_base = http_base(state)?;
+    std::thread::spawn(move || {
+        let url = format!("{hub_base}/api/clipboard/pick?token={token}");
+        let body = serde_json::json!({
+            "hash": hash,
+            "node": node,
+        })
+        .to_string();
+        if let Err(err) = ureq::post(&url)
+            .timeout(HTTP_TIMEOUT)
+            .set("Content-Type", "application/json")
+            .send_string(&body)
+        {
+            tracing::debug!("clipboard pick hub relay: {err}");
+        }
+    });
     Ok(())
 }

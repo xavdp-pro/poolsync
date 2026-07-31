@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Arrêter PoolSync
+Comment=Arrête l'agent PoolSync sur cette machine
+Icon=poolsync-tray
+Exec=/home/zaza/.local/bin/poolsync-ctl stop
+Terminal=false
+Categories=Utility;
+StartupNotify=true

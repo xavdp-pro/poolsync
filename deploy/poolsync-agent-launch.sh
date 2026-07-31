@@ -33,14 +33,21 @@ if [[ -z "${DISPLAY:-}" || "${DISPLAY}" == ":0" ]]; then
   fi
 fi
 export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-if [[ ! -f "${XAUTHORITY}" ]]; then
-  if session_pid=$(pgrep -u "$UID_NUM" -x xfce4-session 2>/dev/null | head -1); then
-    xa="$(tr "\0" "\n" < "/proc/$session_pid/environ" 2>/dev/null \
-      | grep '^XAUTHORITY=' | cut -d= -f2- || true)"
-    if [[ -n "$xa" && -f "$xa" ]]; then
-      export XAUTHORITY="$xa"
-    fi
+# Prefer cookie from the live XFCE session (avoids "Authorization required" after reboot).
+if session_pid=$(pgrep -u "$UID_NUM" -x xfce4-session 2>/dev/null | head -1); then
+  xa="$(tr "\0" "\n" < "/proc/$session_pid/environ" 2>/dev/null \
+    | grep '^XAUTHORITY=' | cut -d= -f2- || true)"
+  if [[ -n "$xa" && -f "$xa" ]]; then
+    export XAUTHORITY="$xa"
   fi
+  xd="$(tr "\0" "\n" < "/proc/$session_pid/environ" 2>/dev/null \
+    | grep '^DISPLAY=' | cut -d= -f2- || true)"
+  if [[ -n "$xd" ]]; then
+    export DISPLAY="$xd"
+  fi
+fi
+if [[ ! -f "${XAUTHORITY}" ]]; then
+  export XAUTHORITY="$HOME/.Xauthority"
 fi
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
 export GDK_BACKEND=x11

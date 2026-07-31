@@ -15,7 +15,7 @@ pub enum AgentMode {
     ClipboardOnly,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScreenInfo {
     pub width: u32,
     pub height: u32,
@@ -25,6 +25,12 @@ pub struct ScreenInfo {
 pub struct Neighbor {
     pub direction: Direction,
     pub node: String,
+    /// WebSocket direct LAN/VPN vers le voisin (clipboard sans relay hub).
+    #[serde(default)]
+    pub peer_url: Option<String>,
+    /// Secours si peer_url (LAN) injoignable — ex. IP wg-bs1 du voisin.
+    #[serde(default)]
+    pub peer_url_vpn: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +72,15 @@ pub struct AgentConfig {
     /// Nombre d'entrées presse-papiers dans le menu systray.
     #[serde(default = "default_tray_history_count")]
     pub tray_history_count: u32,
+    /// Port d'écoute WS peer-to-peer (clipboard direct entre voisins).
+    #[serde(default = "default_peer_listen_port")]
+    pub peer_listen_port: u16,
+    /// Active le mesh clipboard direct vers les voisins configurés.
+    #[serde(default = "default_true")]
+    pub peer_direct_clipboard: bool,
+    /// Relayer le presse-papiers via le hub (bs1). False = peer mesh only (pas d'upload blob vers le VPS).
+    #[serde(default = "default_true")]
+    pub hub_clipboard: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -84,6 +99,105 @@ pub struct TopologyNode {
     pub kvm_enabled: bool,
     #[serde(default)]
     pub neighbors: HashMap<String, String>,
+    /// Moniteur primaire KVM (position X11 absolue).
+    #[serde(default)]
+    pub monitor_x: i32,
+    #[serde(default)]
+    pub monitor_y: i32,
+    /// Origine du bureau X11 complet (tous écrans).
+    #[serde(default)]
+    pub desktop_x: i32,
+    #[serde(default)]
+    pub desktop_y: i32,
+    /// Bureau X11 complet (tous écrans) — souris distante peut aller sur HDMI.
+    #[serde(default)]
+    pub desktop_width: u32,
+    #[serde(default)]
+    pub desktop_height: u32,
+}
+
+/// Géométrie bureau / moniteur primaire (partagée hub ↔ agents).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct KvmDesktopInfo {
+    pub monitor_x: i32,
+    pub monitor_y: i32,
+    pub desktop_x: i32,
+    pub desktop_y: i32,
+    pub desktop_width: u32,
+    pub desktop_height: u32,
+}
+
+impl KvmDesktopInfo {
+    pub fn desktop_bounds(&self, primary: ScreenInfo) -> KvmDisplayRect {
+        let (x, y, w, h) = if self.desktop_width > 0 && self.desktop_height > 0 {
+            (
+                self.desktop_x,
+                self.desktop_y,
+                self.desktop_width,
+                self.desktop_height,
+            )
+        } else {
+            (self.monitor_x, self.monitor_y, primary.width, primary.height)
+        };
+        KvmDisplayRect { x, y, width: w, height: h }
+    }
+
+    pub fn primary_bounds(&self, primary: ScreenInfo) -> KvmDisplayRect {
+        KvmDisplayRect {
+            x: self.monitor_x,
+            y: self.monitor_y,
+            width: primary.width,
+            height: primary.height,
+        }
+    }
+
+    pub fn desktop_size(&self, primary: ScreenInfo) -> ScreenInfo {
+        ScreenInfo {
+            width: if self.desktop_width > 0 {
+                self.desktop_width
+            } else {
+                primary.width
+            },
+            height: if self.desktop_height > 0 {
+                self.desktop_height
+            } else {
+                primary.height
+            },
+        }
+    }
+}
+
+/// Rectangle écran X11 (pool ou bureau complet).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KvmDisplayRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl KvmDisplayRect {
+    pub fn clamp(&self, px: i32, py: i32) -> (i32, i32) {
+        (
+            px.clamp(self.x, self.x + self.width as i32 - 1),
+            py.clamp(self.y, self.y + self.height as i32 - 1),
+        )
+    }
+
+    pub fn to_local(&self, px: i32, py: i32) -> (i32, i32) {
+        (px - self.x, py - self.y)
+    }
+
+    pub fn to_root(&self, lx: i32, ly: i32) -> (i32, i32) {
+        (lx + self.x, ly + self.y)
+    }
+
+    pub fn contains(&self, px: i32, py: i32) -> bool {
+        px >= self.x
+            && py >= self.y
+            && px < self.x + self.width as i32
+            && py < self.y + self.height as i32
+    }
 }
 
 impl AgentConfig {
@@ -117,6 +231,10 @@ fn default_tray_history_count() -> u32 {
     15
 }
 
+fn default_peer_listen_port() -> u16 {
+    9472
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Message {
@@ -127,6 +245,8 @@ pub enum Message {
         neighbors: Vec<Neighbor>,
         #[serde(default)]
         kvm_enabled: bool,
+        #[serde(default)]
+        kvm_desktop: KvmDesktopInfo,
     },
     Clipboard {
         msg_id: String,
@@ -235,6 +355,9 @@ mod tests {
             kvm_enabled,
             kvm_capture,
             tray_history_count: default_tray_history_count(),
+            peer_listen_port: default_peer_listen_port(),
+            peer_direct_clipboard: true,
+            hub_clipboard: true,
         }
     }
 

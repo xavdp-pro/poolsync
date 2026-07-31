@@ -3,6 +3,10 @@ hub_url = "ws://10.24.42.1:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "full"
 kvm_enabled = true
+clipboard_poll_ms = 100
+peer_listen_port = 9472
+peer_direct_clipboard = true
+hub_clipboard = false
 
 [screen]
 width = 1366
@@ -11,7 +15,5 @@ height = 768
 [[neighbors]]
 direction = "left"
 node = "asus"
-
-[[neighbors]]
-direction = "right"
-node = "inspiron"
+peer_url = "ws://192.168.1.17:9472/ws"
+peer_url_vpn = "ws://10.24.42.6:9472/ws"

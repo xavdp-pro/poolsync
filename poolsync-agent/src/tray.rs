@@ -27,6 +27,8 @@ const ID_CLIP_HISTORY: &str = "clip_history";
 const ID_CLIP_CLEAR: &str = "clip_clear";
 const ID_CONFIG: &str = "config";
 const ID_VIEW_LOGS: &str = "view_logs";
+const ID_RESTART: &str = "restart";
+const ID_QUIT: &str = "quit";
 const CLIP_ID_PREFIX: &str = "clip:";
 
 struct TrayUi {
@@ -128,6 +130,22 @@ fn run_tray_gtk(
                 let ctx = gtk_ctx.clone();
                 let node = state_events.config.node.clone();
                 let _ = ctx.invoke(move || logs_viewer::show(&node));
+            }
+            ID_RESTART => {
+                tracing::info!("systray: redémarrage demandé");
+                std::thread::spawn(|| {
+                    let _ = std::process::Command::new("systemctl")
+                        .args(["--user", "restart", "poolsync-agent.service"])
+                        .status();
+                });
+            }
+            ID_QUIT => {
+                tracing::info!("systray: arrêt demandé");
+                std::thread::spawn(|| {
+                    let _ = std::process::Command::new("systemctl")
+                        .args(["--user", "stop", "poolsync-agent.service"])
+                        .status();
+                });
             }
             _ => {}
         }
@@ -247,6 +265,8 @@ fn build_options_submenu(state: &AgentState) -> Result<Submenu> {
     let clip_clear = MenuItem::with_id(ID_CLIP_CLEAR, "Vider l'historique…", true, None);
     let config = MenuItem::with_id(ID_CONFIG, "Configuration du pool…", true, None);
     let logs = MenuItem::with_id(ID_VIEW_LOGS, "Voir les logs…", true, None);
+    let restart = MenuItem::with_id(ID_RESTART, "Redémarrer PoolSync", true, None);
+    let quit = MenuItem::with_id(ID_QUIT, "Quitter PoolSync", true, None);
     let sep_mid = PredefinedMenuItem::separator();
 
     let mut items: Vec<&dyn muda::IsMenuItem> = vec![
@@ -267,6 +287,8 @@ fn build_options_submenu(state: &AgentState) -> Result<Submenu> {
     items.push(&clip_clear);
     items.push(&config);
     items.push(&logs);
+    items.push(&restart);
+    items.push(&quit);
 
     Submenu::with_id_and_items(ID_OPTIONS, "Options PoolSync", true, &items)
         .context("options submenu")

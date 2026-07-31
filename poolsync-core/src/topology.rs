@@ -119,6 +119,12 @@ mod tests {
             height: h,
             kvm_enabled: true,
             neighbors: HashMap::new(),
+            monitor_x: 0,
+            monitor_y: 0,
+            desktop_x: 0,
+            desktop_y: 0,
+            desktop_width: w,
+            desktop_height: h,
         }
     }
 

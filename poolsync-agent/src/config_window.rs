@@ -199,6 +199,7 @@ impl ConfigWindow {
     }
 
     fn collect_topology_from_rows(&self) -> PoolTopology {
+        let existing = self.state.topology();
         let mut nodes = HashMap::new();
         for row in self.rows.borrow().iter() {
             let mut neighbors = HashMap::new();
@@ -210,6 +211,9 @@ impl ConfigWindow {
                     }
                 }
             }
+            let prev = existing
+                .as_ref()
+                .and_then(|t| t.nodes.get(&row.id));
             nodes.insert(
                 row.id.clone(),
                 TopologyNode {
@@ -219,6 +223,12 @@ impl ConfigWindow {
                     height: row.height.value_as_int() as u32,
                     kvm_enabled: row.kvm.is_active(),
                     neighbors,
+                    monitor_x: prev.map(|n| n.monitor_x).unwrap_or(0),
+                    monitor_y: prev.map(|n| n.monitor_y).unwrap_or(0),
+                    desktop_x: prev.map(|n| n.desktop_x).unwrap_or(0),
+                    desktop_y: prev.map(|n| n.desktop_y).unwrap_or(0),
+                    desktop_width: prev.map(|n| n.desktop_width).unwrap_or(0),
+                    desktop_height: prev.map(|n| n.desktop_height).unwrap_or(0),
                 },
             );
         }
@@ -656,6 +666,13 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
         "pause_clipboard_when_rdp = {}",
         cfg.pause_clipboard_when_rdp
     );
+    let _ = writeln!(s, "peer_listen_port = {}", cfg.peer_listen_port);
+    let _ = writeln!(
+        s,
+        "peer_direct_clipboard = {}",
+        cfg.peer_direct_clipboard
+    );
+    let _ = writeln!(s, "hub_clipboard = {}", cfg.hub_clipboard);
     if let Some(d) = &cfg.display {
         let _ = writeln!(s, "display = {d:?}");
     }
@@ -666,6 +683,12 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
         let _ = writeln!(s, "\n[[neighbors]]");
         let _ = writeln!(s, "direction = {:?}", dir_id(n.direction));
         let _ = writeln!(s, "node = {:?}", n.node);
+        if let Some(url) = &n.peer_url {
+            let _ = writeln!(s, "peer_url = {url:?}");
+        }
+        if let Some(url) = &n.peer_url_vpn {
+            let _ = writeln!(s, "peer_url_vpn = {url:?}");
+        }
     }
     s
 }
