@@ -55,7 +55,7 @@ pub async fn run_agent(
                 mode: cfg.mode,
                 screen: screen.clone(),
                 neighbors: cfg.neighbors.clone(),
-                kvm_enabled: state.kvm_enabled(),
+                kvm_enabled: state.kvm_effective(),
                 kvm_desktop,
             })?
             .into(),
@@ -172,7 +172,7 @@ async fn handle_incoming(
             x,
             y,
             input_node,
-        } if state.kvm_enabled() && state.local_poolsync_active() => {
+        } if state.kvm_enabled() => {
             state.set_kvm_focus(&node);
             let owner = if input_node.is_empty() {
                 state.config.node.clone()
@@ -180,6 +180,12 @@ async fn handle_incoming(
                 input_node.clone()
             };
             state.set_kvm_input_node(&owner);
+            if !input_node.is_empty() {
+                state.set_master(&input_node);
+            }
+            if !state.local_poolsync_active() {
+                return Ok(());
+            }
             if node == state.config.node {
                 if state.should_skip_kvm_enter(x, y) {
                     return Ok(());
@@ -194,9 +200,6 @@ async fn handle_incoming(
                 state.mark_kvm_inject_at(x, y);
                 state.mark_kvm_switch_enter();
                 info!("KVM cursor enter → {} ({x},{y})", state.config.node);
-            }
-            if !input_node.is_empty() {
-                state.set_master(&input_node);
             }
         }
         _ => {}

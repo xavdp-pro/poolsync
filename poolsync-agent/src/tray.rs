@@ -93,6 +93,16 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
         opts_menu.append(&claim_item);
     }
 
+    let locate_item = gtk::MenuItem::with_label(&format!(
+        "Localiser le curseur ({})",
+        crate::hotkey::HOTKEY_LOCATE_LABEL
+    ));
+    let state_loc = state.clone();
+    locate_item.connect_activate(move |_| {
+        crate::cursor_ripple::locate_cursor(&state_loc.config.node);
+    });
+    opts_menu.append(&locate_item);
+
     let notify_item = gtk::CheckMenuItem::with_label("Notifier copie / réception");
     notify_item.set_active(state.notify_enabled());
     let state_notif = state.clone();
@@ -100,6 +110,15 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
         state_notif.toggle_notify();
     });
     opts_menu.append(&notify_item);
+
+    let master_notif_item =
+        gtk::CheckMenuItem::with_label("Notifier le changement de master (debug)");
+    master_notif_item.set_active(state.notify_master_enabled());
+    let state_mn = state.clone();
+    master_notif_item.connect_toggled(move |_| {
+        state_mn.toggle_notify_master();
+    });
+    opts_menu.append(&master_notif_item);
 
     let config_item = gtk::MenuItem::with_label("Écrans & configuration…");
     let state_cfg = state.clone();
@@ -111,9 +130,11 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     // Statut en bas des options, non cliquable.
     opts_menu.append(&gtk::SeparatorMenuItem::new());
     let hotkey_hint = gtk::MenuItem::with_label(&format!(
-        "Raccourcis : {} (pause) · {} (master)",
+        "Raccourcis : {} (pause) · {} (master) · {} (centre) · {} (trouver)",
         crate::hotkey::HOTKEY_LABEL,
-        crate::hotkey::HOTKEY_MASTER_LABEL
+        crate::hotkey::HOTKEY_MASTER_LABEL,
+        crate::hotkey::HOTKEY_CENTER_LABEL,
+        crate::hotkey::HOTKEY_LOCATE_LABEL
     ));
     hotkey_hint.set_sensitive(false);
     opts_menu.append(&hotkey_hint);

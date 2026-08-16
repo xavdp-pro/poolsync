@@ -105,6 +105,14 @@ impl KvmDisplay {
             ly.clamp(0, self.height as i32 - 1),
         )
     }
+
+    /// Pixel at the geometric center of this monitor (root coordinates).
+    pub fn center_root(&self) -> (i32, i32) {
+        (
+            self.x + self.width as i32 / 2,
+            self.y + self.height as i32 / 2,
+        )
+    }
 }
 
 fn with_xdo<F>(f: F) -> Result<()>
@@ -280,6 +288,61 @@ pub fn kvm_display() -> Result<KvmDisplay> {
     })
 }
 
+/// All active RandR CRTCs (each physical monitor).
+pub fn active_monitors() -> Result<Vec<KvmDisplay>> {
+    with_x11_conn(|conn, screen_num| {
+        let root = conn.setup().roots[screen_num].root;
+        let res = randr::get_screen_resources_current(conn, root)
+            .context("randr get_screen_resources")?
+            .reply()?;
+        let mut out = Vec::new();
+        for &crtc_id in &res.crtcs {
+            let crtc = match randr::get_crtc_info(conn, crtc_id, res.config_timestamp) {
+                Ok(cookie) => match cookie.reply() {
+                    Ok(info) => info,
+                    Err(_) => continue,
+                },
+                Err(_) => continue,
+            };
+            if crtc.width == 0 || crtc.height == 0 {
+                continue;
+            }
+            out.push(KvmDisplay {
+                x: crtc.x as i32,
+                y: crtc.y as i32,
+                width: crtc.width as u32,
+                height: crtc.height as u32,
+            });
+        }
+        if out.is_empty() {
+            let screen = &conn.setup().roots[screen_num];
+            out.push(KvmDisplay {
+                x: 0,
+                y: 0,
+                width: screen.width_in_pixels as u32,
+                height: screen.height_in_pixels as u32,
+            });
+        }
+        Ok(out)
+    })
+}
+
+/// Warp the pointer to the center of the monitor that currently contains it.
+/// Falls back to the KVM primary if the pointer is not on any CRTC.
+pub fn center_pointer_on_current_monitor() -> Result<(i32, i32)> {
+    let (px, py) = mouse_location()?;
+    let monitors = active_monitors()?;
+    let mon = monitors
+        .iter()
+        .find(|m| m.contains(px, py))
+        .copied()
+        .or_else(|| monitors.into_iter().next())
+        .context("aucun moniteur")?;
+    let (cx, cy) = mon.center_root();
+    warp_mouse(cx, cy)?;
+    Ok((cx, cy))
+}
+
 /// Rectangle englobant tous les moniteurs actifs (bureau X11 étendu).
 pub fn kvm_desktop() -> Result<KvmDisplay> {
     with_x11_conn(|conn, screen_num| {
@@ -376,6 +439,7 @@ mod tests {
             width: 1344,
             height: 756,
         };
+        assert_eq!(d.center_root(), (1440 + 672, 145 + 378));
         assert!(d.contains(1500, 400));
         assert!(!d.contains(100, 400));
         assert_eq!(d.to_local(1500, 400), (60, 255));

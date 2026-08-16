@@ -5,6 +5,7 @@ mod clipboard_history;
 mod clipboard_incoming;
 mod crashlog;
 mod config_window;
+mod cursor_ripple;
 mod hotkey;
 mod notify_util;
 mod kvm;

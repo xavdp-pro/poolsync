@@ -70,8 +70,10 @@ Full detail: **[docs/keyboard-shortcuts.md](docs/keyboard-shortcuts.md)**
 |----------|----------------|
 | **Ctrl+Alt+Shift+P** | Pause or resume PoolSync **on this machine only** (KVM + clipboard). Other nodes are unchanged. |
 | **Ctrl+Alt+Shift+M** | **Claim KVM master** on this machine: keyboard and mouse return here (`MasterClaim` + local focus). Ignored on clipboard-only agents. |
+| **Ctrl+Alt+Shift+C** | Warp the pointer to the **center of the monitor** that currently contains it (this machine). |
+| **Ctrl+Alt+Shift+L** | **Locate** the pointer: ripple on that screen + notification with the computer name. |
 
-macOS: **Ctrl+Option+Shift+P / M**. Systray: **Devenir maître KVM** is the same as M.
+macOS: **Ctrl+Option+Shift+P / M / C / L**. Systray: **Devenir maître KVM** is the same as M.
 
 ## Security model
 

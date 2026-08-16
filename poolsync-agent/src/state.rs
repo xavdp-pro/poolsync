@@ -1,3 +1,4 @@
+use glib::MainContext;
 use poolsync_core::{AgentConfig, PoolTopology, TopologyNode};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -11,6 +12,8 @@ pub struct AgentState {
     connected: Arc<AtomicBool>,
     clipboard_sync: Arc<AtomicBool>,
     notify_on_receive: Arc<AtomicBool>,
+    /// Optional debug toast when KVM master changes (off by default — noisy).
+    notify_master: Arc<AtomicBool>,
     kvm_enabled: Arc<AtomicBool>,
     /// Pause locale (raccourci clavier) — n'affecte que cette machine.
     local_active: Arc<AtomicBool>,
@@ -81,6 +84,7 @@ impl AgentState {
             connected: Arc::new(AtomicBool::new(false)),
             clipboard_sync: Arc::new(AtomicBool::new(true)),
             notify_on_receive: Arc::new(AtomicBool::new(true)),
+            notify_master: Arc::new(AtomicBool::new(false)),
             kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
             local_active: Arc::new(AtomicBool::new(true)),
             master_claim_requested: Arc::new(AtomicBool::new(false)),
@@ -389,6 +393,20 @@ impl AgentState {
         new
     }
 
+    pub fn notify_master_enabled(&self) -> bool {
+        self.notify_master.load(Ordering::SeqCst)
+    }
+
+    pub fn set_notify_master(&self, value: bool) {
+        self.notify_master.store(value, Ordering::SeqCst);
+    }
+
+    pub fn toggle_notify_master(&self) -> bool {
+        let new = !self.notify_master_enabled();
+        self.set_notify_master(new);
+        new
+    }
+
     pub fn kvm_enabled(&self) -> bool {
         self.kvm_enabled.load(Ordering::SeqCst)
     }
@@ -403,8 +421,16 @@ impl AgentState {
     }
 
     pub fn set_local_poolsync_active(&self, value: bool) {
+        let was = self.local_poolsync_active();
         self.local_active.store(value, Ordering::SeqCst);
         self.notify_tray_status_changed();
+        if !value {
+            // Leave remote-grab state so resume does not keep driving another screen.
+            self.set_kvm_focus(&self.config.node);
+        } else if !was && self.kvm_enabled() {
+            // Resume: this keyboard/mouse must own the pool again (edge switching).
+            self.request_master_claim();
+        }
     }
 
     /// Bascule KVM + presse-papiers sur cette machine (raccourci global).
@@ -443,9 +469,13 @@ impl AgentState {
         self.topology().and_then(|t| t.nodes.get(name).cloned())
     }
 
+    pub fn kvm_effective(&self) -> bool {
+        self.kvm_enabled() && self.local_poolsync_active()
+    }
+
     pub fn target_kvm_enabled(&self, node: &str) -> bool {
         if node == self.config.node {
-            return self.kvm_enabled();
+            return self.kvm_effective();
         }
         self.topology_node(node)
             .map(|n| n.kvm_enabled)
@@ -512,9 +542,28 @@ impl AgentState {
     }
 
     pub fn set_master(&self, node: &str) {
+        let prev = self.master_node();
+        if prev == node {
+            return;
+        }
         if let Ok(mut m) = self.master_node.write() {
             *m = node.to_string();
         }
+        self.maybe_notify_master_change(node);
+    }
+
+    fn maybe_notify_master_change(&self, node: &str) {
+        if !self.notify_master_enabled() {
+            return;
+        }
+        if node.is_empty() || node == "—" {
+            return;
+        }
+        let node = node.to_string();
+        let here = self.config.node.clone();
+        let _ = MainContext::default().invoke(move || {
+            crate::notify_util::notify_master_changed(&here, &node);
+        });
     }
 
     pub fn master_node(&self) -> String {

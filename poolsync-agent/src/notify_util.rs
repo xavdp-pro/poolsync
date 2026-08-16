@@ -197,6 +197,35 @@ pub fn notify_master_claim(node: &str, kvm_ok: bool) {
     notify_zenity_fallback(title, &body);
 }
 
+/// Debug toast when KVM master changes (systray opt-in).
+pub fn notify_master_changed(local_node: &str, master: &str) {
+    let title = "PoolSync — MASTER";
+    let body = if master == local_node {
+        format!("This computer ({master}) is now KVM master.\nEdge switching uses this keyboard and mouse.")
+    } else {
+        format!("KVM master is now {master} (this node is {local_node}).")
+    };
+    if notify_send(title, &body, "normal", 3500) {
+        return;
+    }
+    warn!("notify-send master changed échoué");
+}
+
+/// Notification for Ctrl+Alt+Shift+L (find the pointer).
+pub fn notify_cursor_locate(node: &str, monitor: &str) {
+    let title = format!("PoolSync — {node}");
+    let body = format!(
+        "The mouse cursor is on this computer: {node}\n\
+         Monitor {monitor}\n\
+         Ctrl+Alt+Shift+L to locate again."
+    );
+    if notify_send(&title, &body, "normal", 4000) {
+        return;
+    }
+    warn!("notify-send locate échoué — repli zenity");
+    notify_zenity_fallback(&title, &body);
+}
+
 fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool {
     ensure_notify_daemon();
     let icon = notify_icon_path();

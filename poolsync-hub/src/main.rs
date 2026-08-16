@@ -22,8 +22,8 @@ use axum::{
 use clap::Parser;
 use futures_util::StreamExt;
 use poolsync_core::{
-    decode_message, encode_message, AgentMode, Message, Neighbor, PoolTopology, ScreenInfo,
-    TopologyNode,
+    decode_message, encode_message, infer_neighbors, AgentMode, Message, Neighbor, PoolTopology,
+    ScreenInfo, TopologyNode, DEFAULT_EDGE_TOLERANCE_PX,
 };
 use serde::Serialize;
 use tokio::sync::{broadcast, RwLock};
@@ -656,8 +656,10 @@ async fn apply_hello_geometry(
 ) -> Result<PoolTopology> {
     let topology_update = {
         let mut topo = state.topology.write().await;
+        let mut kvm_changed = false;
         match topo.nodes.get_mut(node) {
             Some(n) => {
+                kvm_changed = n.kvm_enabled != kvm_enabled;
                 if n.width != screen.width || n.height != screen.height {
                     info!(
                         "topology {node}: {}x{} → {}x{}",
@@ -673,13 +675,13 @@ async fn apply_hello_geometry(
                 n.desktop_y = kvm_desktop.desktop_y;
                 n.desktop_width = kvm_desktop.desktop_width;
                 n.desktop_height = kvm_desktop.desktop_height;
-                if !kvm_enabled {
-                    n.y = 100_000;
-                    n.neighbors.clear();
+                // Pause locale : garder x/y mosaïque. Clip-only à l'init est déjà à y=100000.
+                if !kvm_enabled && n.y < 50_000 && kvm_changed {
+                    info!("topology {node}: KVM off (pause) — bords recalculés, position conservée");
                 }
             }
             None => {
-                // Clip-only : hors mosaïque KVM. Sinon collé à droite du dernier écran.
+                kvm_changed = true;
                 let (x, y) = if kvm_enabled {
                     (
                         topo.nodes
@@ -715,6 +717,9 @@ async fn apply_hello_geometry(
                     },
                 );
             }
+        }
+        if kvm_changed {
+            *topo = infer_neighbors(&topo, DEFAULT_EDGE_TOLERANCE_PX);
         }
         topo.clone()
     };

@@ -225,12 +225,14 @@ Canonical doc (English): **[keyboard-shortcuts.md](keyboard-shortcuts.md)**
 |--------|--------|
 | **Pause shortcut** | `Ctrl+Alt+Shift+P` — toggle PoolSync on this machine only |
 | **Master shortcut** | `Ctrl+Alt+Shift+M` — claim keyboard/mouse (KVM master) on this machine |
-| **Systray** | Clipboard ON/OFF, Become KVM master, restart, quit, configuration |
-| **Notifications** | Copied / Received / ACTIVÉ / DÉSACTIVÉ / MASTER |
+| **Center shortcut** | `Ctrl+Alt+Shift+C` — warp pointer to the center of the current monitor |
+| **Locate shortcut** | `Ctrl+Alt+Shift+L` — ripple at the pointer + notification with the computer name |
+| **Systray** | Clipboard ON/OFF, Become KVM master, locate cursor, restart, quit, configuration |
+| **Notifications** | Copied / Received / ACTIVÉ / DÉSACTIVÉ (master-change toasts: systray debug checkbox, off by default) |
 | **D-Bus app ID** | `com.xavdp.poolsync` |
 | **Hotkey module** | `poolsync-agent/src/hotkey.rs` |
 
-When PoolSync is paused locally, KVM and clipboard are off on this node only. Press P again or re-enable clipboard in the systray.
+When PoolSync is paused locally, KVM and clipboard are off on this node only. Press P again to resume: that node **claims KVM master** so edge switching works without Ctrl+Alt+Shift+M.
 
 ---
 
@@ -368,7 +370,7 @@ PoolSync est conçu pour un **réseau privé** (WireGuard VPN, LAN).
 | `poolsync-agent/src/peer_mesh.rs` | Mesh P2P entre voisins |
 | `poolsync-agent/src/kvm.rs` | Logique KVM (bords, focus) |
 | `poolsync-agent/src/kvm_x11.rs` | Grab X11 souris/clavier |
-| `poolsync-agent/src/hotkey.rs` | Global hotkeys Ctrl+Alt+Shift+P (pause) and M (master) |
+| `poolsync-agent/src/hotkey.rs` | Global hotkeys Ctrl+Alt+Shift+P / M / C / L |
 | `poolsync-agent/src/tray.rs` | Menu systray XFCE |
 | `poolsync-agent/src/config_window.rs` | Fenêtre configuration |
 | `poolsync-agent/src/notify_util.rs` | Notifications notify-send |

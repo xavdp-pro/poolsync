@@ -63,12 +63,25 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
     // Taille primaire live (RandR) — utilisée pour les bords locaux sans attendre le hub.
     let mut local_primary = local_screen_from_config(state);
     let mut last_announced: Option<(ScreenInfo, KvmDesktopInfo)> = None;
+    let mut last_hello_kvm: Option<bool> = None;
 
     loop {
         if !state.is_connected() {
             last_announced = None;
+            last_hello_kvm = None;
             thread::sleep(poll);
             continue;
+        }
+
+        let effective = state.kvm_effective();
+        if last_hello_kvm != Some(effective) {
+            announce_screen_to_hub(state, &local_primary, &local_kvm_info, &out_tx);
+            last_hello_kvm = Some(effective);
+            if effective {
+                info!("KVM pool: nœud actif");
+            } else {
+                info!("KVM pool: pause locale — hors bords d'écran");
+            }
         }
 
         if state.take_master_claim_request() {
@@ -999,7 +1012,7 @@ fn announce_screen_to_hub(
         mode: state.config.mode,
         screen: screen.clone(),
         neighbors: state.config.neighbors.clone(),
-        kvm_enabled: state.kvm_enabled(),
+        kvm_enabled: state.kvm_effective(),
         kvm_desktop: *kvm_desktop,
     }) {
         Ok(p) => p,
