@@ -1,6 +1,5 @@
 //! Mosaïque drag-and-drop des écrans (style Barrier) pour la fenêtre GTK de config.
 
-use gtk::gdk::prelude::*;
 use gtk::prelude::*;
 use gtk::{DrawingArea, EventBox, Fixed, Label, Orientation, ScrolledWindow};
 use poolsync_core::{
@@ -21,16 +20,23 @@ pub struct TopologyMosaic {
     scale: RefCell<f64>,
     canvas_pos: RefCell<HashMap<String, (i32, i32)>>,
     on_layout: Rc<dyn Fn(PoolTopology)>,
+    /// Écran en cours de déplacement, pour le mettre en évidence au dessin.
+    dragging: Rc<RefCell<Option<String>>>,
+    /// Nom du nœud local, signalé sur sa vignette.
+    local_node: RefCell<Option<String>>,
 }
 
 impl TopologyMosaic {
     pub fn new(on_layout: Rc<dyn Fn(PoolTopology)>) -> Self {
         let root = gtk::Box::new(Orientation::Vertical, 4);
-        let hint = Label::new(Some(
-            "Glissez les écrans pour les positionner — les voisins se recalculent au relâchement.",
-        ));
+        let hint = Label::new(None);
+        hint.set_markup(
+            "<small>Faites <b>glisser</b> une vignette pour placer l'écran. \
+             Les voisins sont recalculés au relâchement, puis <b>Enregistrer → hub</b>.</small>",
+        );
         hint.set_halign(gtk::Align::Start);
         hint.set_margin_start(4);
+        hint.set_margin_bottom(2);
         let scrolled = ScrolledWindow::builder()
             .vexpand(false)
             .hexpand(true)
@@ -48,18 +54,39 @@ impl TopologyMosaic {
             scale: RefCell::new(0.2),
             canvas_pos: RefCell::new(HashMap::new()),
             on_layout,
+            dragging: Rc::new(RefCell::new(None)),
+            local_node: RefCell::new(None),
         }
+    }
+
+    /// Nom du nœud local, pour le signaler sur sa vignette.
+    pub fn set_local_node(&self, node: &str) {
+        *self.local_node.borrow_mut() = Some(node.to_string());
     }
 
     pub fn widget(&self) -> &gtk::Box {
         &self.root
     }
 
-    pub fn rebuild(&self, topo: &PoolTopology) {
+    pub fn rebuild(&self, full_topo: &PoolTopology) {
         for child in self.canvas.children() {
             self.canvas.remove(&child);
         }
         self.canvas_pos.borrow_mut().clear();
+
+        // Seuls les nœuds avec KVM actif figurent sur la mosaïque : les nœuds
+        // clip-only (session RDP, etc.) ne participent pas à la bascule
+        // clavier/souris, les positionner n'aurait aucun effet.
+        let kvm_only = PoolTopology {
+            nodes: full_topo
+                .nodes
+                .iter()
+                .filter(|(_, n)| n.kvm_enabled)
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        };
+        let topo = &kvm_only;
+
         if topo.nodes.is_empty() {
             return;
         }
@@ -81,6 +108,10 @@ impl TopologyMosaic {
         if !lines.is_empty() {
             let area = DrawingArea::new();
             area.set_size_request(cw, ch);
+            // La zone de dessin couvre tout le canvas et serait posée *au-dessus*
+            // des écrans : sans ce masque d'entrée vide elle avale les clics et le
+            // drag ne démarre jamais. On la rend transparente aux événements.
+            area.set_sensitive(false);
             let lines_rc = Rc::new(lines);
             area.connect_draw(move |_area, cr| {
                 cr.set_source_rgb(0.45, 0.48, 0.95);
@@ -93,6 +124,7 @@ impl TopologyMosaic {
                 gtk::glib::Propagation::Stop
             });
             self.canvas.put(&area, 0, 0);
+            area.show();
         }
 
         let mut ids: Vec<_> = topo.nodes.keys().cloned().collect();
@@ -106,6 +138,7 @@ impl TopologyMosaic {
             let node = topo.nodes.get(&id).expect("node");
             self.add_screen(&id, node, topo.clone());
         }
+        self.canvas.show_all();
     }
 
     fn add_screen(&self, id: &str, node: &TopologyNode, topo: PoolTopology) {
@@ -121,22 +154,66 @@ impl TopologyMosaic {
 
         let event_box = EventBox::new();
         event_box.set_size_request(w, h);
-        let frame = gtk::Frame::new(None);
-        let vbox = gtk::Box::new(Orientation::Vertical, 2);
-        vbox.set_halign(gtk::Align::Center);
-        vbox.set_valign(gtk::Align::Center);
-        let name = Label::new(None);
-        name.set_markup(&format!("<b>{}</b>", escape_markup(id)));
-        let size = Label::new(Some(&format!("{}×{}", node.width, node.height)));
-        vbox.pack_start(&name, false, false, 0);
-        vbox.pack_start(&size, false, false, 0);
-        if !node.kvm_enabled {
-            vbox.pack_start(&Label::new(Some("clip only")), false, false, 0);
-        }
-        frame.add(&vbox);
-        event_box.add(&frame);
+        // Sans fenêtre propre placée au-dessus du Frame et des Label, ce sont eux
+        // qui reçoivent le clic et le drag ne démarre pas.
+        event_box.set_visible_window(true);
+        event_box.set_above_child(true);
+        // Vignette dessinée plutôt qu'un Frame GTK : coins arrondis, teinte propre
+        // à la machine et liseré plus marqué pendant le déplacement, pour qu'on
+        // voie ce qu'on déplace.
+        let tile = DrawingArea::new();
+        tile.set_size_request(w, h);
+        let (hue_r, hue_g, hue_b) = node_tint(id);
+        let label = id.to_string();
+        let dims = format!("{} × {}", node.width, node.height);
+        let is_local = self.local_node.borrow().as_deref() == Some(id);
+        let dragging = self.dragging.clone();
+        let id_draw = id.to_string();
+        tile.connect_draw(move |area, cr| {
+            let w = area.allocated_width() as f64;
+            let h = area.allocated_height() as f64;
+            let active = dragging.borrow().as_deref() == Some(id_draw.as_str());
+            rounded_rect(cr, 1.5, 1.5, w - 3.0, h - 3.0, 8.0);
+            cr.set_source_rgba(hue_r, hue_g, hue_b, if active { 0.38 } else { 0.20 });
+            cr.fill_preserve().ok();
+            if active {
+                cr.set_source_rgb(hue_r * 0.7, hue_g * 0.7, hue_b * 0.7);
+                cr.set_line_width(2.5);
+            } else {
+                cr.set_source_rgba(hue_r * 0.6, hue_g * 0.6, hue_b * 0.6, 0.85);
+                cr.set_line_width(1.4);
+            }
+            cr.stroke().ok();
+
+            cr.set_source_rgb(0.13, 0.14, 0.18);
+            cr.select_font_face("Sans", gtk::cairo::FontSlant::Normal, gtk::cairo::FontWeight::Bold);
+            cr.set_font_size(13.0);
+            let te = cr.text_extents(&label).ok();
+            if let Some(te) = te {
+                cr.move_to((w - te.width()) / 2.0, h / 2.0 - 2.0);
+                cr.show_text(&label).ok();
+            }
+            cr.select_font_face("Sans", gtk::cairo::FontSlant::Normal, gtk::cairo::FontWeight::Normal);
+            cr.set_font_size(10.0);
+            cr.set_source_rgba(0.13, 0.14, 0.18, 0.65);
+            if let Ok(te) = cr.text_extents(&dims) {
+                cr.move_to((w - te.width()) / 2.0, h / 2.0 + 14.0);
+                cr.show_text(&dims).ok();
+            }
+            if is_local {
+                cr.set_source_rgba(hue_r * 0.6, hue_g * 0.6, hue_b * 0.6, 0.9);
+                cr.set_font_size(9.0);
+                if let Ok(te) = cr.text_extents("cette machine") {
+                    cr.move_to((w - te.width()) / 2.0, h - 8.0);
+                    cr.show_text("cette machine").ok();
+                }
+            }
+            gtk::glib::Propagation::Stop
+        });
+        event_box.add(&tile);
 
         self.canvas.put(&event_box, px, py);
+        event_box.show_all();
         self.wire_drag(id, &event_box, topo);
     }
 
@@ -144,7 +221,10 @@ impl TopologyMosaic {
         widget.add_events(
             gtk::gdk::EventMask::BUTTON_PRESS_MASK
                 | gtk::gdk::EventMask::BUTTON_RELEASE_MASK
-                | gtk::gdk::EventMask::BUTTON_MOTION_MASK,
+                | gtk::gdk::EventMask::BUTTON_MOTION_MASK
+                | gtk::gdk::EventMask::POINTER_MOTION_MASK
+                | gtk::gdk::EventMask::ENTER_NOTIFY_MASK
+                | gtk::gdk::EventMask::LEAVE_NOTIFY_MASK,
         );
 
         let canvas = self.canvas.clone();
@@ -157,14 +237,25 @@ impl TopologyMosaic {
         let d0 = drag.clone();
         let id0 = id.clone();
         let pos0 = positions.clone();
+        let dragging0 = self.dragging.clone();
         widget.connect_button_press_event(move |w, event| {
             if event.button() != 1 {
                 return gtk::glib::Propagation::Proceed;
             }
             let (ox, oy) = pos0.borrow().get(&id0).copied().unwrap_or((0, 0));
             *d0.borrow_mut() = Some((event.root().0, event.root().1, ox, oy));
+            *dragging0.borrow_mut() = Some(id0.clone());
+            set_cursor(w, "grabbing");
+            w.queue_draw();
             w.grab_add();
             gtk::glib::Propagation::Stop
+        });
+
+        // Curseur « main » au survol : sans ce signal rien n'indique que la
+        // vignette se déplace.
+        widget.connect_enter_notify_event(move |w, _| {
+            set_cursor(w, "grab");
+            gtk::glib::Propagation::Proceed
         });
 
         let d1 = drag.clone();
@@ -186,25 +277,31 @@ impl TopologyMosaic {
         });
 
         let d2 = drag;
+        let dragging2 = self.dragging.clone();
         let id2 = id.clone();
         let pos2 = positions.clone();
         let on_layout2 = on_layout.clone();
+        let scale2 = scale;
+        let topo2 = topo.clone();
         widget.connect_button_release_event(move |w, event| {
             if event.button() != 1 {
                 return gtk::glib::Propagation::Proceed;
             }
             w.grab_remove();
+            set_cursor(w, "grab");
             if d2.borrow().is_none() {
                 return gtk::glib::Propagation::Stop;
             }
             *d2.borrow_mut() = None;
+            *dragging2.borrow_mut() = None;
+            w.queue_draw();
 
             let (alloc_x, alloc_y) = pos2.borrow().get(&id2).copied().unwrap_or((0, 0));
-            let tx = ((alloc_x - PAD) as f64 / scale).round() as i32;
-            let ty = ((alloc_y - PAD) as f64 / scale).round() as i32;
+            let tx = ((alloc_x - PAD) as f64 / scale2).round() as i32;
+            let ty = ((alloc_y - PAD) as f64 / scale2).round() as i32;
             let (sx, sy) = snap_position(tx.max(0), ty.max(0), DEFAULT_SNAP_GRID_PX);
 
-            let mut nodes = topo.nodes.clone();
+            let mut nodes = topo2.nodes.clone();
             if let Some(n) = nodes.get_mut(&id2) {
                 n.x = sx;
                 n.y = sy;
@@ -214,6 +311,48 @@ impl TopologyMosaic {
             on_layout2(inferred);
             gtk::glib::Propagation::Stop
         });
+    }
+}
+
+/// Tracé d'un rectangle à coins arrondis.
+fn rounded_rect(cr: &gtk::cairo::Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
+    use std::f64::consts::PI;
+    let r = r.min(w / 2.0).min(h / 2.0).max(0.0);
+    cr.new_sub_path();
+    cr.arc(x + w - r, y + r, r, -PI / 2.0, 0.0);
+    cr.arc(x + w - r, y + h - r, r, 0.0, PI / 2.0);
+    cr.arc(x + r, y + h - r, r, PI / 2.0, PI);
+    cr.arc(x + r, y + r, r, PI, 1.5 * PI);
+    cr.close_path();
+}
+
+/// Teinte stable dérivée du nom : chaque machine garde la même couleur d'une
+/// ouverture à l'autre, sans table de correspondance à maintenir.
+fn node_tint(id: &str) -> (f64, f64, f64) {
+    let mut h: u32 = 2166136261;
+    for b in id.as_bytes() {
+        h ^= *b as u32;
+        h = h.wrapping_mul(16777619);
+    }
+    // Palette fixe : des teintes lisibles sur fond clair comme sombre.
+    const PALETTE: [(f64, f64, f64); 6] = [
+        (0.36, 0.52, 0.94),
+        (0.30, 0.72, 0.55),
+        (0.90, 0.60, 0.25),
+        (0.72, 0.45, 0.88),
+        (0.92, 0.44, 0.50),
+        (0.28, 0.70, 0.80),
+    ];
+    PALETTE[(h % PALETTE.len() as u32) as usize]
+}
+
+/// Curseur de la fenêtre du widget ("grab" / "grabbing").
+fn set_cursor(w: &EventBox, name: &str) {
+    if let Some(win) = w.window() {
+        let display = gtk::prelude::WidgetExt::display(w);
+        if let Some(c) = gtk::gdk::Cursor::from_name(&display, name) {
+            win.set_cursor(Some(&c));
+        }
     }
 }
 

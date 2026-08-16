@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tracing::warn;
 use x11rb::connection::Connection;
-use x11rb::protocol::xfixes::{self, ConnectionExt as XfixesExt};
+use x11rb::protocol::xfixes;
 use x11rb::protocol::xproto::{
     Bool32, ConfigureWindowAux, ConnectionExt as _, CreateGCAux, CreateWindowAux, Cursor,
     EventMask, GrabMode, GrabStatus, ImageFormat, InputFocus, Pixmap, StackMode, Window,
@@ -39,7 +39,7 @@ pub struct InputGrab {
 }
 
 impl InputGrab {
-    pub fn begin(screen_w: u32, screen_h: u32) -> Result<Self> {
+    pub fn begin(_screen_w: u32, _screen_h: u32) -> Result<Self> {
         let (conn, screen_num) = x11rb::connect(None).context("X11 grab")?;
         let root = conn.setup().roots[screen_num].root;
         let setup = &conn.setup().roots[screen_num];
@@ -59,7 +59,15 @@ impl InputGrab {
             &ConfigureWindowAux::new().stack_mode(StackMode::ABOVE),
         )?;
         let _ = xfixes::hide_cursor(&conn, root);
-        grab_mouse_and_keyboard(&conn, grab_window)?;
+        if let Err(err) = grab_mouse_and_keyboard(&conn, grab_window) {
+            let _ = conn.ungrab_pointer(CURRENT_TIME);
+            let _ = conn.ungrab_keyboard(CURRENT_TIME);
+            let _ = xfixes::show_cursor(&conn, root);
+            let _ = conn.unmap_window(grab_window);
+            let _ = conn.destroy_window(grab_window);
+            let _ = conn.flush();
+            return Err(err);
+        }
         let _ = conn.set_input_focus(InputFocus::POINTER_ROOT, grab_window, CURRENT_TIME);
         conn.warp_pointer(NONE, root, 0, 0, 0, 0, cx, cy)?;
         conn.flush()?;
@@ -250,7 +258,9 @@ fn create_blank_cursor(
     Ok((cursor, pixmap))
 }
 
-/// Grab clavier puis pointeur sur la fenêtre plein écran (Barrier grabMouseAndKeyboard).
+/// Grab pointeur (obligatoire pour le KVM souris), clavier en best-effort.
+/// IBus / xcape / menus XFCE tiennent souvent un grab clavier (ALREADY_GRABBED) :
+/// on ne doit pas pour autant annuler le basculement souris.
 fn grab_mouse_and_keyboard(
     conn: &x11rb::rust_connection::RustConnection,
     window: Window,
@@ -262,23 +272,6 @@ fn grab_mouse_and_keyboard(
         | EventMask::POINTER_MOTION;
     let deadline = Instant::now() + GRAB_TIMEOUT;
     loop {
-        let kb = conn
-            .grab_keyboard(
-                false,
-                window,
-                CURRENT_TIME,
-                GrabMode::ASYNC,
-                GrabMode::ASYNC,
-            )?
-            .reply()?;
-        if kb.status != GrabStatus::SUCCESS {
-            if Instant::now() >= deadline {
-                anyhow::bail!("grab clavier timeout ({:?})", kb.status);
-            }
-            thread::sleep(GRAB_RETRY);
-            continue;
-        }
-
         let ptr = conn
             .grab_pointer(
                 false,
@@ -292,12 +285,27 @@ fn grab_mouse_and_keyboard(
             )?
             .reply()?;
         if ptr.status != GrabStatus::SUCCESS {
-            let _ = conn.ungrab_keyboard(CURRENT_TIME);
             if Instant::now() >= deadline {
                 anyhow::bail!("grab pointeur timeout ({:?})", ptr.status);
             }
             thread::sleep(GRAB_RETRY);
             continue;
+        }
+
+        let kb = conn
+            .grab_keyboard(
+                false,
+                window,
+                CURRENT_TIME,
+                GrabMode::ASYNC,
+                GrabMode::ASYNC,
+            )?
+            .reply()?;
+        if kb.status != GrabStatus::SUCCESS {
+            warn!(
+                "grab clavier indisponible ({:?}) — KVM souris seul (IBus/xcape/menu ?)",
+                kb.status
+            );
         }
         return Ok(());
     }

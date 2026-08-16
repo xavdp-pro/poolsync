@@ -37,6 +37,7 @@ thread_local! {
 
 /// Ouvre (ou ré-affiche) la fenêtre de configuration. À appeler sur le thread GTK.
 pub fn show(state: Arc<AgentState>) {
+    crate::crashlog::set_context("config_window::show");
     OPEN_WINDOW.with(|slot| {
         if let Some(existing) = slot.borrow().as_ref() {
             existing.window.present();
@@ -77,6 +78,9 @@ struct AgentForm {
 
 struct ConfigWindow {
     window: Window,
+    /// Maintient en vie la page presse-papiers (timers de rafraîchissement inclus).
+    #[allow(dead_code)]
+    clip_handle: Rc<crate::clipboard_history::HistoryWindow>,
     state: Arc<AgentState>,
     mosaic: Rc<TopologyMosaic>,
     nodes_box: GtkBox,
@@ -90,22 +94,26 @@ impl ConfigWindow {
     fn new(state: Arc<AgentState>) -> Rc<Self> {
         let win = Rc::new_cyclic(|weak: &std::rc::Weak<ConfigWindow>| {
             let window = Window::builder()
-                .title(format!("PoolSync — configuration ({})", state.config.node))
-                .default_width(680)
-                .default_height(600)
+                .title(format!("PoolSync — {}", state.config.node))
+                .default_width(1000)
+                .default_height(680)
                 .build();
 
             let notebook = Notebook::new();
 
-            // --- Onglet 1 : topologie du hub --------------------------------
-            let (config_page, mosaic, nodes_box, status) = build_topology_page(weak);
-            notebook.append_page(&config_page, Some(&Label::new(Some("Config pool (hub)"))));
+            // --- Onglet 1 : presse-papiers (l'usage quotidien) --------------
+            let (clip_page, clip_handle) = crate::clipboard_history::build_page(state.clone());
+            notebook.append_page(&clip_page, Some(&Label::new(Some("Presse-papiers"))));
 
-            // --- Onglet 2 : agent.toml local --------------------------------
+            // --- Onglet 2 : écrans (drag & drop des positions relatives) ----
+            let (config_page, mosaic, nodes_box, status) = build_topology_page(weak);
+            notebook.append_page(&config_page, Some(&Label::new(Some("Écrans du pool"))));
+
+            // --- Onglet 3 : agent.toml local --------------------------------
             let (agent_page, agent_form) = build_agent_page(&state, weak);
             notebook.append_page(&agent_page, Some(&Label::new(Some("Agent local"))));
 
-            // --- Onglet 3 : logs --------------------------------------------
+            // --- Onglet 4 : logs --------------------------------------------
             let (logs_page, logs_view) = build_logs_page(weak);
             notebook.append_page(&logs_page, Some(&Label::new(Some("Logs"))));
 
@@ -117,6 +125,7 @@ impl ConfigWindow {
             ConfigWindow {
                 window,
                 state: state.clone(),
+                clip_handle,
                 mosaic,
                 nodes_box,
                 status,
@@ -172,6 +181,7 @@ impl ConfigWindow {
             self.rows.borrow_mut().push(row);
         }
         self.nodes_box.show_all();
+        self.mosaic.set_local_node(&self.state.config.node);
         self.mosaic.rebuild(&topo);
         self.set_status(
             &format!("{} nœud(s) chargé(s) depuis le hub", ids.len()),

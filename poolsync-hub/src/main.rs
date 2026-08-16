@@ -666,30 +666,42 @@ async fn apply_hello_geometry(
                     n.width = screen.width;
                     n.height = screen.height;
                 }
+                n.kvm_enabled = kvm_enabled;
                 n.monitor_x = kvm_desktop.monitor_x;
                 n.monitor_y = kvm_desktop.monitor_y;
                 n.desktop_x = kvm_desktop.desktop_x;
                 n.desktop_y = kvm_desktop.desktop_y;
                 n.desktop_width = kvm_desktop.desktop_width;
                 n.desktop_height = kvm_desktop.desktop_height;
+                if !kvm_enabled {
+                    n.y = 100_000;
+                    n.neighbors.clear();
+                }
             }
             None => {
-                // Nouveau nœud : placé à la suite horizontalement (mosaïque par défaut).
-                let x = topo
-                    .nodes
-                    .values()
-                    .map(|n| n.x + n.width as i32)
-                    .max()
-                    .unwrap_or(0);
+                // Clip-only : hors mosaïque KVM. Sinon collé à droite du dernier écran.
+                let (x, y) = if kvm_enabled {
+                    (
+                        topo.nodes
+                            .values()
+                            .filter(|n| n.kvm_enabled)
+                            .map(|n| n.x + n.width as i32)
+                            .max()
+                            .unwrap_or(0),
+                        0,
+                    )
+                } else {
+                    (0, 100_000)
+                };
                 info!(
-                    "topology: nouveau nœud {node} ({}x{}) @ x={x}",
+                    "topology: nouveau nœud {node} ({}x{}) @ ({x},{y}) kvm={kvm_enabled}",
                     screen.width, screen.height
                 );
                 topo.nodes.insert(
                     node.to_string(),
                     TopologyNode {
                         x,
-                        y: 0,
+                        y,
                         width: screen.width,
                         height: screen.height,
                         kvm_enabled,

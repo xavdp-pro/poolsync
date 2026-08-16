@@ -37,6 +37,8 @@ pub struct AgentState {
     kvm_switch_enter_until: Arc<RwLock<Option<Instant>>>,
     /// Révision hub de l'historique presse-papiers (rafraîchit le menu systray).
     tray_history_revision: Arc<AtomicU64>,
+    /// Bascule locale (raccourci) — rafraîchit titre/icône systray.
+    tray_status_revision: Arc<AtomicU64>,
     /// Entrée locale envoyée au hub — affichée tout de suite dans le systray (sans attendre le WS retour).
     optimistic_tray: Arc<RwLock<Option<crate::clipboard_history::HistoryItem>>>,
     /// Dernier hash clipboard connu (évite reboucles poll / echo hub après pick).
@@ -96,6 +98,7 @@ impl AgentState {
             kvm_inject_button_until: Arc::new(RwLock::new(None)),
             kvm_switch_enter_until: Arc::new(RwLock::new(None)),
             tray_history_revision: Arc::new(AtomicU64::new(0)),
+            tray_status_revision: Arc::new(AtomicU64::new(0)),
             optimistic_tray: Arc::new(RwLock::new(None)),
             last_clip_hash: Arc::new(Mutex::new(String::new())),
             history_clear_until: Arc::new(RwLock::new(None)),
@@ -181,6 +184,15 @@ impl AgentState {
 
     pub fn tray_history_revision(&self) -> u64 {
         self.tray_history_revision.load(Ordering::SeqCst)
+    }
+
+    pub fn notify_tray_status_changed(&self) {
+        self.tray_status_revision
+            .fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn tray_status_revision(&self) -> u64 {
+        self.tray_status_revision.load(Ordering::SeqCst)
     }
 
     pub fn mark_kvm_inject_at(&self, x: i32, y: i32) {
@@ -389,6 +401,7 @@ impl AgentState {
 
     pub fn set_local_poolsync_active(&self, value: bool) {
         self.local_active.store(value, Ordering::SeqCst);
+        self.notify_tray_status_changed();
     }
 
     /// Bascule KVM + presse-papiers sur cette machine (raccourci global).

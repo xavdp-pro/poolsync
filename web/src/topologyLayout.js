@@ -25,9 +25,11 @@ function setNeighbor(nodes, id, dir, other) {
 /** Recalcule les voisins bidirectionnels à partir des positions. */
 export function inferNeighbors(topology, tolerancePx = EDGE_TOLERANCE_PX) {
   const tol = Math.max(1, tolerancePx)
-  const ids = Object.keys(topology?.nodes || {})
+  const ids = Object.keys(topology?.nodes || {}).filter(
+    (id) => topology.nodes[id]?.kvm_enabled !== false,
+  )
   const nodes = {}
-  for (const id of ids) {
+  for (const id of Object.keys(topology?.nodes || {})) {
     nodes[id] = { ...topology.nodes[id], neighbors: {} }
   }
 

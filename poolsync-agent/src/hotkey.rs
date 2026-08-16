@@ -69,28 +69,16 @@ fn hotkey_loop(state: Arc<AgentState>) {
 
 fn on_hotkey(state: &AgentState) {
     let active = state.toggle_local_poolsync();
-    let node = &state.config.node;
+    let node = state.config.node.clone();
     if active {
         info!("PoolSync activé localement ({node}) via {HOTKEY_LABEL}");
-        notify_util::notify_local(
-            "PoolSync — ACTIVÉ",
-            &format!(
-                "État : ACTIVÉ sur {node}\n\
-                 KVM + presse-papiers PoolSync rebranchés (cette machine).\n\
-                 Raccourci {HOTKEY_LABEL} pour désactiver."
-            ),
-        );
     } else {
         info!("PoolSync désactivé localement ({node}) via {HOTKEY_LABEL}");
-        notify_util::notify_local(
-            "PoolSync — DÉSACTIVÉ",
-            &format!(
-                "État : DÉSACTIVÉ sur {node}\n\
-                 KVM + presse-papiers PoolSync suspendus (clipboard / souris locaux).\n\
-                 Raccourci {HOTKEY_LABEL} pour réactiver."
-            ),
-        );
         // Libère le curseur si KVM avait un grab actif.
         crate::kvm_x11::set_cursor_visible_best_effort(true);
     }
+    // Notification sur le thread GTK (session D-Bus / DISPLAY fiables).
+    let _ = glib::MainContext::default().invoke(move || {
+        notify_util::notify_poolsync_toggle(active, &node);
+    });
 }

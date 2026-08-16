@@ -17,15 +17,19 @@ pub fn snap_position(x: i32, y: i32, grid: i32) -> (i32, i32) {
 }
 
 /// Recalcule les voisins left/right/up/down à partir des rectangles (bidirectionnel).
+/// Les nœuds `kvm_enabled = false` (presse-papiers seul) sont exclus du graphe KVM.
 pub fn infer_neighbors(topology: &PoolTopology, tolerance_px: i32) -> PoolTopology {
     let tol = tolerance_px.max(1);
-    let ids: Vec<String> = topology.nodes.keys().cloned().collect();
+    let ids: Vec<String> = topology
+        .nodes
+        .iter()
+        .filter(|(_, n)| n.kvm_enabled)
+        .map(|(k, _)| k.clone())
+        .collect();
     let mut nodes = topology.nodes.clone();
 
-    for id in &ids {
-        if let Some(n) = nodes.get_mut(id) {
-            n.neighbors.clear();
-        }
+    for n in nodes.values_mut() {
+        n.neighbors.clear();
     }
 
     for i in 0..ids.len() {
@@ -151,5 +155,20 @@ mod tests {
     #[test]
     fn snap_rounds_to_grid() {
         assert_eq!(snap_position(23, 37, 20), (20, 40));
+    }
+
+    #[test]
+    fn infer_skips_clipboard_only_nodes() {
+        let mut nodes = HashMap::new();
+        nodes.insert("asus".into(), node(0, 0, 1344, 756));
+        nodes.insert("acer".into(), node(1344, 0, 1366, 768));
+        let mut p2 = node(2710, 0, 1344, 756);
+        p2.kvm_enabled = false;
+        nodes.insert("gbs-p2".into(), p2);
+        let topo = infer_neighbors(&PoolTopology { nodes }, DEFAULT_EDGE_TOLERANCE_PX);
+        assert_eq!(topo.nodes["asus"].neighbors.get("right"), Some(&"acer".into()));
+        assert_eq!(topo.nodes["acer"].neighbors.get("left"), Some(&"asus".into()));
+        assert!(topo.nodes["acer"].neighbors.get("right").is_none());
+        assert!(topo.nodes["gbs-p2"].neighbors.is_empty());
     }
 }

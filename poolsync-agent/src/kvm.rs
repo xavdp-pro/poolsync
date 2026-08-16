@@ -43,7 +43,7 @@ enum BlockedEdge {
 pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) {
     let poll = Duration::from_millis(state.config.input_poll_ms);
     let local = state.config.node.clone();
-    let mut focus = local.clone();
+    let mut focus;
     let mut remote_x = 0i32;
     let mut remote_y = 0i32;
     let mut last_phys = (0i32, 0i32);
@@ -55,7 +55,6 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
         .checked_sub(Duration::from_secs(1))
         .unwrap_or_else(Instant::now);
     let mut blocked_edges: Vec<(BlockedEdge, Instant)> = Vec::new();
-    let mut grab_fail_streak: u32 = 0;
 
     let mut last_screen_probe = Instant::now()
         .checked_sub(Duration::from_secs(60))
@@ -138,36 +137,27 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 match InputGrab::begin(pool.width, pool.height) {
                     Ok(grab) => {
                         input_grab = Some(grab);
-                        grab_fail_streak = 0;
                     }
                     Err(err) => {
-                        tracing::warn!("grab KVM distant: {err:#}");
+                        tracing::warn!("grab KVM distant: {err:#} — retour local immédiat");
                         set_cursor_visible_best_effort(true);
-                        grab_fail_streak += 1;
-                        if grab_fail_streak >= 25 {
-                            tracing::warn!(
-                                "grab KVM impossible ({grab_fail_streak}x) — retour local {local}"
-                            );
-                            let cx = pool_w / 2;
-                            let cy = pool_h / 2;
-                            let (rx, ry) =
-                                pool_to_root(state, &local, cx, cy, &local_kvm_info);
-                            do_switch(
-                                &local,
-                                &local,
-                                rx,
-                                ry,
-                                state,
-                                &local_kvm_info,
-                                &mut blocked_edges,
-                                &out_tx,
-                                &mut focus,
-                                &mut remote_x,
-                                &mut remote_y,
-                            );
-                            state.set_kvm_focus(&local);
-                            grab_fail_streak = 0;
-                        }
+                        let cx = pool_w / 2;
+                        let cy = pool_h / 2;
+                        let (rx, ry) = pool_to_root(state, &local, cx, cy, &local_kvm_info);
+                        do_switch(
+                            &local,
+                            &local,
+                            rx,
+                            ry,
+                            state,
+                            &local_kvm_info,
+                            &mut blocked_edges,
+                            &out_tx,
+                            &mut focus,
+                            &mut remote_x,
+                            &mut remote_y,
+                        );
+                        state.set_kvm_focus(&local);
                         thread::sleep(poll);
                         continue;
                     }
@@ -388,6 +378,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                     &mut focus,
                     &mut remote_x,
                     &mut remote_y,
+                    &mut input_grab,
                     true,
                 )
             {
@@ -426,6 +417,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 &mut focus,
                 &mut remote_x,
                 &mut remote_y,
+                &mut input_grab,
                 false,
             ) {
                 last_switch = Instant::now();
@@ -435,6 +427,25 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
         last_phys = (px, py);
         state.set_kvm_focus(&focus);
         thread::sleep(poll);
+    }
+}
+
+/// Grab souris avant d'envoyer SwitchTo — sinon le distant reçoit le curseur
+/// alors que le master n'arrive pas à capturer l'entrée (split-brain).
+fn ensure_remote_grab(pool: &KvmDisplay, input_grab: &mut Option<InputGrab>) -> bool {
+    if input_grab.is_some() {
+        return true;
+    }
+    match InputGrab::begin(pool.width, pool.height) {
+        Ok(grab) => {
+            *input_grab = Some(grab);
+            true
+        }
+        Err(err) => {
+            tracing::warn!("grab KVM avant switch: {err:#}");
+            set_cursor_visible_best_effort(true);
+            false
+        }
     }
 }
 
@@ -454,6 +465,7 @@ fn try_pool_edge_switch(
     focus: &mut String,
     remote_x: &mut i32,
     remote_y: &mut i32,
+    input_grab: &mut Option<InputGrab>,
     claim_master: bool,
 ) -> bool {
     if !pool.contains(px, py) {
@@ -463,6 +475,9 @@ fn try_pool_edge_switch(
 
     if lx >= pool_w - edge && !is_blocked(blocked_edges, BlockedEdge::Right) {
         if let Some(target) = neighbor(state, Direction::Right) {
+            if target != local && !ensure_remote_grab(pool, input_grab) {
+                return false;
+            }
             let ty = map_coord(ly, pool.height, target_screen(state, &target).height);
             let (rx, ry) = pool_to_root(
                 state,
@@ -496,6 +511,9 @@ fn try_pool_edge_switch(
         }
     } else if lx < edge && !is_blocked(blocked_edges, BlockedEdge::Left) {
         if let Some(target) = neighbor(state, Direction::Left) {
+            if target != local && !ensure_remote_grab(pool, input_grab) {
+                return false;
+            }
             let tw = target_screen(state, &target).width as i32;
             let ty = map_coord(ly, pool.height, target_screen(state, &target).height);
             let entry_x = entry_inset_from_right(tw, edge);
@@ -525,6 +543,9 @@ fn try_pool_edge_switch(
         }
     } else if ly < edge && !is_blocked(blocked_edges, BlockedEdge::Up) {
         if let Some(target) = neighbor(state, Direction::Up) {
+            if target != local && !ensure_remote_grab(pool, input_grab) {
+                return false;
+            }
             let th = target_screen(state, &target).height as i32;
             let tx = map_coord(lx, pool.width, target_screen(state, &target).width);
             let (rx, ry) = pool_to_root(
@@ -559,6 +580,9 @@ fn try_pool_edge_switch(
         }
     } else if ly >= pool_h - edge && !is_blocked(blocked_edges, BlockedEdge::Down) {
         if let Some(target) = neighbor(state, Direction::Down) {
+            if target != local && !ensure_remote_grab(pool, input_grab) {
+                return false;
+            }
             let tx = map_coord(lx, pool.width, target_screen(state, &target).width);
             let (rx, ry) = pool_to_root(
                 state,
@@ -881,7 +905,7 @@ fn neighbor_of(node: &str, dir: Direction, state: &AgentState) -> Option<String>
                 if state.target_kvm_enabled(target) {
                     return Some(target.clone());
                 }
-                return None;
+                // Voisin clip-only (ex. gbs-p2) : ne pas bloquer le fallback config.
             }
         }
     }

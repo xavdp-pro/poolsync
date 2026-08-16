@@ -13,9 +13,9 @@ base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
 futures-util = { workspace = true }
 glib = "0.18"
-gtk = "0.18"
+gdk-pixbuf = "0.18"
+gtk = { version = "0.18", features = ["v3_24"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
-muda = "0.15"
 libappindicator = "0.9"
 poolsync-core = { path = "../poolsync-core" }
 serde = { workspace = true }

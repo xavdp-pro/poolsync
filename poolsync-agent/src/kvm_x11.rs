@@ -3,10 +3,10 @@ use poolsync_core::ScreenInfo;
 use std::cell::{Cell, RefCell};
 use tracing::warn;
 use x11rb::connection::Connection;
-use x11rb::protocol::randr::{self, ConnectionExt as RandrExt};
-use x11rb::protocol::xfixes::{self, ConnectionExt as XfixesExt};
+use x11rb::protocol::randr;
+use x11rb::protocol::xfixes;
 use x11rb::protocol::xproto::{ChangeWindowAttributesAux, ConnectionExt as XprotoExt, EventMask};
-use x11rb::protocol::xtest::{self, ConnectionExt as XtestExt};
+use x11rb::protocol::xtest;
 use x11rb::protocol::Event;
 
 thread_local! {

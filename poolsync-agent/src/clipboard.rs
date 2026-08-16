@@ -322,12 +322,18 @@ fn write_selection_text_sync(selection: &str, text: &str) -> Result<()> {
             .write_all(text.as_bytes())
             .context("xclip stdin")?;
     }
-    let status = child.wait().context("xclip wait")?;
-    if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("xclip write {selection} failed");
-    }
+    // stdin fermé : xclip possède la sélection. On le laisse vivre pour la servir
+    // aux collages suivants — cf. detach_selection_owner.
+    detach_selection_owner_sync(child);
+    Ok(())
+}
+
+/// Variante synchrone de [`detach_selection_owner`] pour les écritures hors runtime
+/// tokio (systray, fenêtre d'historique).
+fn detach_selection_owner_sync(mut child: std::process::Child) {
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
 }
 
 fn detect_image_mime(bytes: &[u8]) -> &'static str {
@@ -346,14 +352,23 @@ fn write_image_to_clipboard(bytes: &[u8], mime: &str) -> Result<()> {
     } else {
         detect_image_mime(bytes)
     };
-    // Prefer xclip (keeps exact bytes / hash). GTK re-encodes → ping-pong with peers.
-    if write_selection_bytes_sync("clipboard", mime, bytes).is_ok() {
+    // Écriture multi-mimes : certaines applications X11 (Qt/Chromium) attendent image/png ou TARGETS précises.
+    let res_xclip = write_selection_bytes_sync("clipboard", mime, bytes)
+        .or_else(|_| write_selection_bytes_sync("clipboard", "image/png", bytes));
+
+    // Le fallback GTK est un *repli*, pas un complément : il prend lui aussi la
+    // sélection et évincerait le xclip détaché qui la conserve. Deux propriétaires
+    // successifs laissaient une image tronquée que l'agent relisait comme une
+    // nouvelle copie — l'image repartait alors sur le réseau en se dégradant à
+    // chaque tour. On ne l'exécute donc que si xclip a réellement échoué.
+    if res_xclip.is_ok() {
         return Ok(());
     }
     if write_image_clipboard_gtk(bytes) {
-        return Ok(());
+        Ok(())
+    } else {
+        anyhow::bail!("échec de l'écriture image dans le presse-papiers X11/GTK")
     }
-    write_selection_bytes_sync("clipboard", mime, bytes)
 }
 
 fn write_selection_bytes_sync(selection: &str, mime: &str, bytes: &[u8]) -> Result<()> {
@@ -367,11 +382,20 @@ fn write_selection_bytes_sync(selection: &str, mime: &str, bytes: &[u8]) -> Resu
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(bytes).context("xclip stdin")?;
     }
-    let status = child.wait().context("xclip wait")?;
-    if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("xclip write {selection} {mime} failed");
+    // xclip doit rester propriétaire de la sélection (cf. detach_selection_owner).
+    // On ne peut donc pas juger l'écriture sur son code de sortie : on lui laisse un
+    // court instant pour échouer bruyamment (mime refusé, DISPLAY absent), et s'il
+    // est toujours là c'est qu'il sert la sélection.
+    std::thread::sleep(std::time::Duration::from_millis(120));
+    match child.try_wait().context("xclip try_wait")? {
+        Some(status) if !status.success() => {
+            anyhow::bail!("xclip write {selection} {mime} failed");
+        }
+        Some(_) => Ok(()),
+        None => {
+            detach_selection_owner_sync(child);
+            Ok(())
+        }
     }
 }
 
@@ -525,9 +549,25 @@ pub async fn write_selection_text(selection: &str, text: &str) -> Result<()> {
     if let Some(mut stdin) = child.stdin.take() {
         use tokio::io::AsyncWriteExt;
         stdin.write_all(text.as_bytes()).await?;
+        stdin.shutdown().await.ok();
+        drop(stdin);
     }
-    child.wait().await?;
+    detach_selection_owner(child);
     Ok(())
+}
+
+/// Laisse `xclip` vivre en arrière-plan après l'écriture.
+///
+/// Sous X11 la sélection n'est pas un stockage central : le processus qui l'écrit
+/// en reste **propriétaire** et sert le contenu aux applications qui collent. Si on
+/// l'attend avec `wait()`, il rend la sélection en mourant et le contenu disparaît —
+/// le copier fonctionne, le coller ne trouve plus rien. On le détache donc, et on
+/// se contente de le moissonner pour ne pas laisser de zombies : le prochain
+/// propriétaire de la sélection (nouvelle copie locale ou distante) le terminera.
+fn detach_selection_owner(mut child: tokio::process::Child) {
+    tokio::spawn(async move {
+        let _ = child.wait().await;
+    });
 }
 
 async fn read_selection_bytes(selection: &str, mime: &str) -> Result<Vec<u8>> {
@@ -556,7 +596,9 @@ async fn write_selection_bytes(selection: &str, mime: &str, bytes: &[u8]) -> Res
     if let Some(mut stdin) = child.stdin.take() {
         use tokio::io::AsyncWriteExt;
         stdin.write_all(bytes).await?;
+        stdin.shutdown().await.ok();
+        drop(stdin);
     }
-    child.wait().await?;
+    detach_selection_owner(child);
     Ok(())
 }

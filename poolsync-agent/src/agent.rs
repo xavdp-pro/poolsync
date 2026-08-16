@@ -255,8 +255,10 @@ pub async fn show_clip_notification(title: &str, preview: &str, mime: &str, wire
 }
 
 async fn run_notify_send(args: &[&str]) -> bool {
-    let mut cmd = Command::new("notify-send");
-    cmd.args(args).stdout(Stdio::null()).stderr(Stdio::piped());
+    // Hard timeout: if xfce4-notifyd is dead/zombie, bare notify-send hangs forever.
+    let mut cmd = Command::new("timeout");
+    cmd.arg("3").arg("notify-send").args(args);
+    cmd.stdout(Stdio::null()).stderr(Stdio::piped());
     for key in [
         "DISPLAY",
         "DBUS_SESSION_BUS_ADDRESS",

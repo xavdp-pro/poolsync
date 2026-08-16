@@ -1,10 +1,14 @@
 [Desktop Entry]
 Type=Application
-Name=PoolSync Agent
-Comment=Start PoolSync after XFCE login (systray needs X11)
-Exec=%h/.local/bin/poolsync-session-start.sh
+Name=PoolSync
+Comment=Presse-papiers et KVM — démarrage avec la session
+Exec=/home/zaza/.local/bin/poolsync-session-start.sh
+TryExec=/home/zaza/.local/bin/poolsync-session-start.sh
+Icon=/home/zaza/.local/share/poolsync/poolsync-tray.png
+Terminal=false
 Hidden=false
-NoDisplay=true
+NoDisplay=false
 X-GNOME-Autostart-enabled=true
-X-XFCE-Autostart-Trigger=on
-X-XFCE-Autostart-Phase=Application
+X-XFCE-Autostart-enabled=true
+StartupNotify=false
+Categories=Utility;

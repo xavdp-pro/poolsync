@@ -73,11 +73,23 @@ impl LogsWindow {
                 .cursor_visible(true)
                 .monospace(true)
                 .wrap_mode(gtk::WrapMode::Word)
-                .left_margin(8)
-                .right_margin(8)
-                .top_margin(6)
-                .bottom_margin(6)
+                .left_margin(12)
+                .right_margin(12)
+                .top_margin(10)
+                .bottom_margin(10)
                 .build();
+
+            // Style CSS sombre moderne pour le journal de logs (appliqué localement à la vue)
+            let css_provider = gtk::CssProvider::new();
+            let _ = css_provider.load_from_data(
+                b"textview text { background-color: #1e1e2e; color: #cdd6f4; font-family: 'JetBrains Mono', 'Fira Code', 'Monospace'; font-size: 11pt; }\n\
+                  button { border-radius: 6px; font-weight: bold; padding: 4px 10px; }\n"
+            );
+            view.style_context().add_provider(
+                &css_provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+
             scrolled.add(&view);
 
             root.pack_start(&toolbar, false, false, 0);
@@ -141,7 +153,9 @@ impl LogsWindow {
         let text = fetch_journal_logs();
         let buffer = self.view.buffer().expect("text buffer");
         buffer.set_text(&text);
-        scroll_to_end(&self.view);
+        if self.follow_btn.is_active() {
+            scroll_to_top(&self.view);
+        }
     }
 
     fn copy_all(&self) {
@@ -170,7 +184,7 @@ impl LogsWindow {
             let text = fetch_journal_logs();
             let buffer = view.buffer().expect("text buffer");
             buffer.set_text(&text);
-            scroll_to_end(&view);
+            scroll_to_top(&view);
             glib::ControlFlow::Continue
         });
         *self.follow_timer.borrow_mut() = Some(id);
@@ -183,10 +197,10 @@ impl LogsWindow {
     }
 }
 
-fn scroll_to_end(view: &TextView) {
+fn scroll_to_top(view: &TextView) {
     let buffer = view.buffer().expect("text buffer");
-    let mut end = buffer.end_iter();
-    view.scroll_to_iter(&mut end, 0.0, false, 0.0, 0.0);
+    let mut start = buffer.start_iter();
+    view.scroll_to_iter(&mut start, 0.0, false, 0.0, 0.0);
 }
 
 pub(crate) fn fetch_journal_logs() -> String {
@@ -203,6 +217,7 @@ pub(crate) fn fetch_journal_logs() -> String {
             LOG_LINES,
             "-o",
             "short-iso",
+            "-r", // Inversé : évènement le plus récent en premier !
         ])
         .env("XDG_RUNTIME_DIR", runtime)
         .output()

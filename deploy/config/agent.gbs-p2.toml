@@ -1,11 +1,22 @@
 node = "gbs-p2"
-hub_url = "ws://10.24.42.1:9470/ws"
+hub_url = "ws://10.87.78.22:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "clipboard_only"
 kvm_enabled = false
-display = ":11"
+kvm_capture = false
+display = ":12"
 pause_clipboard_when_rdp = false
+clipboard_poll_ms = 100
+peer_listen_port = 9472
+peer_direct_clipboard = true
+hub_clipboard = true
 
 [screen]
 width = 1920
 height = 1080
+
+# Mesh clipboard vers asus (VPN) — pas de voisin KVM : kvm_enabled=false.
+[[neighbors]]
+direction = "left"
+node = "asus"
+peer_url = "ws://10.87.78.5:9472/ws"

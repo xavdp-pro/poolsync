@@ -4,18 +4,17 @@ use crate::clipboard::write_clipboard_sync;
 use crate::network::hub_tcp_endpoint;
 use crate::state::AgentState;
 use crate::thumb::{
-    muda_icon_from_thumb_b64, thumb_b64_from_wire, LIST_THUMB_MAX_PX, PREVIEW_THUMB_MAX_PX,
-    TRAY_THUMB_MAX_PX,
+    thumb_b64_from_wire, LIST_THUMB_MAX_PX, PREVIEW_THUMB_MAX_PX,
 };
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use gtk::gdk_pixbuf::PixbufLoader;
+use gtk::gdk::prelude::GdkContextExt;
 use gtk::prelude::*;
 use gtk::{
     Box as GtkBox, Button, CheckButton, Frame, Image, Label, ListBox, ListBoxRow, MessageDialog,
     MessageType, Orientation, Paned, ScrolledWindow, SearchEntry, Window,
 };
-use muda::Icon;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -25,8 +24,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(8);
 const TRAY_FETCH_TIMEOUT: Duration = Duration::from_secs(2);
-const LIST_THUMB_PX: i32 = 96;
-const PREVIEW_PX: i32 = 280;
+const LIST_THUMB_PX: i32 = 160;
+const PREVIEW_PX: i32 = 420;
 const PAGE_SIZE: usize = 20;
 
 thread_local! {
@@ -56,7 +55,7 @@ struct ItemResponse {
     data: String,
 }
 
-struct HistoryWindow {
+pub struct HistoryWindow {
     weak: std::rc::Weak<HistoryWindow>,
     window: Window,
     state: Arc<AgentState>,
@@ -70,6 +69,43 @@ struct HistoryWindow {
     filtered: RefCell<Vec<HistoryItem>>,
     selected: RefCell<HashSet<String>>,
     page: RefCell<usize>,
+    /// Vrai pendant `render_page` : empêche le timer de reconstruire la liste
+    /// alors que GTK est encore en train de la dessiner.
+    rendering: std::cell::Cell<bool>,
+}
+
+/// Construit la page « Presse-papiers » destinée au `Notebook` de la fenêtre
+/// unique, et renvoie le widget racine accompagné du handle qui la pilote.
+///
+/// La fenêtre autonome (`show`) reste disponible, mais l'entrée du systray passe
+/// désormais par la fenêtre à onglets.
+pub fn build_page(state: Arc<AgentState>) -> (gtk::Widget, Rc<HistoryWindow>) {
+    crate::crashlog::set_context("clipboard_history::build_page");
+    let win = HistoryWindow::new(state);
+    win.reload();
+    // La racine est montée dans l'onglet : on l'affiche sans jamais montrer la
+    // fenêtre porteuse, qui ne sert que de conteneur temporaire.
+    let page = win
+        .window
+        .child()
+        .expect("fenêtre historique construite avec une racine");
+    // Détache la racine de sa fenêtre porteuse pour la replacer dans l'onglet.
+    win.window.remove(&page);
+    // La fenêtre porteuse ne sert qu'à construire la page : sans ce retrait de la
+    // hiérarchie GTK, elle reste vivante, tente de dessiner un contenu qu'elle n'a
+    // plus, et segfaute dans Pango.
+    unsafe {
+        win.window.destroy();
+    }
+    page.show_all();
+    (page, win)
+}
+
+impl HistoryWindow {
+    /// Recharge la liste — utilisé par la fenêtre à onglets.
+    pub fn refresh(&self) {
+        self.reload();
+    }
 }
 
 pub fn show(state: Arc<AgentState>) {
@@ -82,6 +118,7 @@ pub fn show(state: Arc<AgentState>) {
         let win = HistoryWindow::new(state);
         *slot.borrow_mut() = Some(Rc::clone(&win));
         win.reload();
+        win.window.show_all();
     });
 }
 
@@ -114,7 +151,7 @@ impl HistoryWindow {
         let win = Rc::new_cyclic(|weak: &std::rc::Weak<HistoryWindow>| {
             let window = Window::builder()
                 .title(format!(
-                    "PoolSync — historique presse-papiers ({})",
+                    "PoolSync - historique presse-papiers ({})",
                     state.config.node
                 ))
                 .default_width(920)
@@ -187,14 +224,24 @@ impl HistoryWindow {
             preview_box.set_margin_top(10);
             preview_box.set_margin_bottom(10);
             let preview_image = Image::new();
-            preview_image.set_size_request(PREVIEW_PX, PREVIEW_PX);
+            // Pas de `set_size_request` à la taille pleine : le Paned propagerait
+            // cette largeur minimale dans `gtk_widget_get_preferred_width`, dont la
+            // récursion finit par segfauter Pango. Un ScrolledWindow borne la
+            // demande, l'aperçu garde sa taille réelle à l'intérieur.
+            preview_image.set_size_request(-1, PREVIEW_PX);
             let preview_caption = Label::new(None);
             preview_caption.set_line_wrap(true);
             preview_caption.set_xalign(0.0);
             preview_caption.set_max_width_chars(32);
             preview_box.pack_start(&preview_image, false, false, 0);
             preview_box.pack_start(&preview_caption, false, false, 0);
-            preview_frame.add(&preview_box);
+            let preview_scroll = ScrolledWindow::builder()
+                .min_content_width(220)
+                .max_content_width(PREVIEW_PX + 40)
+                .propagate_natural_width(false)
+                .build();
+            preview_scroll.add(&preview_box);
+            preview_frame.add(&preview_scroll);
 
             let paned = Paned::new(Orientation::Horizontal);
             paned.pack1(&list_scroll, true, true);
@@ -209,6 +256,22 @@ impl HistoryWindow {
             status.set_margin_start(8);
             status.set_margin_bottom(6);
 
+            // Style CSS moderne et épuré pour la fenêtre d'historique GTK
+            let css_provider = gtk::CssProvider::new();
+            let _ = css_provider.load_from_data(
+                b"window { background-color: #1e1e2e; color: #cdd6f4; }\n\
+                  list { background-color: #181825; border-radius: 8px; }\n\
+                  row { padding: 6px; border-bottom: 1px solid #313244; }\n\
+                  row:selected { background-color: #45475a; color: #f5e0dc; }\n\
+                  button { background-color: #313244; color: #cdd6f4; border-radius: 6px; font-weight: bold; padding: 4px 10px; }\n\
+                  button:hover { background-color: #45475a; }\n\
+                  entry { background-color: #181825; color: #cdd6f4; border-radius: 6px; padding: 6px; }\n"
+            );
+            window.style_context().add_provider(
+                &css_provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+
             root.pack_start(&toolbar, false, false, 0);
             root.pack_start(&search, false, false, 0);
             root.pack_start(&body, true, true, 0);
@@ -217,6 +280,36 @@ impl HistoryWindow {
 
             window.connect_destroy(|_| {
                 OPEN_WINDOW.with(|slot| *slot.borrow_mut() = None);
+            });
+
+            // Rafraîchissement automatique en pseudo temps réel (toutes les 1.5s)
+            let w_auto = weak.clone();
+            // Rafraîchissement dynamique sûr : on ne reconstruit la liste que si son
+            // contenu a changé ET que la fenêtre n'est pas en train d'être dessinée.
+            // `render_page` détruit puis recrée toutes les lignes ; le faire pendant
+            // un cycle de rendu GTK fait segfauter Pango (cf. crashlog, contexte
+            // « render_page »). Un drapeau marque le rendu en cours.
+            let mut last_signature = String::new();
+            glib::timeout_add_local(Duration::from_millis(1200), move || {
+                let Some(win) = w_auto.upgrade() else {
+                    return glib::ControlFlow::Break;
+                };
+                if win.rendering.get() {
+                    return glib::ControlFlow::Continue;
+                }
+                let signature = match fetch_history(&win.state) {
+                    Ok(items) => items
+                        .iter()
+                        .map(|i| i.hash.as_str())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    Err(_) => return glib::ControlFlow::Continue,
+                };
+                if signature != last_signature {
+                    last_signature = signature;
+                    win.reload();
+                }
+                glib::ControlFlow::Continue
             });
 
             let w = weak.clone();
@@ -314,10 +407,10 @@ impl HistoryWindow {
                 filtered: RefCell::new(Vec::new()),
                 selected: RefCell::new(HashSet::new()),
                 page: RefCell::new(0),
+                rendering: std::cell::Cell::new(false),
             }
         });
 
-        win.window.show_all();
         win.window.present();
         win
     }
@@ -327,6 +420,7 @@ impl HistoryWindow {
     }
 
     fn reload(&self) {
+        crate::crashlog::set_context("clipboard_history::reload");
         match fetch_history(&self.state) {
             Ok(items) => {
                 *self.items.borrow_mut() = items;
@@ -364,7 +458,7 @@ impl HistoryWindow {
         for p in 0..pages {
             let btn = Button::with_label(&format!("{}", p + 1));
             btn.set_tooltip_text(Some(&format!(
-                "Page {} — entrées {}–{}",
+                "Page {} - entrees {}-{}",
                 p + 1,
                 p * PAGE_SIZE + 1,
                 ((p + 1) * PAGE_SIZE).min(count).max(p * PAGE_SIZE)
@@ -383,6 +477,8 @@ impl HistoryWindow {
     }
 
     fn render_page(&self) {
+        crate::crashlog::set_context("clipboard_history::render_page");
+        self.rendering.set(true);
         let filtered = self.filtered.borrow();
         let page = *self.page.borrow();
         let pages = page_count(filtered.len());
@@ -406,20 +502,21 @@ impl HistoryWindow {
         let sel = self.selected.borrow().len();
         let q = self.search.text().to_string();
         let page_info = if pages > 1 {
-            format!(" — page {}/{}", page + 1, pages)
+            format!(" - page {}/{}", page + 1, pages)
         } else {
             String::new()
         };
         if q.trim().is_empty() {
             self.set_status(&format!(
-                "{filt} entrée(s){page_info} · {sel} cochée(s) · {total} au total"
+                "{filt} entrée(s){page_info} - {sel} cochée(s) - {total} au total"
             ));
         } else {
             self.set_status(&format!(
-                "{filt} / {total} — « {} »{page_info} · {sel} cochée(s)",
+                "{filt} / {total} - {}{page_info} - {sel} cochée(s)",
                 q.trim()
             ));
         }
+        self.rendering.set(false);
     }
 
     fn set_all_checks(&self, checked: bool) {
@@ -496,7 +593,7 @@ impl HistoryWindow {
                 if let Some(pixbuf) = pixbuf_from_bytes(&bytes, PREVIEW_PX) {
                     self.preview_image.set_from_pixbuf(Some(&pixbuf));
                     self.preview_caption.set_text(&format!(
-                        "{}\n{} · {} · {}",
+                        "{}\n{} - {} - {}",
                         format_time(item.at),
                         item.source_node,
                         item.mime,
@@ -515,7 +612,7 @@ impl HistoryWindow {
         } else {
             self.preview_image.clear();
             self.preview_caption.set_text(&format!(
-                "Texte · {}\n{}\n\n{}",
+                "Texte - {}\n{}\n\n{}",
                 format_time(item.at),
                 item.source_node,
                 truncate_one_line(&item.preview, 500)
@@ -576,9 +673,12 @@ fn build_history_row(
     hbox.set_margin_start(6);
     hbox.set_margin_end(8);
 
-    let grip = Label::new(Some("⠿"));
-    grip.set_tooltip_text(Some("Poignée — cochez pour sélection multiple"));
-    grip.set_width_chars(1);
+    // Poignée en ASCII : le caractère braille U+283F n'existe dans aucune police
+    // installée, et la recherche de fallback correspondante segfaute dans
+    // `pango_coverage_get` (Pango 1.52) au moment du rendu de la ligne.
+    let grip = Label::new(Some("::"));
+    grip.set_tooltip_text(Some("Poignée - cochez pour sélection multiple"));
+    grip.set_width_chars(2);
 
     let check = CheckButton::new();
     check.set_active(selected.borrow().contains(&item.hash));
@@ -598,28 +698,45 @@ fn build_history_row(
     check_box.pack_start(&check, false, false, 0);
     hbox.pack_start(&check_box, false, false, 0);
 
+    // Vignette rendue dans un DrawingArea de taille fixe : un `Image` GTK négocie sa
+    // largeur avec le reste de la ligne, et cette négociation récursive
+    // (`gtk_widget_get_preferred_width`) finit par segfauter Pango 1.52. Ici la
+    // taille est imposée, donc plus aucune négociation.
     if item.is_image {
-        if let Some(image) = list_thumb_image(item, state, LIST_THUMB_PX) {
-            image.set_size_request(LIST_THUMB_PX, LIST_THUMB_PX);
-            hbox.pack_start(&image, false, false, 0);
+        if let Some(pixbuf) = list_thumb_pixbuf(item, state, LIST_THUMB_PX) {
+            let area = gtk::DrawingArea::new();
+            area.set_size_request(LIST_THUMB_PX, LIST_THUMB_PX);
+            area.connect_draw(move |_, cr| {
+                cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
+                let _ = cr.paint();
+                gtk::glib::Propagation::Proceed
+            });
+            hbox.pack_start(&area, false, false, 0);
         }
     }
 
     let kind = if item.is_image { "Image" } else { "Texte" };
     let body = if item.is_image {
-        format!("{} · {}", item.source_node, item.mime)
+        format!("{} - {}", item.source_node, item.mime)
     } else {
         format!(
-            "{} · {} · {}",
+            "{} - {} - {}",
             item.source_node,
             kind,
             truncate_one_line(&item.preview.replace('\n', " "), 160)
         )
     };
-    let label = Label::new(Some(&format!("{}  ·  {body}", format_time(item.at))));
+    let label = Label::new(Some(&format!("{}  -  {body}", format_time(item.at))));
     label.set_xalign(0.0);
-    label.set_line_wrap(true);
-    label.set_selectable(true);
+    // Pas de `set_line_wrap` ni de `set_selectable` ici : combinés dans une ligne de
+    // liste à largeur variable, ils font segfauter Pango 1.52 au calcul du retour à
+    // la ligne. L'ellipse donne le même confort de lecture sans le crash.
+    label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    // `width_chars` fixe la largeur minimale demandée : sans lui, GTK réclame la
+    // largeur naturelle du texte entier et la récursion de `get_preferred_width`
+    // finit par segfauter Pango.
+    label.set_width_chars(20);
+    label.set_max_width_chars(60);
     hbox.pack_start(&label, true, true, 0);
 
     row.add(&hbox);
@@ -636,16 +753,28 @@ fn thumb_bytes(item: &HistoryItem, state: &AgentState, max_px: u32) -> Option<Ve
 }
 
 fn pixbuf_from_bytes(bytes: &[u8], size: i32) -> Option<gtk::gdk_pixbuf::Pixbuf> {
+    if bytes.is_empty() {
+        return None;
+    }
     let loader = PixbufLoader::new();
     loader.set_size(size, size);
-    loader.write(bytes).ok()?;
-    loader.close().ok()?;
+    if loader.write(bytes).is_err() {
+        let _ = loader.close();
+        return None;
+    }
+    if loader.close().is_err() {
+        return None;
+    }
     loader.pixbuf()
 }
 
-fn list_thumb_image(item: &HistoryItem, state: &AgentState, px: i32) -> Option<Image> {
+fn list_thumb_pixbuf(
+    item: &HistoryItem,
+    state: &AgentState,
+    px: i32,
+) -> Option<gtk::gdk_pixbuf::Pixbuf> {
     let bytes = thumb_bytes(item, state, LIST_THUMB_MAX_PX)?;
-    pixbuf_from_bytes(&bytes, px).map(|pixbuf| Image::from_pixbuf(Some(&pixbuf)))
+    pixbuf_from_bytes(&bytes, px)
 }
 
 fn format_time(at: u64) -> String {
@@ -776,23 +905,12 @@ pub fn tray_menu_gtk_image(
         .map(|pixbuf| gtk::Image::from_pixbuf(Some(&pixbuf)))
 }
 
-/// Icône menu systray pour une image (thumb hub ou génération locale).
-pub fn tray_image_icon(state: &AgentState, entry: &HistoryItem) -> Option<Icon> {
-    if let Some(tb) = &entry.thumb_b64 {
-        if let Some(icon) = muda_icon_from_thumb_b64(tb) {
-            return Some(icon);
-        }
-    }
-    let item = fetch_item(state, &entry.hash).ok()?;
-    let tb = thumb_b64_from_wire(&item.data, TRAY_THUMB_MAX_PX).ok()?;
-    muda_icon_from_thumb_b64(&tb)
-}
 
 /// Libellé court pour une entrée texte du menu systray.
 pub fn tray_label(item: &HistoryItem) -> String {
     let ago = format_time(item.at);
     let body = truncate_one_line(&item.preview.replace('\n', " "), 48);
-    format!("{ago} · {} · {body}", item.source_node)
+    format!("{ago} - {} - {body}", item.source_node)
 }
 
 fn truncate_one_line(s: &str, max: usize) -> String {

@@ -8,6 +8,7 @@ LOG_TAG="poolsync-watchdog"
 CACHE_DIR="${HOME}/.cache/poolsync"
 WG_STATE="${CACHE_DIR}/wg-bs1-up"
 HUB_STATE="${CACHE_DIR}/hub-up"
+MISS_STATE="${CACHE_DIR}/node-misses"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 log() { logger -t "$LOG_TAG" "$*" 2>/dev/null || echo "[$LOG_TAG] $*"; }
@@ -55,8 +56,15 @@ hub_prev="$(read_prev "$HUB_STATE")"
 
 reconnect_agent() {
   log "$1"
+  echo "0" > "$MISS_STATE"
   systemctl --user restart poolsync-agent.service 2>/dev/null || true
 }
+
+# Un nœud peut disparaître une passe du hub sans être en panne : panel XFCE qui
+# redémarre, hoquet réseau, hub lent à répondre. L'agent se reconnecte seul dans
+# ces cas — le redémarrer casse la session KVM pour rien. On n'agit donc qu'après
+# MISS_THRESHOLD passes ratées d'affilée.
+MISS_THRESHOLD="${POOLSYNC_MISS_THRESHOLD:-3}"
 
 # wg-bs1 remonté manuellement (0 → 1) : reconnecter tout de suite.
 if [[ "$wg_now" == "1" && "$wg_prev" == "0" && -f "$WG_STATE" ]]; then
@@ -67,7 +75,15 @@ elif [[ "$hub_now" == "1" ]]; then
   if ! systemctl --user is-active --quiet poolsync-agent.service 2>/dev/null; then
     reconnect_agent "hub joignable — démarrage poolsync-agent"
   elif ! node_online; then
-    reconnect_agent "nœud ${NODE} absent du hub — reconnexion"
+    misses=$(( $(read_prev "$MISS_STATE") + 1 ))
+    if (( misses >= MISS_THRESHOLD )); then
+      reconnect_agent "nœud ${NODE} absent du hub depuis ${misses} passes — reconnexion"
+    else
+      log "nœud ${NODE} absent du hub (${misses}/${MISS_THRESHOLD}) — on attend"
+      echo "$misses" > "$MISS_STATE"
+    fi
+  else
+    echo "0" > "$MISS_STATE"
   fi
 fi
 

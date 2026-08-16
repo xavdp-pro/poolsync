@@ -3,6 +3,7 @@ mod clip_cache;
 mod clipboard;
 mod clipboard_history;
 mod clipboard_incoming;
+mod crashlog;
 mod config_window;
 mod hotkey;
 mod notify_util;
@@ -44,9 +45,30 @@ struct Args {
 
     #[arg(long)]
     no_tray: bool,
+
+    /// Ouvre directement la fenêtre à onglets (diagnostic, sans systray).
+    #[arg(long)]
+    open_window: bool,
 }
 
 fn main() -> Result<()> {
+    crashlog::install();
+    std::panic::set_hook(Box::new(|info| {
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "inconnu".into());
+        let msg = match info.payload().downcast_ref::<&str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "panic sans message",
+            },
+        };
+        tracing::error!("🔥 PANIC DETECTE [{location}]: {msg}");
+        eprintln!("PANIC DETECTE [{location}]: {msg}");
+    }));
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -55,6 +77,20 @@ fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
+
+    // Diagnostic : ouvre la fenêtre à onglets sans systray ni verrou d'instance,
+    // pour pouvoir la tester pendant que l'agent principal tourne.
+    if args.open_window {
+        let raw = std::fs::read_to_string(&args.config)
+            .with_context(|| format!("read config {}", args.config.display()))?;
+        let cfg: AgentConfig = toml::from_str(&raw).context("parse agent config")?;
+        let state = Arc::new(AgentState::new(cfg.clone(), args.config.clone()));
+        gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
+        config_window::show(state);
+        gtk::main();
+        return Ok(());
+    }
+
     let _instance = match single::InstanceLock::acquire() {
         Ok(lock) => lock,
         Err(_) => {

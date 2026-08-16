@@ -17,3 +17,11 @@ direction = "left"
 node = "acer"
 peer_url = "ws://192.168.1.183:9472/ws"
 peer_url_vpn = "ws://10.24.42.4:9472/ws"
+
+# Pendant du lien direct déclaré côté asus (cf. agent.asus.toml) : ferme le
+# maillage P2P pour que le presse-papiers circule sans passer par le hub.
+[[neighbors]]
+direction = "up"
+node = "asus"
+peer_url = "ws://192.168.1.17:9472/ws"
+peer_url_vpn = "ws://10.24.42.6:9472/ws"

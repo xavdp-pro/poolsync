@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use image::imageops::FilterType;
 use image::{ImageFormat, ImageReader};
-use muda::Icon;
 use std::io::Cursor;
 
 pub const NOTIFY_THUMB_MAX_PX: u32 = 96;
@@ -31,10 +30,3 @@ pub fn thumb_b64_from_wire(wire_b64: &str, max_px: u32) -> Result<String> {
     Ok(B64.encode(thumb_png_bytes_from_wire(wire_b64, max_px)?))
 }
 
-pub fn muda_icon_from_thumb_b64(thumb_b64: &str) -> Option<Icon> {
-    let bytes = B64.decode(thumb_b64).ok()?;
-    let img = image::load_from_memory(&bytes).ok()?;
-    let rgba = img.to_rgba8();
-    let (w, h) = (rgba.width(), rgba.height());
-    Icon::from_rgba(rgba.into_raw(), w, h).ok()
-}

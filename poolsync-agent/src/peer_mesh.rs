@@ -196,8 +196,16 @@ where
 
     let state_read = state.clone();
     let remote = remote_node.clone();
+    let mut ping_interval = tokio::time::interval(Duration::from_secs(10));
+
     loop {
         tokio::select! {
+            _ = ping_interval.tick() => {
+                if write.send(WsMessage::Ping(vec![].into())).await.is_err() {
+                    warn!("peer mesh ping échoué vers {node_name}");
+                    break;
+                }
+            }
             maybe = peer_rx.recv() => {
                 match maybe {
                     Some(payload) => {

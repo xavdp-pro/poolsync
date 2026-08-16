@@ -1,5 +1,5 @@
 node = "asus"
-hub_url = "ws://10.24.42.1:9470/ws"
+hub_url = "ws://10.87.78.22:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "full"
 kvm_enabled = true
@@ -16,4 +16,4 @@ height = 756
 direction = "right"
 node = "acer"
 peer_url = "ws://192.168.1.183:9472/ws"
-peer_url_vpn = "ws://10.24.42.4:9472/ws"
+peer_url_vpn = "ws://10.87.78.6:9472/ws"
