@@ -14,6 +14,8 @@ pub struct AgentState {
     kvm_enabled: Arc<AtomicBool>,
     /// Pause locale (raccourci clavier) — n'affecte que cette machine.
     local_active: Arc<AtomicBool>,
+    /// Ctrl+Alt+Shift+M : la boucle KVM doit reprendre le master sur ce nœud.
+    master_claim_requested: Arc<AtomicBool>,
     master_node: Arc<RwLock<String>>,
     kvm_focus: Arc<RwLock<String>>,
     kvm_input_node: Arc<RwLock<String>>,
@@ -81,6 +83,7 @@ impl AgentState {
             notify_on_receive: Arc::new(AtomicBool::new(true)),
             kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
             local_active: Arc::new(AtomicBool::new(true)),
+            master_claim_requested: Arc::new(AtomicBool::new(false)),
             master_node: Arc::new(RwLock::new(String::from("—"))),
             kvm_focus: Arc::new(RwLock::new(local_node.clone())),
             kvm_input_node: Arc::new(RwLock::new(local_node)),
@@ -415,6 +418,15 @@ impl AgentState {
         let new = !self.kvm_enabled();
         self.set_kvm_enabled(new);
         new
+    }
+
+    /// Demande à la boucle KVM de reprendre le master sur cette machine.
+    pub fn request_master_claim(&self) {
+        self.master_claim_requested.store(true, Ordering::SeqCst);
+    }
+
+    pub fn take_master_claim_request(&self) -> bool {
+        self.master_claim_requested.swap(false, Ordering::SeqCst)
     }
 
     pub fn set_topology(&self, topology: PoolTopology) {

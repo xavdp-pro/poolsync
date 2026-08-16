@@ -217,18 +217,20 @@ ssh inspiron-gbs 'systemctl --user status poolsync-agent'
 
 ---
 
-## Raccourcis et systray
+## Keyboard shortcuts and systray
 
-| Action | Détail |
+Canonical doc (English): **[keyboard-shortcuts.md](keyboard-shortcuts.md)**
+
+| Action | Detail |
 |--------|--------|
-| **Raccourci global** | `Ctrl+Alt+Shift+P` — active/désactive PoolSync localement |
-| **Menu systray** | Presse-papiers ON/OFF, redémarrer, quitter, configuration |
-| **Notifications** | « PoolSync — Copié » / « PoolSync — Reçu » / « ACTIVÉ » / « DÉSACTIVÉ » |
-| **App ID D-Bus** | `com.xavdp.poolsync` |
+| **Pause shortcut** | `Ctrl+Alt+Shift+P` — toggle PoolSync on this machine only |
+| **Master shortcut** | `Ctrl+Alt+Shift+M` — claim keyboard/mouse (KVM master) on this machine |
+| **Systray** | Clipboard ON/OFF, Become KVM master, restart, quit, configuration |
+| **Notifications** | Copied / Received / ACTIVÉ / DÉSACTIVÉ / MASTER |
+| **D-Bus app ID** | `com.xavdp.poolsync` |
 | **Hotkey module** | `poolsync-agent/src/hotkey.rs` |
-| **Doc raccourci** | `docs/raccourci-clavier-poolsync.md` |
 
-Quand PoolSync est désactivé localement : KVM + presse-papiers suspendus sur ce nœud. Réappuyer sur le raccourci ou recocher « Presse-papiers PoolSync » dans le systray pour réactiver.
+When PoolSync is paused locally, KVM and clipboard are off on this node only. Press P again or re-enable clipboard in the systray.
 
 ---
 
@@ -347,7 +349,7 @@ PoolSync est conçu pour un **réseau privé** (WireGuard VPN, LAN).
 | `README.md` | Vue d'ensemble, build, sécurité |
 | `PITCH.md` | Présentation produit, comparaison Barrier |
 | `ROADMAP.md` | Feuille de route |
-| `docs/raccourci-clavier-poolsync.md` | Raccourci Ctrl+Alt+Shift+P |
+| `docs/keyboard-shortcuts.md` | Ctrl+Alt+Shift+P (pause) and M (KVM master) — English |
 | `docs/fix-kvm-grab-souris-bloquee-2026-07-18.md` | Fix souris bloquée KVM |
 | `docs/CHEMINS-ET-INFOS.md` | Ce document |
 
@@ -366,7 +368,7 @@ PoolSync est conçu pour un **réseau privé** (WireGuard VPN, LAN).
 | `poolsync-agent/src/peer_mesh.rs` | Mesh P2P entre voisins |
 | `poolsync-agent/src/kvm.rs` | Logique KVM (bords, focus) |
 | `poolsync-agent/src/kvm_x11.rs` | Grab X11 souris/clavier |
-| `poolsync-agent/src/hotkey.rs` | Raccourci Ctrl+Alt+Shift+P |
+| `poolsync-agent/src/hotkey.rs` | Global hotkeys Ctrl+Alt+Shift+P (pause) and M (master) |
 | `poolsync-agent/src/tray.rs` | Menu systray XFCE |
 | `poolsync-agent/src/config_window.rs` | Fenêtre configuration |
 | `poolsync-agent/src/notify_util.rs` | Notifications notify-send |

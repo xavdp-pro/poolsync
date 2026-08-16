@@ -75,6 +75,22 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
             state_kvm.toggle_kvm();
         });
         opts_menu.append(&kvm_item);
+
+        let claim_item = gtk::MenuItem::with_label(&format!(
+            "Devenir maître KVM ({})",
+            crate::hotkey::HOTKEY_MASTER_LABEL
+        ));
+        let state_claim = state.clone();
+        claim_item.connect_activate(move |_| {
+            if !state_claim.kvm_enabled() {
+                return;
+            }
+            if !state_claim.local_poolsync_active() {
+                state_claim.set_local_poolsync_active(true);
+            }
+            state_claim.request_master_claim();
+        });
+        opts_menu.append(&claim_item);
     }
 
     let notify_item = gtk::CheckMenuItem::with_label("Notifier copie / réception");
@@ -95,8 +111,9 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     // Statut en bas des options, non cliquable.
     opts_menu.append(&gtk::SeparatorMenuItem::new());
     let hotkey_hint = gtk::MenuItem::with_label(&format!(
-        "Raccourci : {} (suspendre / reprendre)",
-        crate::hotkey::HOTKEY_LABEL
+        "Raccourcis : {} (pause) · {} (master)",
+        crate::hotkey::HOTKEY_LABEL,
+        crate::hotkey::HOTKEY_MASTER_LABEL
     ));
     hotkey_hint.set_sensitive(false);
     opts_menu.append(&hotkey_hint);

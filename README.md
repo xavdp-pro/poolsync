@@ -62,6 +62,17 @@ POOLSYNC_TOKEN=your_token ./deploy/install-agent.sh ssh-host my-node-name
 
 Agents start via **systemd user** + **XFCE autostart** after graphical login.
 
+## Keyboard shortcuts
+
+Full detail: **[docs/keyboard-shortcuts.md](docs/keyboard-shortcuts.md)**
+
+| Shortcut | What it does |
+|----------|----------------|
+| **Ctrl+Alt+Shift+P** | Pause or resume PoolSync **on this machine only** (KVM + clipboard). Other nodes are unchanged. |
+| **Ctrl+Alt+Shift+M** | **Claim KVM master** on this machine: keyboard and mouse return here (`MasterClaim` + local focus). Ignored on clipboard-only agents. |
+
+macOS: **Ctrl+Option+Shift+P / M**. Systray: **Devenir maître KVM** is the same as M.
+
 ## Security model
 
 PoolSync is designed to run **inside a private network** (WireGuard VPN, LAN). Be aware of the current threat model:

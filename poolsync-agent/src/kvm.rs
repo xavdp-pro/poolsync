@@ -43,7 +43,7 @@ enum BlockedEdge {
 pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) {
     let poll = Duration::from_millis(state.config.input_poll_ms);
     let local = state.config.node.clone();
-    let mut focus;
+    let mut focus = local.clone();
     let mut remote_x = 0i32;
     let mut remote_y = 0i32;
     let mut last_phys = (0i32, 0i32);
@@ -67,6 +67,25 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
     loop {
         if !state.is_connected() {
             last_announced = None;
+            thread::sleep(poll);
+            continue;
+        }
+
+        if state.take_master_claim_request() {
+            if state.kvm_enabled() {
+                apply_hotkey_master_claim(
+                    &local,
+                    state,
+                    &local_kvm_info,
+                    &mut blocked_edges,
+                    &out_tx,
+                    &mut focus,
+                    &mut remote_x,
+                    &mut remote_y,
+                    &mut input_grab,
+                );
+                last_switch = Instant::now();
+            }
             thread::sleep(poll);
             continue;
         }
@@ -788,6 +807,42 @@ fn try_physical_claim(
     *input_grab = None;
     blocked_edges.clear();
     true
+}
+
+/// Ctrl+Alt+Shift+M : cette machine reprend clavier/souris (master + focus local).
+fn apply_hotkey_master_claim(
+    local: &str,
+    state: &AgentState,
+    local_kvm_info: &KvmDesktopInfo,
+    blocked_edges: &mut Vec<(BlockedEdge, Instant)>,
+    out_tx: &mpsc::UnboundedSender<String>,
+    focus: &mut String,
+    remote_x: &mut i32,
+    remote_y: &mut i32,
+    input_grab: &mut Option<InputGrab>,
+) {
+    *input_grab = None;
+    set_cursor_visible_best_effort(true);
+    blocked_edges.clear();
+    let (px, py) = kvm_x11::mouse_location().unwrap_or((0, 0));
+    info!("KVM master réclamé via raccourci → {local}");
+    state.set_kvm_input_node(local);
+    state.set_master(local);
+    send_master_claim(local, out_tx);
+    do_switch(
+        local,
+        local,
+        px,
+        py,
+        state,
+        local_kvm_info,
+        blocked_edges,
+        out_tx,
+        focus,
+        remote_x,
+        remote_y,
+    );
+    state.set_kvm_focus(local);
 }
 
 fn local_kvm_info_from_config(state: &AgentState) -> KvmDesktopInfo {

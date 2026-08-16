@@ -168,6 +168,35 @@ pub fn notify_poolsync_toggle(active: bool, node: &str) {
     notify_zenity_fallback(title, &body);
 }
 
+/// Notification pour Ctrl+Alt+Shift+M (réclamer le master KVM).
+pub fn notify_master_claim(node: &str, kvm_ok: bool) {
+    const HOTKEY: &str = "Ctrl+Alt+Shift+M";
+    let (title, body, urgency) = if kvm_ok {
+        (
+            "PoolSync — MASTER",
+            format!(
+                "Cette machine ({node}) reprend clavier et souris.\n\
+                 {HOTKEY} pour réclamer le master ici."
+            ),
+            "normal",
+        )
+    } else {
+        (
+            "PoolSync — MASTER indisponible",
+            format!(
+                "KVM inactif sur {node} (presse-papiers seul).\n\
+                 Impossible de réclamer le master."
+            ),
+            "critical",
+        )
+    };
+    if notify_send(title, &body, urgency, 5000) {
+        return;
+    }
+    warn!("notify-send master claim échoué — repli zenity");
+    notify_zenity_fallback(title, &body);
+}
+
 fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool {
     ensure_notify_daemon();
     let icon = notify_icon_path();

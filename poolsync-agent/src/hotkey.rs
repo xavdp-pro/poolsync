@@ -1,4 +1,6 @@
-//! Raccourci global local : Ctrl+Alt+Shift+P — active/désactive PoolSync sur cette machine.
+//! Raccourcis globaux locaux :
+//! - Ctrl+Alt+Shift+P — active/désactive PoolSync sur cette machine
+//! - Ctrl+Alt+Shift+M — réclame le master KVM sur cette machine
 use crate::notify_util;
 use crate::state::AgentState;
 use global_hotkey::{
@@ -10,24 +12,31 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
-/// Combinaison recommandée : rarement utilisée par le OS / les apps, mémorable (P = PoolSync).
+/// Combinaison recommandée : rarement utilisée, mémorable (P = PoolSync).
 pub const HOTKEY_LABEL: &str = "Ctrl+Alt+Shift+P";
+/// Réclame le clavier/souris sur la machine où on appuie (M = Master).
+pub const HOTKEY_MASTER_LABEL: &str = "Ctrl+Alt+Shift+M";
 
-/// Ignore les doubles événements (Pressed+Released ou auto-repeat) pour un vrai toggle.
+/// Ignore les doubles événements (Pressed+Released ou auto-repeat).
 const TOGGLE_DEBOUNCE: Duration = Duration::from_millis(600);
 
-fn default_hotkey() -> HotKey {
-    HotKey::new(
-        Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT),
-        Code::KeyP,
-    )
+fn mods_cas() -> Option<Modifiers> {
+    Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT)
+}
+
+fn toggle_hotkey() -> HotKey {
+    HotKey::new(mods_cas(), Code::KeyP)
+}
+
+fn master_hotkey() -> HotKey {
+    HotKey::new(mods_cas(), Code::KeyM)
 }
 
 pub fn spawn_hotkey_listener(state: Arc<AgentState>) {
     thread::Builder::new()
         .name("poolsync-hotkey".into())
         .spawn(move || hotkey_loop(state))
-        .map(|_| info!("raccourci global {HOTKEY_LABEL} — écoute"))
+        .map(|_| info!("raccourcis globaux {HOTKEY_LABEL} / {HOTKEY_MASTER_LABEL} — écoute"))
         .unwrap_or_else(|err| warn!("impossible de lancer le thread hotkey: {err}"));
 }
 
@@ -39,27 +48,39 @@ fn hotkey_loop(state: Arc<AgentState>) {
             return;
         }
     };
-    let hotkey = default_hotkey();
-    if let Err(err) = manager.register(hotkey) {
+    let toggle = toggle_hotkey();
+    let master = master_hotkey();
+    if let Err(err) = manager.register(toggle) {
         warn!("enregistrement {HOTKEY_LABEL} échoué: {err:#}");
-        return;
+    } else {
+        info!("raccourci {HOTKEY_LABEL} enregistré (toggle PoolSync local)");
     }
-    info!("raccourci {HOTKEY_LABEL} enregistré (toggle PoolSync local)");
+    if let Err(err) = manager.register(master) {
+        warn!("enregistrement {HOTKEY_MASTER_LABEL} échoué: {err:#}");
+    } else {
+        info!("raccourci {HOTKEY_MASTER_LABEL} enregistré (réclamer master KVM)");
+    }
 
     let receiver = GlobalHotKeyEvent::receiver();
     let mut last_toggle = Instant::now()
         .checked_sub(TOGGLE_DEBOUNCE)
         .unwrap_or_else(Instant::now);
+    let mut last_master = last_toggle;
     loop {
         if let Ok(event) = receiver.try_recv() {
-            // X11 envoie Pressed puis Released — un seul toggle par appui.
-            if event.id == hotkey.id() && event.state == HotKeyState::Pressed {
-                let now = Instant::now();
+            if event.state != HotKeyState::Pressed {
+                continue;
+            }
+            let now = Instant::now();
+            if event.id == toggle.id() {
                 if now.duration_since(last_toggle) >= TOGGLE_DEBOUNCE {
                     last_toggle = now;
-                    on_hotkey(&state);
-                } else {
-                    tracing::debug!("raccourci ignoré (debounce / double événement)");
+                    on_toggle(&state);
+                }
+            } else if event.id == master.id() {
+                if now.duration_since(last_master) >= TOGGLE_DEBOUNCE {
+                    last_master = now;
+                    on_master_claim(&state);
                 }
             }
         }
@@ -67,18 +88,35 @@ fn hotkey_loop(state: Arc<AgentState>) {
     }
 }
 
-fn on_hotkey(state: &AgentState) {
+fn on_toggle(state: &AgentState) {
     let active = state.toggle_local_poolsync();
     let node = state.config.node.clone();
     if active {
         info!("PoolSync activé localement ({node}) via {HOTKEY_LABEL}");
     } else {
         info!("PoolSync désactivé localement ({node}) via {HOTKEY_LABEL}");
-        // Libère le curseur si KVM avait un grab actif.
         crate::kvm_x11::set_cursor_visible_best_effort(true);
     }
-    // Notification sur le thread GTK (session D-Bus / DISPLAY fiables).
     let _ = glib::MainContext::default().invoke(move || {
         notify_util::notify_poolsync_toggle(active, &node);
+    });
+}
+
+fn on_master_claim(state: &AgentState) {
+    let node = state.config.node.clone();
+    if !state.kvm_enabled() {
+        info!("master claim ignoré ({node}) : KVM inactif");
+        let _ = glib::MainContext::default().invoke(move || {
+            notify_util::notify_master_claim(&node, false);
+        });
+        return;
+    }
+    if !state.local_poolsync_active() {
+        state.set_local_poolsync_active(true);
+    }
+    state.request_master_claim();
+    info!("master KVM réclamé localement ({node}) via {HOTKEY_MASTER_LABEL}");
+    let _ = glib::MainContext::default().invoke(move || {
+        notify_util::notify_master_claim(&node, true);
     });
 }
