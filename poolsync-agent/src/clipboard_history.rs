@@ -369,7 +369,9 @@ impl HistoryWindow {
             let w = weak.clone();
             list.connect_row_activated(move |_, row| {
                 if let Some(v) = w.upgrade() {
-                    v.paste_row(row);
+                    if v.state.history_double_click_paste() {
+                        v.paste_row(row);
+                    }
                 }
             });
             let w = weak.clone();
@@ -624,7 +626,7 @@ impl HistoryWindow {
         let row = match self.list.selected_row() {
             Some(r) => r,
             None => {
-                self.set_status("Sélectionnez une ligne (clic) puis Coller ou double-clic");
+                self.set_status("Sélectionnez une ligne puis Coller (ou double-clic si activé dans Agent local)");
                 return;
             }
         };

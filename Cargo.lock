@@ -1480,6 +1480,7 @@ dependencies = [
  "gtk",
  "image",
  "libappindicator",
+ "libappindicator-sys",
  "libc",
  "libxdo",
  "poolsync-core",

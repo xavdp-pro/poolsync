@@ -1,6 +1,8 @@
 mod agent;
 mod clip_cache;
 mod clipboard;
+mod clipboard_diag;
+mod clipboard_gtk;
 mod clipboard_history;
 mod clipboard_incoming;
 mod crashlog;
@@ -87,6 +89,7 @@ fn main() -> Result<()> {
         let cfg: AgentConfig = toml::from_str(&raw).context("parse agent config")?;
         let state = Arc::new(AgentState::new(cfg.clone(), args.config.clone()));
         gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
+        clipboard_gtk::attach_gtk_handler();
         config_window::show(state);
         gtk::main();
         return Ok(());

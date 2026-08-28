@@ -28,6 +28,7 @@ for TARGET in "${TARGETS[@]}"; do
   ssh "zaza@$TARGET" "mkdir -p ~/.local/bin ~/.config/poolsync ~/.local/share/poolsync ~/.config/systemd/user ~/.config/autostart"
   scp "$ROOT/target/release/poolsync-agent" "zaza@$TARGET:~/.local/bin/poolsync-agent"
   scp "$ROOT/deploy/poolsync-agent-launch.sh" "zaza@$TARGET:~/.local/bin/poolsync-agent-launch.sh"
+  scp "$ROOT/deploy/poolsync-pick-session.sh" "zaza@$TARGET:~/.local/bin/poolsync-pick-session.sh"
   scp "$ROOT/deploy/poolsync-logs.sh" "zaza@$TARGET:~/.local/bin/poolsync-logs"
   scp "$ROOT/deploy/poolsync-ctl.sh" "zaza@$TARGET:~/.local/bin/poolsync-ctl"
   scp "$ROOT/deploy/read-image-clipboard.py" "zaza@$TARGET:~/.local/bin/read-image-clipboard.py"
@@ -36,6 +37,13 @@ for TARGET in "${TARGETS[@]}"; do
   scp "$ROOT/poolsync-agent/icons/poolsync-tray.png" "zaza@$TARGET:~/.local/share/poolsync/poolsync-tray.png"
   scp "$ROOT/deploy/systemd/poolsync-agent.service" "zaza@$TARGET:~/.config/systemd/user/poolsync-agent.service"
   scp "$ROOT/deploy/autostart/poolsync-agent.desktop" "zaza@$TARGET:~/.config/autostart/poolsync-agent.desktop"
+  scp "$ROOT/deploy/com.xavdp.poolsync.desktop" "zaza@$TARGET:~/.local/share/applications/com.xavdp.poolsync.desktop"
+  scp "$ROOT/deploy/com.xavdp.poolsync-restart.desktop" "zaza@$TARGET:~/.local/share/applications/com.xavdp.poolsync-restart.desktop"
+  scp "$ROOT/deploy/com.xavdp.poolsync-stop.desktop" "zaza@$TARGET:~/.local/share/applications/com.xavdp.poolsync-stop.desktop"
+  scp "$ROOT/deploy/setup-poolsync-icons.sh" "zaza@$TARGET:/tmp/setup-poolsync-icons.sh"
+  scp "$ROOT/deploy/setup-xfce-favorites.sh" "zaza@$TARGET:/tmp/setup-xfce-favorites.sh"
+  ssh "zaza@$TARGET" "chmod +x ~/.local/bin/poolsync-ctl /tmp/setup-poolsync-icons.sh /tmp/setup-xfce-favorites.sh"
+  ssh "zaza@$TARGET" "/tmp/setup-poolsync-icons.sh zaza && /tmp/setup-xfce-favorites.sh zaza"
 
   # Configuration spécifique au nœud avec remplacement du token
   sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$ROOT/deploy/config/agent.${NODE_NAME}.toml" | \

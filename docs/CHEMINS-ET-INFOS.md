@@ -116,15 +116,34 @@ Les agents démarrent via **systemd user** + **autostart XFCE** après login gra
 | **Nœud** | `gbs-p2` (`10.87.78.3`) |
 | **Compte** | `zaza` seulement (pas `zaza2`, pas `root`) |
 | **Mode** | `clipboard_only` / `kvm_enabled = false` |
-| **Display** | session XFCE xrdp de zaza (détectée par `poolsync-agent-launch.sh`, hint `:12`) |
+| **Display** | auto : session RDP **vivante** de `zaza` (`xrdp-chansrv` non zombie), via `poolsync-pick-session.sh` |
 | **Hub** | `ws://10.87.78.22:9470/ws` |
 | **Peer clipboard** | `ws://10.87.78.5:9472/ws` (asus, VPN) |
+| **Asus → gbs-p2** | asus `hub_clipboard = true` + neighbor `gbs-p2` (`ws://10.87.78.3:9472/ws`) so copies reach the RDP session |
 | **Script deploy** | `deploy/install-agent-gbs-p2.sh` |
 | **Binaire** | conserver le build Debian 12 déjà sur p2 (glibc 2.36) — ne pas copier le binaire asus (glibc 2.39) |
 
 ```bash
 cd /home/zaza/Bureau/NOW3/mds/poolsync-v1
 POOLSYNC_TOKEN=xxx ./deploy/install-agent-gbs-p2.sh
+```
+
+### gbs-p3 (session `zaza` uniquement — presse-papiers, pas de KVM)
+
+| Élément | Valeur |
+|---------|--------|
+| **Nœud** | `gbs-p3` (`10.87.78.22`) — hub PoolSync sur la même machine |
+| **Compte** | `zaza` seulement (pas `zaza2`, pas `root`) |
+| **Mode** | `clipboard_only` / `kvm_enabled = false` |
+| **Display** | auto : session RDP **vivante** de `zaza` (`xrdp-chansrv` non zombie), via `poolsync-pick-session.sh` |
+| **Hub** | `ws://10.87.78.22:9470/ws` (local) |
+| **Peer clipboard** | `ws://10.87.78.5:9472/ws` (asus, VPN) |
+| **Script deploy** | `deploy/install-agent-gbs-p3.sh` |
+| **Binaire** | conserver le build Debian 12 déjà sur p3 (glibc 2.36) |
+
+```bash
+cd /home/zaza/Bureau/NOW3/mds/poolsync-v1
+POOLSYNC_TOKEN=xxx ./deploy/install-agent-gbs-p3.sh
 ```
 
 ---

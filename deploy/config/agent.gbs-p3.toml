@@ -1,4 +1,4 @@
-node = "gbs-p2"
+node = "gbs-p3"
 hub_url = "ws://10.87.78.22:9470/ws"
 token = "POOLSYNC_TOKEN_PLACEHOLDER"
 mode = "clipboard_only"
@@ -6,7 +6,7 @@ kvm_enabled = false
 kvm_capture = false
 # display omitted: poolsync-pick-session.sh follows live xrdp-chansrv of zaza
 pause_clipboard_when_rdp = false
-clipboard_poll_ms = 50
+clipboard_poll_ms = 100
 peer_listen_port = 9472
 peer_direct_clipboard = true
 hub_clipboard = false
@@ -23,8 +23,8 @@ direction = "left"
 node = "asus"
 peer_url = "ws://10.87.78.5:9472/ws"
 
-# Mesh clipboard vers gbs-p3 (VPN)
+# Mesh clipboard vers gbs-p2 (VPN)
 [[neighbors]]
-direction = "down"
-node = "gbs-p3"
-peer_url = "ws://10.87.78.22:9472/ws"
+direction = "up"
+node = "gbs-p2"
+peer_url = "ws://10.87.78.3:9472/ws"

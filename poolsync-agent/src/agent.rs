@@ -1,4 +1,7 @@
-use crate::clipboard::{prepare_local_clipboard, read_clipboard_payload, send_payload_network};
+use crate::clipboard::{
+    prepare_local_clipboard, read_clipboard_payload_filtered, send_payload_network,
+    write_clipboard,
+};
 use crate::clipboard_history;
 use crate::kvm::{detect_kvm_desktop, detect_screen, inject_input, kvm_poll_loop};
 use crate::kvm_x11;
@@ -302,24 +305,64 @@ async fn clipboard_poll_loop(
     let poll = Duration::from_millis(state.config.clipboard_poll_ms);
 
     loop {
+        if crate::clipboard::xrdp_session_active_sync() {
+            crate::clipboard_diag::log_owner_transition();
+        }
+        // Hands off X11 when PoolSync clipboard is OFF — otherwise we steal
+        // CLIPBOARD from the apps and native Ctrl+V dies (xrdp session).
         if state.clipboard_sync_enabled() && state.local_poolsync_active() {
+            crate::clipboard::maintain_xrdp_clipboard_fixup().await;
             let rdp_active = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
 
-            let skip_send = state.incoming_poll_suppress_active()
+            let skip_echo = state.incoming_poll_suppress_active()
                 || state.incoming_duplicate_suppress_active()
                 || state.history_clear_suppress_active()
                 || (rdp_active && state.hub_apply_grace_active());
-            if skip_send {
-                // Absorb image re-encode only — never absorb text (user may copy during grace).
-                if let Ok(Some(payload)) = read_clipboard_payload().await {
-                    if payload.mime.starts_with("image/") {
-                        state.set_last_clip_hash(&payload.hash);
-                    }
-                }
-            } else if let Ok(Some(payload)) = read_clipboard_payload().await {
+            // GTK/X11 transfers clipboard ownership asynchronously.  Reading
+            // during this short settle window can still return the previous
+            // text; treating it as a local copy creates an old-text echo that
+            // overwrites the user's next paste on another node.
+            if skip_echo {
+                sleep(poll).await;
+                continue;
+            }
+            // Always read images: a local screenshot must enter the queue even
+            // on clipboard_only (incoming images still skip X11 write).
+            if let Ok(Some(payload)) =
+                read_clipboard_payload_filtered(true, state.keep_formatting()).await
+            {
                 if prepare_local_clipboard(&payload, &last_clip_hash) {
+                    state.mark_local_clipboard_copied();
                     // Local-first: cache + systray avant tout envoi réseau (bs1 / peer).
                     clipboard_history::notify_local_clipboard_sent(state, &payload);
+                    if payload.mime.starts_with("image/") {
+                        info!(
+                            "image-trace LOCAL id={} mime={} wire_bytes={}",
+                            crate::clipboard::trace_id(&payload.hash),
+                            payload.mime,
+                            payload.wire_data.len()
+                        );
+                        // Images only: rewriting text CLIPBOARD after Chrome's
+                        // own copy (HTML+plain) freezes the tab.
+                        if let Err(err) =
+                            write_clipboard(&payload.wire_data, &payload.mime).await
+                        {
+                            tracing::warn!("claim local clipboard: {err:#}");
+                            crate::clipboard_diag::log_post_write(
+                                &payload.mime,
+                                "local-claim",
+                                false,
+                            )
+                            .await;
+                        } else {
+                            crate::clipboard_diag::log_post_write(
+                                &payload.mime,
+                                "local-claim",
+                                true,
+                            )
+                            .await;
+                        }
+                    }
                     let preview = crate::state::clip_preview_mime(&payload.mime, &payload.wire_data);
                     if state.should_notify(&payload.hash, &preview) {
                         let mime = payload.mime.clone();

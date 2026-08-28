@@ -11,6 +11,8 @@ pub struct AgentState {
     pub config_path: PathBuf,
     connected: Arc<AtomicBool>,
     clipboard_sync: Arc<AtomicBool>,
+    keep_formatting: Arc<AtomicBool>,
+    history_double_click_paste: Arc<AtomicBool>,
     notify_on_receive: Arc<AtomicBool>,
     /// Optional debug toast when KVM master changes (off by default — noisy).
     notify_master: Arc<AtomicBool>,
@@ -32,6 +34,8 @@ pub struct AgentState {
     /// Dernier collage entrant (hub ou peer) — évite reboucle poll / double hub+peer.
     last_incoming_apply_at: Arc<RwLock<Option<Instant>>>,
     last_incoming_mime: Arc<RwLock<String>>,
+    /// Une copie faite ici doit gagner sur un ancien message qui revient d'un pair.
+    last_local_clipboard_at: Arc<RwLock<Option<Instant>>>,
     /// Dernière position injectée (ignore le warp KVM, pas l'activité physique).
     kvm_inject_pos: Arc<RwLock<Option<(i32, i32, Instant)>>>,
     /// Court délai après injection clavier synthétique (xtest).
@@ -74,15 +78,61 @@ fn incoming_grace_elapsed_less_than(
     started.elapsed() < grace_for(&mime)
 }
 
+fn local_copy_priority_active_since(copied_at: Option<Instant>) -> bool {
+    copied_at.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(4))
+}
+
+fn persist_config_bool(path: &PathBuf, key: &str, value: bool) {
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return;
+    };
+    let line = format!("{key} = {value}");
+    let mut out = String::new();
+    let mut replaced = false;
+    for (i, l) in raw.lines().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        if l.trim_start().starts_with(key) {
+            out.push_str(&line);
+            replaced = true;
+        } else {
+            out.push_str(l);
+        }
+    }
+    if !replaced {
+        if !out.ends_with('\n') && !out.is_empty() {
+            out.push('\n');
+        }
+        out.push_str(&line);
+        out.push('\n');
+    } else if raw.ends_with('\n') {
+        out.push('\n');
+    }
+    let _ = std::fs::write(path, out);
+}
+
+fn persist_keep_formatting(path: &PathBuf, value: bool) {
+    persist_config_bool(path, "keep_formatting", value);
+}
+
+fn persist_history_double_click_paste(path: &PathBuf, value: bool) {
+    persist_config_bool(path, "history_double_click_paste", value);
+}
+
 impl AgentState {
     pub fn new(config: AgentConfig, config_path: PathBuf) -> Self {
         let kvm_default = config.kvm_active();
         let local_node = config.node.clone();
+        let keep_formatting = config.keep_formatting;
+        let history_double_click_paste = config.history_double_click_paste;
         Self {
             config,
             config_path,
             connected: Arc::new(AtomicBool::new(false)),
             clipboard_sync: Arc::new(AtomicBool::new(true)),
+            keep_formatting: Arc::new(AtomicBool::new(keep_formatting)),
+            history_double_click_paste: Arc::new(AtomicBool::new(history_double_click_paste)),
             notify_on_receive: Arc::new(AtomicBool::new(true)),
             notify_master: Arc::new(AtomicBool::new(false)),
             kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
@@ -100,6 +150,7 @@ impl AgentState {
             last_notify_at: Arc::new(RwLock::new(None)),
             last_incoming_apply_at: Arc::new(RwLock::new(None)),
             last_incoming_mime: Arc::new(RwLock::new(String::new())),
+            last_local_clipboard_at: Arc::new(RwLock::new(None)),
             kvm_inject_pos: Arc::new(RwLock::new(None)),
             kvm_inject_key_until: Arc::new(RwLock::new(None)),
             kvm_inject_button_until: Arc::new(RwLock::new(None)),
@@ -314,6 +365,21 @@ impl AgentState {
         }
     }
 
+    /// Le mesh est multi-saut : un message ancien peut arriver juste après un
+    /// Ctrl+C local. Pendant cette petite fenêtre, l'intention locale gagne.
+    pub fn mark_local_clipboard_copied(&self) {
+        if let Ok(mut t) = self.last_local_clipboard_at.write() {
+            *t = Some(Instant::now());
+        }
+    }
+
+    pub fn local_clipboard_priority_active(&self) -> bool {
+        local_copy_priority_active_since(self.last_local_clipboard_at
+            .read()
+            .ok()
+            .and_then(|t| *t))
+    }
+
     /// Alias RDP / legacy.
     pub fn mark_hub_clipboard_applied(&self) {
         self.mark_incoming_clipboard_applied("text/plain");
@@ -377,6 +443,30 @@ impl AgentState {
         let new = !self.clipboard_sync_enabled();
         self.set_clipboard_sync(new);
         new
+    }
+
+    pub fn keep_formatting(&self) -> bool {
+        self.keep_formatting.load(Ordering::SeqCst)
+    }
+
+    pub fn set_keep_formatting(&self, value: bool) {
+        self.keep_formatting.store(value, Ordering::SeqCst);
+        persist_keep_formatting(&self.config_path, value);
+    }
+
+    pub fn toggle_keep_formatting(&self) -> bool {
+        let new = !self.keep_formatting();
+        self.set_keep_formatting(new);
+        new
+    }
+
+    pub fn history_double_click_paste(&self) -> bool {
+        self.history_double_click_paste.load(Ordering::SeqCst)
+    }
+
+    pub fn set_history_double_click_paste(&self, value: bool) {
+        self.history_double_click_paste.store(value, Ordering::SeqCst);
+        persist_history_double_click_paste(&self.config_path, value);
     }
 
     pub fn notify_enabled(&self) -> bool {
@@ -654,6 +744,8 @@ pub fn clip_preview_mime(mime: &str, data: &str) -> String {
             format!("{bytes} o")
         };
         format!("[Image {label} — {size}]")
+    } else if mime == "text/html" {
+        clip_preview(&crate::clipboard::html_to_visible_text(data))
     } else {
         clip_preview(data)
     }
@@ -666,5 +758,19 @@ pub fn format_time_ago(secs: u64) -> String {
         format!("il y a {secs}s")
     } else {
         format!("il y a {}min", secs / 60)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_copy_has_priority_only_for_the_short_mesh_window() {
+        assert!(local_copy_priority_active_since(Some(Instant::now())));
+        assert!(!local_copy_priority_active_since(None));
+        assert!(!local_copy_priority_active_since(Some(
+            Instant::now() - std::time::Duration::from_secs(5),
+        )));
     }
 }

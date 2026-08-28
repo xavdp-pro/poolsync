@@ -17,6 +17,7 @@ gdk-pixbuf = "0.18"
 gtk = { version = "0.18", features = ["v3_24"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
 libappindicator = "0.9"
+libappindicator-sys = "0.9"
 poolsync-core = { path = "../poolsync-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }

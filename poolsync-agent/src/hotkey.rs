@@ -177,7 +177,7 @@ fn on_master_claim(state: &AgentState) {
     });
 }
 
-fn on_center_cursor() {
+pub fn on_center_cursor() {
     crate::kvm_x11::set_cursor_visible_best_effort(true);
     match crate::kvm_x11::center_pointer_on_current_monitor() {
         Ok((x, y)) => info!("curseur centré via {HOTKEY_CENTER_LABEL} → ({x},{y})"),
@@ -185,7 +185,7 @@ fn on_center_cursor() {
     }
 }
 
-fn on_locate_cursor(state: &AgentState) {
+pub fn on_locate_cursor(state: &AgentState) {
     crate::kvm_x11::set_cursor_visible_best_effort(true);
     let node = state.config.node.clone();
     info!("localiser curseur via {HOTKEY_LOCATE_LABEL} sur {node}");

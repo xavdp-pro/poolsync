@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Installe poolsync-agent pour zaza sur gbs-p2 (session xrdp XFCE).
+# Installe poolsync-agent pour zaza sur gbs-p3 (session xrdp XFCE).
 # Presse-papiers uniquement — pas de KVM. Pas d'install pour zaza2/root.
-# Usage: POOLSYNC_TOKEN=xxx ./install-agent-gbs-p2.sh
+# Usage: POOLSYNC_TOKEN=xxx ./install-agent-gbs-p3.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${1:-gbs-p2}"
-NODE="gbs-p2"
+HOST="${1:-gbs-p3}"
+NODE="gbs-p3"
 USER_NAME="${AGENT_USER:-zaza}"
 TOKEN="${POOLSYNC_TOKEN:?POOLSYNC_TOKEN requis}"
 
@@ -53,7 +53,7 @@ trap 'rm -f "$TMP_CFG"' EXIT
 sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$CONFIG_SRC" > "$TMP_CFG"
 scp "$TMP_CFG" "root@$HOST:/home/$USER_NAME/.config/poolsync/agent.toml"
 
-# Pas de DISPLAY figé : le lanceur prend la session XFCE de zaza (jamais zaza2).
+# Pas de DISPLAY figé : le lanceur suit la session RDP vivante de zaza (jamais zaza2).
 ssh "root@$HOST" "cat > /home/$USER_NAME/.config/systemd/user/poolsync-agent.service" <<EOF
 [Unit]
 Description=PoolSync agent (clipboard only, no KVM)
@@ -73,9 +73,6 @@ WantedBy=default.target
 EOF
 
 ssh "root@$HOST" "chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.config/poolsync /home/$USER_NAME/.local/share/poolsync /home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop /home/$USER_NAME/.config/systemd/user/poolsync-agent.service /home/$USER_NAME/.config/systemd/user/poolsync-watchdog.service /home/$USER_NAME/.config/systemd/user/poolsync-watchdog.timer /home/$USER_NAME/.config/autostart/poolsync-agent.desktop /home/$USER_NAME/.local/bin/poolsync-agent-launch.sh /home/$USER_NAME/.local/bin/poolsync-pick-session.sh /home/$USER_NAME/.local/bin/poolsync-session-start.sh /home/$USER_NAME/.local/bin/poolsync-watchdog.sh /home/$USER_NAME/.local/bin/poolsync-logs && chmod 755 /home/$USER_NAME/.local/bin/poolsync-agent-launch.sh /home/$USER_NAME/.local/bin/poolsync-pick-session.sh /home/$USER_NAME/.local/bin/poolsync-session-start.sh /home/$USER_NAME/.local/bin/poolsync-watchdog.sh /home/$USER_NAME/.local/bin/poolsync-logs && chmod 600 /home/$USER_NAME/.config/poolsync/agent.toml && chmod 644 /home/$USER_NAME/.local/share/poolsync/poolsync-tray.png /home/$USER_NAME/.local/share/applications/com.xavdp.poolsync.desktop /home/$USER_NAME/.config/autostart/poolsync-agent.desktop"
-
-echo "==> Désactive Clipman (conflit PoolSync) pour $USER_NAME"
-ssh "root@$HOST" "bash $ROOT/deploy/disable-clipman.sh $USER_NAME"
 
 echo "==> Désactive PoolSync pour les autres comptes (zaza2, etc.)"
 ssh "root@$HOST" bash -s <<'REMOTE'

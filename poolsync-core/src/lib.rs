@@ -81,6 +81,12 @@ pub struct AgentConfig {
     /// Relayer le presse-papiers via le hub (bs1). False = peer mesh only (pas d'upload blob vers le VPS).
     #[serde(default = "default_true")]
     pub hub_clipboard: bool,
+    /// true = synchroniser aussi text/html (gras, etc.). false = texte brut uniquement.
+    #[serde(default)]
+    pub keep_formatting: bool,
+    /// Double-clic dans l'historique presse-papiers → coller sur ce poste.
+    #[serde(default)]
+    pub history_double_click_paste: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -358,6 +364,8 @@ mod tests {
             peer_listen_port: default_peer_listen_port(),
             peer_direct_clipboard: true,
             hub_clipboard: true,
+            keep_formatting: false,
+            history_double_click_paste: false,
         }
     }
 

@@ -7,6 +7,8 @@ clipboard_poll_ms = 100
 peer_listen_port = 9472
 peer_direct_clipboard = true
 hub_clipboard = false
+keep_formatting = false
+history_double_click_paste = false
 
 [screen]
 width = 1344
@@ -17,3 +19,15 @@ direction = "right"
 node = "acer"
 peer_url = "ws://192.168.1.183:9472/ws"
 peer_url_vpn = "ws://10.87.78.6:9472/ws"
+
+# Presse-papiers mesh vers gbs-p2 (VPN, clipboard_only — pas de KVM).
+[[neighbors]]
+direction = "up"
+node = "gbs-p2"
+peer_url = "ws://10.87.78.3:9472/ws"
+
+# Presse-papiers mesh vers gbs-p3 (VPN, clipboard_only — pas de KVM).
+[[neighbors]]
+direction = "down"
+node = "gbs-p3"
+peer_url = "ws://10.87.78.22:9472/ws"

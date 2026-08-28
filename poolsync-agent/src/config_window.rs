@@ -72,6 +72,8 @@ struct AgentForm {
     input_poll: SpinButton,
     tray_history: SpinButton,
     pause_rdp: CheckButton,
+    keep_formatting: CheckButton,
+    history_double_click_paste: CheckButton,
     display: Entry,
     status: Label,
 }
@@ -346,6 +348,9 @@ impl ConfigWindow {
         f.tray_history
             .set_value(cfg.tray_history_count.clamp(5, 50) as f64);
         f.pause_rdp.set_active(cfg.pause_clipboard_when_rdp);
+        f.keep_formatting.set_active(self.state.keep_formatting());
+        f.history_double_click_paste
+            .set_active(self.state.history_double_click_paste());
         f.display
             .set_text(cfg.display.as_deref().unwrap_or_default());
     }
@@ -370,6 +375,10 @@ impl ConfigWindow {
         cfg.input_poll_ms = f.input_poll.value_as_int() as u64;
         cfg.tray_history_count = f.tray_history.value_as_int() as u32;
         cfg.pause_clipboard_when_rdp = f.pause_rdp.is_active();
+        cfg.keep_formatting = f.keep_formatting.is_active();
+        self.state.set_keep_formatting(cfg.keep_formatting);
+        cfg.history_double_click_paste = f.history_double_click_paste.is_active();
+        self.state.set_history_double_click_paste(cfg.history_double_click_paste);
         let disp = f.display.text().to_string();
         cfg.display = if disp.trim().is_empty() {
             None
@@ -532,9 +541,27 @@ fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (
     let pause_rdp = CheckButton::with_label("Pause presse-papiers pendant RDP actif");
     grid.attach(&pause_rdp, 1, 9, 1, 1);
 
+    let keep_formatting = CheckButton::with_label(
+        "Garder le formatage (HTML) — décoché = texte brut uniquement",
+    );
+    keep_formatting.set_tooltip_text(Some(
+        "Désactivé : copie seulement le texte visible (email dans un champ).\n\
+         Activé : gras/styles pour LibreOffice. Chrome peut alors coller du HTML.",
+    ));
+    grid.attach(&keep_formatting, 1, 10, 1, 1);
+
+    let history_double_click_paste = CheckButton::with_label(
+        "Double-clic historique → coller dans le presse-papiers",
+    );
+    history_double_click_paste.set_tooltip_text(Some(
+        "Désactivé (défaut) : double-clic sur une ligne = aperçu seulement.\n\
+         Utilisez le bouton Coller ou le menu systray.",
+    ));
+    grid.attach(&history_double_click_paste, 1, 11, 1, 1);
+
     let display = Entry::new();
     display.set_placeholder_text(Some("ex. :10 (vide = auto)"));
-    attach_field(&grid, 10, "Display X11", &display);
+    attach_field(&grid, 12, "Display X11", &display);
 
     page.pack_start(&toolbar, false, false, 0);
     page.pack_start(&grid, false, false, 0);
@@ -562,6 +589,8 @@ fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (
         input_poll,
         tray_history,
         pause_rdp,
+        keep_formatting,
+        history_double_click_paste,
         display,
         status,
     };
@@ -683,6 +712,12 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
         cfg.peer_direct_clipboard
     );
     let _ = writeln!(s, "hub_clipboard = {}", cfg.hub_clipboard);
+    let _ = writeln!(s, "keep_formatting = {}", cfg.keep_formatting);
+    let _ = writeln!(
+        s,
+        "history_double_click_paste = {}",
+        cfg.history_double_click_paste
+    );
     if let Some(d) = &cfg.display {
         let _ = writeln!(s, "display = {d:?}");
     }
