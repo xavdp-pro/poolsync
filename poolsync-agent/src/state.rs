@@ -34,8 +34,9 @@ pub struct AgentState {
     /// Dernier collage entrant (hub ou peer) — évite reboucle poll / double hub+peer.
     last_incoming_apply_at: Arc<RwLock<Option<Instant>>>,
     last_incoming_mime: Arc<RwLock<String>>,
-    /// Une copie faite ici doit gagner sur un ancien message qui revient d'un pair.
-    last_local_clipboard_at: Arc<RwLock<Option<Instant>>>,
+    /// Ordre total du presse-papiers sur le mesh (Lamport) — remplace les
+    /// anciennes fenêtres de grâce « priorité copie locale ».
+    clip_order: Arc<crate::clip_order::ClipOrder>,
     /// Dernière position injectée (ignore le warp KVM, pas l'activité physique).
     kvm_inject_pos: Arc<RwLock<Option<(i32, i32, Instant)>>>,
     /// Court délai après injection clavier synthétique (xtest).
@@ -76,10 +77,6 @@ fn incoming_grace_elapsed_less_than(
         .map(|m| m.clone())
         .unwrap_or_default();
     started.elapsed() < grace_for(&mime)
-}
-
-fn local_copy_priority_active_since(copied_at: Option<Instant>) -> bool {
-    copied_at.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(4))
 }
 
 fn persist_config_bool(path: &PathBuf, key: &str, value: bool) {
@@ -124,6 +121,7 @@ impl AgentState {
     pub fn new(config: AgentConfig, config_path: PathBuf) -> Self {
         let kvm_default = config.kvm_active();
         let local_node = config.node.clone();
+        let order_node = local_node.clone();
         let keep_formatting = config.keep_formatting;
         let history_double_click_paste = config.history_double_click_paste;
         Self {
@@ -150,7 +148,7 @@ impl AgentState {
             last_notify_at: Arc::new(RwLock::new(None)),
             last_incoming_apply_at: Arc::new(RwLock::new(None)),
             last_incoming_mime: Arc::new(RwLock::new(String::new())),
-            last_local_clipboard_at: Arc::new(RwLock::new(None)),
+            clip_order: Arc::new(crate::clip_order::ClipOrder::new(order_node)),
             kvm_inject_pos: Arc::new(RwLock::new(None)),
             kvm_inject_key_until: Arc::new(RwLock::new(None)),
             kvm_inject_button_until: Arc::new(RwLock::new(None)),
@@ -365,19 +363,9 @@ impl AgentState {
         }
     }
 
-    /// Le mesh est multi-saut : un message ancien peut arriver juste après un
-    /// Ctrl+C local. Pendant cette petite fenêtre, l'intention locale gagne.
-    pub fn mark_local_clipboard_copied(&self) {
-        if let Ok(mut t) = self.last_local_clipboard_at.write() {
-            *t = Some(Instant::now());
-        }
-    }
-
-    pub fn local_clipboard_priority_active(&self) -> bool {
-        local_copy_priority_active_since(self.last_local_clipboard_at
-            .read()
-            .ok()
-            .and_then(|t| *t))
+    /// Ordre total des presse-papiers du pool (voir `clip_order`).
+    pub fn clip_order(&self) -> &crate::clip_order::ClipOrder {
+        &self.clip_order
     }
 
     /// Alias RDP / legacy.
@@ -761,16 +749,4 @@ pub fn format_time_ago(secs: u64) -> String {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn local_copy_has_priority_only_for_the_short_mesh_window() {
-        assert!(local_copy_priority_active_since(Some(Instant::now())));
-        assert!(!local_copy_priority_active_since(None));
-        assert!(!local_copy_priority_active_since(Some(
-            Instant::now() - std::time::Duration::from_secs(5),
-        )));
-    }
-}

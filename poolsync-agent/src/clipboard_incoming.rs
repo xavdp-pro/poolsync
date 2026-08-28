@@ -12,6 +12,10 @@ fn applied_text_hash(data: &str) -> String {
 }
 
 /// Applique un collage reçu (hub ou voisin direct).
+///
+/// `origin` / `seq` = horodatage logique de la copie d'origine (cf.
+/// `clip_order`). Ils remplacent les anciennes fenêtres de grâce : l'ordre est
+/// total, donc identique sur tous les nœuds quelle que soit la latence.
 pub async fn apply_incoming_clipboard(
     state: &AgentState,
     hash: &str,
@@ -19,6 +23,8 @@ pub async fn apply_incoming_clipboard(
     mime: &str,
     source_node: &str,
     from_hub: bool,
+    origin: &str,
+    seq: u64,
 ) -> anyhow::Result<()> {
     if mime.starts_with("image/") {
         let via = if from_hub { "hub" } else { "peer" };
@@ -39,20 +45,13 @@ pub async fn apply_incoming_clipboard(
         );
         return Ok(());
     }
-    // A message can take a few hops through the mesh.  Do not let an older
-    // remote text overwrite the user's just-copied local text while it is
-    // still being broadcast from this machine.
-    if !mime.starts_with("image/") && state.local_clipboard_priority_active() {
+    // Ordre total : rejette d'un coup le message périmé (une copie locale ou
+    // distante plus récente est déjà appliquée), notre propre écho revenu par
+    // le mesh, et le doublon hub + pair — sans aucune minuterie.
+    if !state.clip_order().accept_incoming(origin, seq) {
         tracing::info!(
-            "ignore stale incoming text during local-copy priority ({source_node})"
+            "ignore out-of-order clipboard from {source_node} (origin={origin} seq={seq})"
         );
-        return Ok(());
-    }
-    // Local image grace only filters *poll echo* of leftover UTF8 on this
-    // display. Remote text from another node must always land so Ctrl+V works.
-    // Hub + peer peuvent livrer la même image avec des hash différents — ignorer le doublon.
-    if mime.starts_with("image/") && state.incoming_duplicate_suppress_active() {
-        tracing::debug!("ignore incoming image duplicate during grace ({source_node})");
         return Ok(());
     }
 

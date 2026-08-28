@@ -259,6 +259,15 @@ pub enum Message {
         hash: String,
         mime: String,
         data: String,
+        /// Nœud où la copie a réellement eu lieu (pas le dernier relais).
+        /// Vide = émetteur d'une version antérieure au horodatage logique.
+        #[serde(default)]
+        origin: String,
+        /// Horloge logique (Lamport) de `origin` au moment de la copie.
+        /// Donne un ordre total sur le mesh : plus besoin de fenêtres de grâce.
+        /// 0 = message legacy, appliqué sans contrôle d'ordre.
+        #[serde(default)]
+        seq: u64,
     },
     /// Signal hub : l'historique presse-papiers a changé (menu systray / SSE).
     ClipboardHistoryUpdated {
@@ -395,12 +404,32 @@ mod tests {
             hash: "h".into(),
             mime: "text/plain".into(),
             data: "hello".into(),
+            origin: "asus".into(),
+            seq: 42,
         };
         let raw = encode_message(&msg).unwrap();
         match decode_message(&raw).unwrap() {
-            Message::Clipboard { data, mime, .. } => {
+            Message::Clipboard {
+                data, mime, origin, seq, ..
+            } => {
                 assert_eq!(data, "hello");
                 assert_eq!(mime, "text/plain");
+                assert_eq!(origin, "asus");
+                assert_eq!(seq, 42);
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    /// Un agent non encore mis à jour n'envoie ni `origin` ni `seq` : le
+    /// message doit rester décodable, avec l'ordre neutre (0 / vide).
+    #[test]
+    fn clipboard_from_an_older_agent_still_decodes() {
+        let raw = r#"{"type":"clipboard","msg_id":"id","hash":"h","mime":"text/plain","data":"hello"}"#;
+        match decode_message(raw).unwrap() {
+            Message::Clipboard { origin, seq, .. } => {
+                assert!(origin.is_empty());
+                assert_eq!(seq, 0);
             }
             other => panic!("wrong variant: {other:?}"),
         }

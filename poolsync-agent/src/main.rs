@@ -1,5 +1,6 @@
 mod agent;
 mod clip_cache;
+mod clip_order;
 mod clipboard;
 mod clipboard_diag;
 mod clipboard_gtk;

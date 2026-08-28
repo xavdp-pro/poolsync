@@ -1309,12 +1309,16 @@ pub fn send_payload_network(
     hub_tx: &UnboundedSender<String>,
     peer_tx: &Option<UnboundedSender<String>>,
     relay_hub: bool,
+    origin: &str,
+    seq: u64,
 ) -> bool {
     if let Ok(encoded) = encode_message(&Message::Clipboard {
         msg_id: uuid::Uuid::new_v4().to_string(),
         hash: payload.hash.clone(),
         mime: payload.mime.clone(),
         data: payload.wire_data.clone(),
+        origin: origin.to_string(),
+        seq,
     }) {
         let mut sent = false;
         if relay_hub {
@@ -1347,11 +1351,13 @@ pub fn try_send_payload(
     peer_tx: &Option<UnboundedSender<String>>,
     last_clip_hash: &Mutex<String>,
     relay_hub: bool,
+    origin: &str,
+    seq: u64,
 ) -> bool {
     if !prepare_local_clipboard(payload, last_clip_hash) {
         return false;
     }
-    send_payload_network(payload, hub_tx, peer_tx, relay_hub)
+    send_payload_network(payload, hub_tx, peer_tx, relay_hub, origin, seq)
 }
 
 pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {

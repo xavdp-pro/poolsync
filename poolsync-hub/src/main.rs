@@ -238,6 +238,14 @@ fn now_secs() -> u64 {
         .as_secs()
 }
 
+/// Horloge logique des messages presse-papiers émis par le hub lui-même.
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -517,11 +525,15 @@ async fn api_clipboard_pick(
         &entry.data,
     )
     .await;
+    // Un pick est une nouvelle intention utilisateur : il doit gagner sur tout
+    // ce que les agents ont déjà vu, d'où une horloge basée sur l'heure mur.
     let payload = encode_message(&Message::Clipboard {
         msg_id: uuid::Uuid::new_v4().to_string(),
         hash: entry.hash,
         mime: entry.mime,
         data: entry.data,
+        origin: "hub".to_string(),
+        seq: now_ms(),
     })
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if let Some(ref node) = body.node {
@@ -821,6 +833,8 @@ async fn handle_message(
             hash,
             mime,
             data,
+            origin,
+            seq,
         } => {
             let duplicate = {
                 let last = state.last_clipboard_hash.read().await;
@@ -837,11 +851,15 @@ async fn handle_message(
                 return Ok(());
             }
 
+            // Le hub n'est qu'un relais : il transmet `origin`/`seq` tels
+            // quels, sinon les nœuds perdent l'ordre d'origine de la copie.
             let payload = encode_message(&Message::Clipboard {
                 msg_id,
                 hash,
                 mime,
                 data,
+                origin: if origin.is_empty() { from.to_string() } else { origin },
+                seq,
             })?;
             broadcast_except(state, from, &payload).await;
         }

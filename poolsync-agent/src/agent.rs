@@ -137,10 +137,15 @@ async fn handle_incoming(
     let msg = decode_message(text)?;
     match msg {
         Message::Clipboard {
-            hash, data, mime, ..
+            hash,
+            data,
+            mime,
+            origin,
+            seq,
+            ..
         } => {
             crate::clipboard_incoming::apply_incoming_clipboard(
-                state, &hash, &data, &mime, "hub", true,
+                state, &hash, &data, &mime, "hub", true, &origin, seq,
             )
             .await?;
         }
@@ -332,7 +337,10 @@ async fn clipboard_poll_loop(
                 read_clipboard_payload_filtered(true, state.keep_formatting()).await
             {
                 if prepare_local_clipboard(&payload, &last_clip_hash) {
-                    state.mark_local_clipboard_copied();
+                    // Horloge logique de cette copie : elle domine tout ce que
+                    // ce nœud a déjà vu, donc un message plus ancien encore en
+                    // vol ne pourra plus l'écraser.
+                    let seq = state.clip_order().next_local_seq();
                     // Local-first: cache + systray avant tout envoi réseau (bs1 / peer).
                     clipboard_history::notify_local_clipboard_sent(state, &payload);
                     if payload.mime.starts_with("image/") {
@@ -376,12 +384,15 @@ async fn clipboard_poll_loop(
                     let peer_tx_net = peer_tx.clone();
                     let payload_net = payload.clone();
                     let relay_hub = state.config.hub_clipboard;
+                    let origin = state.config.node.clone();
                     tokio::spawn(async move {
                         if send_payload_network(
                             &payload_net,
                             &hub_tx_net,
                             &peer_tx_net,
                             relay_hub,
+                            &origin,
+                            seq,
                         ) {
                             if payload_net.mime.starts_with("image/") {
                                 let approx_bytes =

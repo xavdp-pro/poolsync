@@ -111,10 +111,6 @@ fn should_initiate_link(local: &str, remote: &str) -> bool {
     !local.is_empty() && !remote.is_empty() && local < remote
 }
 
-fn should_forward_incoming(mime: &str, local_copy_priority: bool) -> bool {
-    mime.starts_with("image/") || !local_copy_priority
-}
-
 struct PeerLink {
     node: String,
     tx: mpsc::UnboundedSender<String>,
@@ -343,21 +339,16 @@ where
             msg = read.next() => {
                 match msg {
                     Some(Ok(WsMessage::Text(text))) => {
-                        if let Ok(Message::Clipboard { hash, data, mime, .. }) = decode_message(&text) {
+                        if let Ok(Message::Clipboard {
+                            hash, data, mime, origin, seq, ..
+                        }) = decode_message(&text) {
                             let source = remote.as_deref().unwrap_or("peer");
-                            // A stale text message rejected in favour of a
-                            // just-copied local selection must stop here.  If
-                            // it is forwarded, another neighbour can still
-                            // overwrite the local copy a hop later.
-                            if !should_forward_incoming(
-                                &mime,
-                                state_read.local_clipboard_priority_active(),
-                            ) {
-                                info!("peer mesh: stale text dropped from {source}");
-                                continue;
-                            }
+                            // Toujours relayer : `(origin, seq)` voyage avec le
+                            // message, donc chaque nœud tranche lui-même. Filtrer
+                            // ici priverait un voisin plus lointain d'un message
+                            // qui est peut-être le plus récent pour lui.
                             if let Err(err) = apply_incoming_clipboard(
-                                &state_read, &hash, &data, &mime, source, false,
+                                &state_read, &hash, &data, &mime, source, false, &origin, seq,
                             ).await {
                                 debug!("peer clipboard apply: {err:#}");
                             }
@@ -401,13 +392,6 @@ mod tests {
     }
 
     #[test]
-    fn stale_text_is_not_forwarded_while_local_copy_has_priority() {
-        assert!(!should_forward_incoming("text/plain", true));
-        assert!(should_forward_incoming("text/plain", false));
-        assert!(should_forward_incoming("image/png", true));
-    }
-
-    #[test]
     fn websocket_url_preserves_existing_query() {
         assert_eq!(
             peer_ws_url("ws://p2:9472/ws?lan=1", "tok", "asus"),
@@ -422,6 +406,8 @@ mod tests {
             hash: "hash".into(),
             mime: "text/plain".into(),
             data: "hello".into(),
+            origin: "asus".into(),
+            seq: 7,
         })
         .unwrap();
         assert_eq!(clipboard_message_id(&payload).as_deref(), Some("copy-42"));
