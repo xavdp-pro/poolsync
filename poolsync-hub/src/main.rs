@@ -238,6 +238,18 @@ fn now_secs() -> u64 {
         .as_secs()
 }
 
+/// Le hub n'est qu'un relais : il transmet l'`origin` de la copie tel quel,
+/// sinon les nœuds perdent l'ordre d'origine et voient le hub comme auteur.
+/// Un agent d'une version antérieure n'en envoie pas : on attribue alors la
+/// copie au nœud qui l'a poussée, ce qui reste un identifiant stable.
+fn relay_origin(origin: String, from: &str) -> String {
+    if origin.is_empty() {
+        from.to_string()
+    } else {
+        origin
+    }
+}
+
 /// Horloge logique des messages presse-papiers émis par le hub lui-même.
 fn now_ms() -> u64 {
     std::time::SystemTime::now()
@@ -693,7 +705,6 @@ async fn apply_hello_geometry(
                 }
             }
             None => {
-                kvm_changed = true;
                 let (x, y) = if kvm_enabled {
                     (
                         topo.nodes
@@ -851,14 +862,12 @@ async fn handle_message(
                 return Ok(());
             }
 
-            // Le hub n'est qu'un relais : il transmet `origin`/`seq` tels
-            // quels, sinon les nœuds perdent l'ordre d'origine de la copie.
             let payload = encode_message(&Message::Clipboard {
                 msg_id,
                 hash,
                 mime,
                 data,
-                origin: if origin.is_empty() { from.to_string() } else { origin },
+                origin: relay_origin(origin, from),
                 seq,
             })?;
             broadcast_except(state, from, &payload).await;
@@ -969,5 +978,26 @@ async fn route_to_node(state: &HubState, target: &str, payload: &str) {
     let nodes = state.nodes.read().await;
     if let Some(info) = nodes.get(target) {
         let _ = info.sender.send(payload.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relaying_keeps_the_node_where_the_copy_actually_happened() {
+        // gbs-p3 a copié, gbs-p2 relaie au hub : l'auteur reste gbs-p3.
+        assert_eq!(relay_origin("gbs-p3".into(), "gbs-p2"), "gbs-p3");
+    }
+
+    #[test]
+    fn a_copy_from_an_older_agent_is_attributed_to_the_sending_node() {
+        assert_eq!(relay_origin(String::new(), "acer"), "acer");
+    }
+
+    #[test]
+    fn the_hub_clock_is_in_milliseconds_so_it_outranks_agent_clocks_of_the_same_epoch() {
+        assert!(now_ms() >= now_secs() * 1_000);
     }
 }

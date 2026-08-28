@@ -37,7 +37,6 @@ const CLIPBOARD_PY_TIMEOUT: Duration = Duration::from_secs(3);
 /// Ne pas relancer le secours GTK à chaque poll (évite python3 à 100 % CPU).
 const GTK_READ_COOLDOWN: Duration = Duration::from_secs(3);
 /// Après envoi d'une image, ignorer le texte résiduel sur le presse-papiers X11.
-const IMAGE_TEXT_GRACE: Duration = Duration::from_secs(4);
 
 static LAST_IMAGE_SENT_AT: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_GTK_READ_AT: Mutex<Option<Instant>> = Mutex::new(None);
@@ -550,14 +549,6 @@ pub fn mark_image_clipboard_epoch() {
     }
 }
 
-pub fn image_clipboard_grace_active() -> bool {
-    LAST_IMAGE_SENT_AT
-        .lock()
-        .ok()
-        .and_then(|g| *g)
-        .is_some_and(|t| t.elapsed() < IMAGE_TEXT_GRACE)
-}
-
 fn clear_image_clipboard_epoch() {
     if let Ok(mut guard) = LAST_IMAGE_SENT_AT.lock() {
         *guard = None;
@@ -578,30 +569,8 @@ fn note_gtk_read_attempt() {
     }
 }
 
-fn clipboard_has_image_targets_sync() -> bool {
-    std::process::Command::new("xclip")
-        .args(["-selection", "clipboard", "-t", "TARGETS", "-o"])
-        .output()
-        .map(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .lines()
-                .any(|l| l.trim().starts_with("image/"))
-        })
-        .unwrap_or(false)
-}
-
-/// Ignore un texte distant qui écraserait une image locale *récemment* envoyée.
-/// Ne pas bloquer tant qu'il reste une cible image/ (sinon texte asus↔acer mort après 1 image).
-pub async fn should_reject_remote_text() -> bool {
-    image_clipboard_grace_active()
-}
-
 /// Lance `xclip` en lecture avec timeout. `kill_on_drop` garantit qu'un xclip
 /// bloqué est tué (pas d'accumulation de processus zombies figés).
-async fn xclip_read(args: &[&str]) -> Result<std::process::Output> {
-    xclip_read_timeout(args, XCLIP_READ_TIMEOUT).await
-}
-
 async fn xclip_read_timeout(args: &[&str], limit: Duration) -> Result<std::process::Output> {
     let child = Command::new("xclip")
         .args(args)
@@ -712,10 +681,6 @@ pub async fn clipboard_targets(selection: &str) -> Result<Vec<String>> {
         .filter(|line| !line.is_empty())
         .map(str::to_string)
         .collect())
-}
-
-pub async fn read_clipboard_payload() -> Result<Option<ClipboardPayload>> {
-    read_clipboard_payload_filtered(true, false).await
 }
 
 pub async fn read_clipboard_payload_filtered(
@@ -1266,15 +1231,6 @@ fn text_is_image_sidecar(text: &str) -> bool {
         || lower.contains("captures d")
 }
 
-/// Après écriture distante, aligne le hash sur le clipboard local (évite boucle xclip).
-pub async fn align_hash_after_write(last_clip_hash: &Mutex<String>) {
-    if let Ok(Some(payload)) = read_clipboard_payload().await {
-        if let Ok(mut last) = last_clip_hash.lock() {
-            *last = payload.hash;
-        }
-    }
-}
-
 /// Détection locale : met à jour le hash, enregistre le cache, retourne true si nouveau contenu.
 pub fn prepare_local_clipboard(
     payload: &ClipboardPayload,
@@ -1286,8 +1242,7 @@ pub fn prepare_local_clipboard(
     if payload.mime == "text/html" && payload.wire_data.len() > MAX_HTML_BYTES {
         return false;
     }
-    // Texte local = intention utilisateur : toujours autoriser (ne pas bloquer
-    // après envoi d'image — sinon copier-coller texte mort pendant IMAGE_TEXT_GRACE).
+    // Texte local = intention utilisateur : toujours autoriser.
     if payload.mime == "text/plain" || payload.mime == "text/html" {
         crate::clipboard_gtk::clear_image_claim();
         clear_image_clipboard_epoch();
@@ -1345,21 +1300,6 @@ pub fn send_payload_network(
     false
 }
 
-pub fn try_send_payload(
-    payload: &ClipboardPayload,
-    hub_tx: &UnboundedSender<String>,
-    peer_tx: &Option<UnboundedSender<String>>,
-    last_clip_hash: &Mutex<String>,
-    relay_hub: bool,
-    origin: &str,
-    seq: u64,
-) -> bool {
-    if !prepare_local_clipboard(payload, last_clip_hash) {
-        return false;
-    }
-    send_payload_network(payload, hub_tx, peer_tx, relay_hub, origin, seq)
-}
-
 pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
     invalidate_payload_cache();
     if mime == "text/plain" || mime == "text/html" {
@@ -1405,6 +1345,19 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
             anyhow::bail!("html too large to paste safely ({} bytes)", data.len());
         }
         let plain = html_to_visible_text(data);
+        // Le mime n'arrive ici en text/html que si `local_write_text` a décidé
+        // de garder le formatage (option `keep_formatting`). Offrir seulement
+        // le texte aplati reviendrait à ignorer l'option en silence : on offre
+        // les deux cibles, et l'application collante choisit.
+        if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Rich {
+            plain: plain.clone(),
+            html: data.to_string(),
+        }) {
+            if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
+                *g = Some(plain.clone());
+            }
+            return Ok(());
+        }
         if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text(plain.clone()))
         {
             if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
@@ -1423,11 +1376,6 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
             if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
                 *g = Some(data.to_string());
             }
-            return Ok(());
-        }
-        if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text(
-            data.to_string(),
-        )) {
             return Ok(());
         }
         write_selection_text_sync("clipboard", data)
@@ -1469,13 +1417,19 @@ fn write_selection_text_sync(selection: &str, text: &str) -> Result<()> {
             .context("xclip stdin")?;
     }
     // stdin fermé : xclip possède la sélection. On le laisse vivre pour la servir
-    // aux collages suivants — cf. detach_selection_owner.
+    // aux collages suivants — cf. detach_selection_owner_sync.
     detach_selection_owner_sync(child);
     Ok(())
 }
 
-/// Variante synchrone de [`detach_selection_owner`] pour les écritures hors runtime
-/// tokio (systray, fenêtre d'historique).
+/// Laisse `xclip` vivre en arrière-plan après l'écriture.
+///
+/// Sous X11 la sélection n'est pas un stockage central : le processus qui l'écrit
+/// en reste **propriétaire** et sert le contenu aux applications qui collent. Si on
+/// l'attend avec `wait()`, il rend la sélection en mourant et le contenu disparaît —
+/// le copier fonctionne, le coller ne trouve plus rien. On le détache donc, et on
+/// se contente de le moissonner pour ne pas laisser de zombies : le prochain
+/// propriétaire de la sélection (nouvelle copie locale ou distante) le terminera.
 fn detach_selection_owner_sync(mut child: std::process::Child) {
     std::thread::spawn(move || {
         let _ = child.wait();
@@ -1524,7 +1478,7 @@ fn write_selection_bytes_sync(selection: &str, mime: &str, bytes: &[u8]) -> Resu
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(bytes).context("xclip stdin")?;
     }
-    // xclip doit rester propriétaire de la sélection (cf. detach_selection_owner).
+    // xclip doit rester propriétaire de la sélection (cf. detach_selection_owner_sync).
     // On ne peut donc pas juger l'écriture sur son code de sortie : on lui laisse un
     // court instant pour échouer bruyamment (mime refusé, DISPLAY absent), et s'il
     // est toujours là c'est qu'il sert la sélection.
@@ -1547,10 +1501,6 @@ async fn write_image_to_clipboard_async(bytes: &[u8], mime: &str) -> Result<()> 
     tokio::task::spawn_blocking(move || write_image_to_clipboard(&owned, &mime))
         .await
         .context("image clipboard task")?
-}
-
-fn write_image_clipboard_gtk(image_bytes: &[u8]) -> bool {
-    run_clipboard_py_script("write-image-clipboard.py", image_bytes)
 }
 
 fn read_image_via_gtk_sync() -> Result<Vec<u8>> {
@@ -1578,12 +1528,6 @@ fn clipboard_py_script(name: &str) -> Option<std::path::PathBuf> {
     } else {
         None
     }
-}
-
-fn run_clipboard_py_script(name: &str, stdin_bytes: &[u8]) -> bool {
-    run_clipboard_py_script_output(name, stdin_bytes)
-        .map(|o| o.status.success())
-        .unwrap_or(false)
 }
 
 fn run_clipboard_py_script_output(name: &str, stdin_bytes: &[u8]) -> Result<std::process::Output> {
@@ -1697,44 +1641,6 @@ fn image_payload_from_bytes(bytes: &[u8]) -> Result<ClipboardPayload> {
     })
 }
 
-pub async fn read_selection_text(selection: &str) -> Result<String> {
-    let output = xclip_read(&["-selection", selection, "-o"]).await?;
-    if !output.status.success() {
-        anyhow::bail!("xclip read {selection} text failed");
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-pub async fn write_selection_text(selection: &str, text: &str) -> Result<()> {
-    let mut child = Command::new("xclip")
-        .args(["-selection", selection, "-t", "UTF8_STRING"])
-        .stdin(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("xclip -selection {selection} UTF8_STRING"))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        use tokio::io::AsyncWriteExt;
-        stdin.write_all(text.as_bytes()).await?;
-        stdin.shutdown().await.ok();
-        drop(stdin);
-    }
-    detach_selection_owner(child);
-    Ok(())
-}
-
-/// Laisse `xclip` vivre en arrière-plan après l'écriture.
-///
-/// Sous X11 la sélection n'est pas un stockage central : le processus qui l'écrit
-/// en reste **propriétaire** et sert le contenu aux applications qui collent. Si on
-/// l'attend avec `wait()`, il rend la sélection en mourant et le contenu disparaît —
-/// le copier fonctionne, le coller ne trouve plus rien. On le détache donc, et on
-/// se contente de le moissonner pour ne pas laisser de zombies : le prochain
-/// propriétaire de la sélection (nouvelle copie locale ou distante) le terminera.
-fn detach_selection_owner(mut child: tokio::process::Child) {
-    tokio::spawn(async move {
-        let _ = child.wait().await;
-    });
-}
-
 async fn read_selection_bytes(selection: &str, mime: &str) -> Result<Vec<u8>> {
     let limit = if mime.starts_with("image/") {
         XCLIP_IMAGE_READ_TIMEOUT
@@ -1762,28 +1668,87 @@ async fn read_selection_bytes_timeout(
     Ok(output.stdout)
 }
 
-async fn write_selection_bytes(selection: &str, mime: &str, bytes: &[u8]) -> Result<()> {
-    let mut child = Command::new("xclip")
-        .args(["-selection", selection, "-t", mime])
-        .stdin(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("xclip -selection {selection} -t {mime}"))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        use tokio::io::AsyncWriteExt;
-        stdin.write_all(bytes).await?;
-        stdin.shutdown().await.ok();
-        drop(stdin);
-    }
-    detach_selection_owner(child);
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn targets(values: &[&str]) -> Vec<String> {
         values.iter().map(|v| (*v).to_string()).collect()
+    }
+
+    fn text_payload(text: &str) -> ClipboardPayload {
+        ClipboardPayload {
+            mime: "text/plain".into(),
+            wire_data: text.into(),
+            hash: poolsync_core::hash_text(text),
+        }
+    }
+
+    fn sent_clipboard(raw: &str) -> (String, u64, String) {
+        match poolsync_core::decode_message(raw).unwrap() {
+            Message::Clipboard {
+                origin, seq, data, ..
+            } => (origin, seq, data),
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    /// L'ordre du mesh ne tient que si l'émetteur estampille réellement chaque
+    /// copie : sans `origin`/`seq` sur le fil, tout retombe en mode legacy.
+    #[test]
+    fn a_sent_payload_carries_its_origin_and_clock_to_the_hub_and_the_peers() {
+        let (hub_tx, mut hub_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (peer_tx, mut peer_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        assert!(send_payload_network(
+            &text_payload("bonjour"),
+            &hub_tx,
+            &Some(peer_tx),
+            true,
+            "asus",
+            4_242,
+        ));
+
+        for raw in [hub_rx.try_recv().unwrap(), peer_rx.try_recv().unwrap()] {
+            let (origin, seq, data) = sent_clipboard(&raw);
+            assert_eq!(origin, "asus");
+            assert_eq!(seq, 4_242);
+            assert_eq!(data, "bonjour");
+        }
+    }
+
+    /// `hub_clipboard = false` (pas d'upload de blob vers le VPS) ne doit pas
+    /// désactiver le lien direct entre voisins.
+    #[test]
+    fn with_the_hub_relay_off_the_payload_still_reaches_the_peers() {
+        let (hub_tx, mut hub_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (peer_tx, mut peer_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        assert!(send_payload_network(
+            &text_payload("bonjour"),
+            &hub_tx,
+            &Some(peer_tx),
+            false,
+            "asus",
+            7,
+        ));
+
+        assert!(hub_rx.try_recv().is_err());
+        assert_eq!(sent_clipboard(&peer_rx.try_recv().unwrap()).1, 7);
+    }
+
+    #[test]
+    fn sending_fails_when_no_transport_is_left() {
+        let (hub_tx, hub_rx) = tokio::sync::mpsc::unbounded_channel();
+        drop(hub_rx);
+        assert!(!send_payload_network(
+            &text_payload("bonjour"),
+            &hub_tx,
+            &None,
+            true,
+            "asus",
+            7,
+        ));
     }
 
     #[test]
@@ -1830,6 +1795,45 @@ mod tests {
         let (data, mime) = local_write_text("<div>Hello <b>world</b></div>", "text/html", false);
         assert_eq!(mime, "text/plain");
         assert_eq!(data, "Hello world");
+    }
+
+    /// `keep_formatting = true` doit laisser passer le balisage : c'est lui que
+    /// `offer_text_payload` publie ensuite comme cible `text/html`.
+    #[test]
+    fn incoming_html_with_formatting_on_keeps_its_markup() {
+        let html = "<html><body><p>Hello <b>world</b></p></body></html>";
+        let (data, mime) = local_write_text(html, "text/html", true);
+        if xrdp_session_active() {
+            // Sous xrdp on aplatit toujours : Chromium interprète le HTML.
+            assert_eq!(mime, "text/plain");
+        } else {
+            assert_eq!(mime, "text/html");
+            assert_eq!(data, html);
+        }
+    }
+
+    /// Garde-fou de `looks_like_markup` : un fragment isolé (une puce, un mot
+    /// en gras) ne justifie pas d'injecter du HTML dans X11, on l'aplatit.
+    #[test]
+    fn a_tiny_html_fragment_is_flattened_even_with_formatting_on() {
+        let (data, mime) = local_write_text("<div>Hello <b>world</b></div>", "text/html", true);
+        assert_eq!(mime, "text/plain");
+        assert_eq!(data, "Hello world");
+    }
+
+    /// Du texte brut n'est jamais promu en HTML, quelle que soit l'option.
+    #[test]
+    fn plain_text_is_never_turned_into_html_by_the_formatting_option() {
+        let (data, mime) = local_write_text("juste du texte", "text/plain", true);
+        assert_eq!(mime, "text/plain");
+        assert_eq!(data, "juste du texte");
+    }
+
+    /// Un « HTML » sans balise n'a rien à formater : il part en texte brut.
+    #[test]
+    fn html_without_any_markup_is_flattened_even_with_formatting_on() {
+        let (_, mime) = local_write_text("pas de balise ici", "text/html", true);
+        assert_eq!(mime, "text/plain");
     }
 
     #[test]

@@ -10,7 +10,6 @@ use crate::clipboard::{
     clipboard_targets, is_rdp_bmp_only, selections_dead, targets_have_pasteable_image,
 };
 
-static WAS_DEAD: Mutex<bool> = Mutex::new(false);
 static LAST_SNAPSHOT: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_OWNERS: Mutex<Option<(u32, u32)>> = Mutex::new(None);
 static LAST_OWNER_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
@@ -125,38 +124,6 @@ fn summarize_targets(targets: &[String]) -> String {
 
 fn display_env() -> String {
     std::env::var("DISPLAY").unwrap_or_else(|_| "?".into())
-}
-
-/// Log when X11 selections go dead ↔ alive.
-pub async fn log_selection_transition() {
-    let dead = selections_dead().await;
-    let was = match WAS_DEAD.lock() {
-        Ok(g) => *g,
-        Err(_) => false,
-    };
-    if dead == was {
-        return;
-    }
-    if let Ok(mut g) = WAS_DEAD.lock() {
-        *g = dead;
-    }
-    let clip = clipboard_targets("clipboard").await.unwrap_or_default();
-    let pri = clipboard_targets("primary").await.unwrap_or_default();
-    if dead {
-        warn!(
-            "clipboard X11 DEAD display={} clip={} primary={}",
-            display_env(),
-            summarize_targets(&clip),
-            summarize_targets(&pri)
-        );
-    } else {
-        info!(
-            "clipboard X11 alive display={} clip={} primary={}",
-            display_env(),
-            summarize_targets(&clip),
-            summarize_targets(&pri)
-        );
-    }
 }
 
 /// Periodic snapshot while debugging (max once per 30s unless `force`).

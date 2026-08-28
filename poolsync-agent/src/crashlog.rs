@@ -81,7 +81,7 @@ pub fn install() {
             libc::SIGILL,
             libc::SIGFPE,
         ] {
-            libc::signal(sig, handler as libc::sighandler_t);
+            libc::signal(sig, handler as *const () as libc::sighandler_t);
         }
     }
     let _ = std::fs::create_dir_all(crash_dir());

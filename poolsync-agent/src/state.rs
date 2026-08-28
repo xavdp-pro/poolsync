@@ -401,11 +401,6 @@ impl AgentState {
         self.incoming_poll_suppress_active()
     }
 
-    /// Alias legacy.
-    pub fn incoming_apply_grace_active(&self) -> bool {
-        self.incoming_poll_suppress_active()
-    }
-
     pub fn set_connected(&self, value: bool) {
         self.connected.store(value, Ordering::SeqCst);
         if value {
