@@ -308,6 +308,12 @@ async fn clipboard_poll_loop(
     last_clip_hash: Arc<Mutex<String>>,
 ) {
     let poll = Duration::from_millis(state.config.clipboard_poll_ms);
+    // Au démarrage, le presse-papiers contient déjà quelque chose : c'est un
+    // état hérité, pas une copie que l'utilisateur vient de faire. Le diffuser
+    // lui donnerait une horloge fraîche, donc prioritaire, et il écraserait sur
+    // tout le pool une copie réellement plus récente (observé sur gbs-p3 après
+    // un redémarrage). On l'adopte comme référence, sans rien émettre.
+    crate::clipboard::seed_local_baseline(&last_clip_hash, state.keep_formatting()).await;
 
     loop {
         if crate::clipboard::xrdp_session_active_sync() {

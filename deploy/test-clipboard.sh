@@ -4,7 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TOKEN="${POOLSYNC_TOKEN:-4974920bd42233517cf12325a0700ad4}"
+source "$(dirname "$0")/load-env.sh"
+TOKEN="$POOLSYNC_TOKEN"
 HUB_HTTP="${HUB_HTTP:-http://10.24.42.1:9470}"
 HUB_WS="${HUB_WS:-ws://10.24.42.1:9470/ws}"
 if [[ $# -eq 0 ]]; then

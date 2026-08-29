@@ -12,6 +12,7 @@
 tmp/
 
 # Deploy secrets (tokens locaux)
+.env
 deploy/*.local.toml
 deploy/secrets/
 

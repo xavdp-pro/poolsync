@@ -4,7 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TOKEN="4974920bd42233517cf12325a0700ad4"
+source "$(dirname "$0")/load-env.sh"
+TOKEN="$POOLSYNC_TOKEN"
 TARGETS=("acer" "inspiron-gbs")
 
 echo "=== [1/3] Compilation du binaire release universel sur asus ==="

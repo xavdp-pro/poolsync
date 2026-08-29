@@ -1400,6 +1400,26 @@ fn text_is_image_sidecar(text: &str) -> bool {
         || lower.contains("captures d")
 }
 
+/// Adopte le contenu déjà présent au démarrage comme référence, sans l'émettre.
+///
+/// Sans cela, un agent qui redémarre re-détecte le presse-papiers hérité comme
+/// une copie neuve : il lui attribue une horloge courante, donc supérieure à
+/// celle d'une copie faite juste avant ailleurs, et le pool régresse vers un
+/// contenu périmé.
+pub async fn seed_local_baseline(last_clip_hash: &Mutex<String>, keep_formatting: bool) {
+    let Ok(Some(payload)) = read_clipboard_payload_filtered(true, keep_formatting).await else {
+        return;
+    };
+    if let Ok(mut last) = last_clip_hash.lock() {
+        *last = payload.hash.clone();
+    }
+    tracing::info!(
+        "clipboard: état hérité adopté sans diffusion (mime={} bytes={})",
+        payload.mime,
+        payload.wire_data.len()
+    );
+}
+
 /// Détection locale : met à jour le hash, enregistre le cache, retourne true si nouveau contenu.
 pub fn prepare_local_clipboard(
     payload: &ClipboardPayload,
@@ -2020,6 +2040,19 @@ mod tests {
             455_771_100
         ));
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
+    }
+
+    /// Une fois l'état hérité adopté, la même charge n'est plus vue comme une
+    /// copie : c'est ce qui empêche un redémarrage de faire régresser le pool.
+    #[test]
+    fn an_adopted_baseline_is_not_re_detected_as_a_local_copy() {
+        let payload = text_payload("contenu hérité du démarrage");
+        let last = Mutex::new(String::new());
+        // Ce que seed_local_baseline fait du hash.
+        *last.lock().unwrap() = payload.hash.clone();
+        assert!(!prepare_local_clipboard(&payload, &last));
+        // Une vraie copie ultérieure passe toujours.
+        assert!(prepare_local_clipboard(&text_payload("nouvelle copie"), &last));
     }
 
     /// Le cas qui a laissé la tempête continuer : sur une sélection dégradée,
