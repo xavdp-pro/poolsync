@@ -589,6 +589,27 @@ async fn xclip_read_timeout(args: &[&str], limit: Duration) -> Result<std::proce
 }
 
 /// TIMESTAMP X11 (petit) — pas le contenu. Si inchangé, on ne relit pas l'image.
+/// Dernière horloge X11 observée, avec l'instant local correspondant.
+/// Sert d'ancre quand la lecture directe de TIMESTAMP échoue — ce qui arrive
+/// justement sur les sélections dégradées, là où le garde-fou est nécessaire.
+static LAST_SERVER_CLOCK: Mutex<Option<(u64, Instant)>> = Mutex::new(None);
+
+fn note_server_clock(ts: &str) {
+    let Ok(value) = ts.trim().parse::<u64>() else {
+        return;
+    };
+    if let Ok(mut g) = LAST_SERVER_CLOCK.lock() {
+        *g = Some((value, Instant::now()));
+    }
+}
+
+/// Estimation de l'horloge du serveur X maintenant, extrapolée depuis la
+/// dernière valeur lue. `None` tant qu'aucune valeur n'a jamais été observée.
+fn estimated_server_clock() -> Option<u64> {
+    let (value, at) = (*LAST_SERVER_CLOCK.lock().ok()?)?;
+    Some(value.saturating_add(at.elapsed().as_millis() as u64))
+}
+
 async fn clipboard_timestamp() -> Option<String> {
     let output = xclip_read_timeout(
         &["-selection", "clipboard", "-t", "TIMESTAMP", "-o"],
@@ -607,6 +628,7 @@ async fn clipboard_timestamp() -> Option<String> {
     if s.is_empty() || !s.chars().all(|c| c.is_ascii_digit()) {
         return None;
     }
+    note_server_clock(&s);
     Some(s)
 }
 
@@ -783,10 +805,22 @@ pub async fn read_clipboard_payload_filtered(
     // `xclip -t TIMESTAMP -o`. La comparaison est exacte, donc un vrai numéro
     // copié par l'utilisateur (téléphone, référence) n'est jamais rejeté — il
     // faudrait qu'il soit égal à l'horloge X11 de la sélection au même instant.
-    if let (Some(ts), Some(p)) = (ts.as_deref(), payload.as_ref()) {
-        if is_selection_timestamp_echo(&p.mime, &p.wire_data, ts) {
-            tracing::warn!("clipboard: TIMESTAMP X11 lu comme du texte ({ts}) — ignoré");
-            return Ok(None);
+    // La lecture directe de TIMESTAMP échoue précisément sur les sélections
+    // dégradées : se rabattre sur l'horloge estimée, sinon le garde-fou saute
+    // exactement dans le cas qu'il doit couvrir.
+    if let Some(p) = payload.as_ref() {
+        let reference = ts
+            .as_deref()
+            .and_then(|t| t.trim().parse::<u64>().ok())
+            .or_else(estimated_server_clock);
+        if let Some(reference) = reference {
+            if is_server_clock_echo(&p.mime, &p.wire_data, reference) {
+                tracing::warn!(
+                    "clipboard: horloge X11 lue comme du texte ({}, horloge ≈ {reference}) — ignoré",
+                    p.wire_data.trim()
+                );
+                return Ok(None);
+            }
         }
     }
     if payload
@@ -798,9 +832,30 @@ pub async fn read_clipboard_payload_filtered(
     Ok(payload)
 }
 
-/// Le texte lu est-il exactement l'horodatage X11 de la sélection ?
-fn is_selection_timestamp_echo(mime: &str, text: &str, selection_ts: &str) -> bool {
-    !mime.starts_with("image/") && text.trim() == selection_ts
+/// Écart toléré entre le texte lu et l'horodatage de la sélection.
+///
+/// Les deux valeurs viennent de deux appels `xclip` successifs : l'horloge du
+/// serveur X avance entre les deux, donc une égalité stricte laissait passer la
+/// quasi-totalité des cas (c'est ce qui a laissé la tempête du 29/08 continuer).
+const SELECTION_CLOCK_SLACK_MS: u64 = 60_000;
+
+/// Le texte lu est-il l'horodatage X11 de la sélection plutôt qu'un contenu ?
+///
+/// Un vrai nombre copié par l'utilisateur (téléphone, référence, montant) n'est
+/// pas concerné : il faudrait qu'il tombe à moins de 30 s de l'horloge
+/// millisecondes du serveur X au moment précis de la lecture.
+fn is_server_clock_echo(mime: &str, text: &str, reference_clock: u64) -> bool {
+    if mime.starts_with("image/") {
+        return false;
+    }
+    let t = text.trim();
+    if t.len() < 6 || t.len() > 12 || !t.chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
+    let Ok(value) = t.parse::<u64>() else {
+        return false;
+    };
+    value.abs_diff(reference_clock) <= SELECTION_CLOCK_SLACK_MS
 }
 
 async fn read_plain_text_timeout(limit: Duration) -> Option<String> {
@@ -920,6 +975,7 @@ async fn read_clipboard_payload_uncached(
                     .ok()
                     .and_then(|g| g.clone());
                 if already.as_deref() != Some(text.as_str()) {
+                    tracing::debug!("clipboard read source=xrdp-primary");
                     return Ok(Some(ClipboardPayload {
                         mime: "text/plain".into(),
                         wire_data: text.clone(),
@@ -936,6 +992,7 @@ async fn read_clipboard_payload_uncached(
         if crate::clipboard_gtk::recent_image_claim_active() {
             crate::clipboard_gtk::clear_image_claim();
             clear_image_clipboard_epoch();
+            tracing::debug!("clipboard read source=primary-override");
             return Ok(Some(ClipboardPayload {
                 mime: "text/plain".into(),
                 wire_data: text.clone(),
@@ -1074,6 +1131,7 @@ async fn read_clipboard_payload_uncached(
                 {
                     crate::clipboard_gtk::clear_image_claim();
                     clear_image_clipboard_epoch();
+                    tracing::debug!("clipboard read source=gtk-after-bmp");
                     return Ok(Some(ClipboardPayload {
                         mime: "text/plain".into(),
                         wire_data: text.clone(),
@@ -1084,6 +1142,7 @@ async fn read_clipboard_payload_uncached(
                 let _ = crate::clipboard_gtk::reoffer_last_image();
                 return Ok(None);
             }
+            tracing::debug!("clipboard read source=primary-mirror");
             return Ok(Some(ClipboardPayload {
                 mime: "text/plain".into(),
                 wire_data: text.clone(),
@@ -1096,6 +1155,7 @@ async fn read_clipboard_payload_uncached(
         return Ok(Some(img));
     }
     if let Some(text) = plain {
+        tracing::debug!("clipboard read source=clipboard-plain");
         return Ok(Some(ClipboardPayload {
             mime: "text/plain".into(),
             wire_data: text.clone(),
@@ -1104,6 +1164,7 @@ async fn read_clipboard_payload_uncached(
     }
     if !has_image {
         if let Some(text) = stable_primary_text().await {
+            tracing::debug!("clipboard read source=html-fragment");
             return Ok(Some(ClipboardPayload {
                 mime: "text/plain".into(),
                 wire_data: text.clone(),
@@ -1945,30 +2006,51 @@ mod tests {
     /// qui change à chaque sonde et générait donc du contenu neuf à l'infini.
     #[test]
     fn the_selection_timestamp_is_never_synced_as_text() {
-        assert!(is_selection_timestamp_echo(
+        assert!(is_server_clock_echo("text/plain", "452550525", 452550525));
+        assert!(is_server_clock_echo("text/plain", " 452550525\n", 452550525));
+    }
+
+    /// Cas réel du 29/08 : l'horloge avait avancé de 1,3 s entre la lecture de
+    /// TIMESTAMP et celle du texte. L'égalité stricte laissait tout passer.
+    #[test]
+    fn the_clock_moving_between_the_two_xclip_calls_is_still_caught() {
+        assert!(is_server_clock_echo(
             "text/plain",
-            "452550525",
-            "452550525"
+            "455772428",
+            455_771_100
         ));
-        assert!(is_selection_timestamp_echo(
-            "text/plain",
-            " 452550525\n",
-            "452550525"
-        ));
+        assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
+    }
+
+    /// Le cas qui a laissé la tempête continuer : sur une sélection dégradée,
+    /// la lecture de TIMESTAMP échoue, donc le garde-fou n'avait aucune
+    /// référence et laissait passer l'horloge. L'ancre extrapolée la fournit.
+    #[test]
+    fn the_estimated_clock_takes_over_when_timestamp_cannot_be_read() {
+        note_server_clock("700000000");
+        let estimated = estimated_server_clock().expect("ancre posée");
+        assert!(estimated >= 700_000_000);
+        assert!(estimated < 700_060_000, "extrapolation aberrante: {estimated}");
+        assert!(is_server_clock_echo("text/plain", "700000000", estimated));
+    }
+
+    /// Au-delà de la tolérance, c'est un nombre comme un autre : on synchronise.
+    #[test]
+    fn a_number_far_from_the_selection_clock_is_synced_normally() {
+        assert!(!is_server_clock_echo("text/plain", "455772428", 455900000));
+        assert!(!is_server_clock_echo("text/plain", "12345", 12345678));
+        assert!(!is_server_clock_echo("text/plain", "4557724281234", 455772428));
+        assert!(!is_server_clock_echo("text/plain", "455772428abc", 455772428));
     }
 
     /// Un vrai nombre copié par l'utilisateur ne doit pas être confondu : il
     /// faudrait qu'il soit égal à l'horloge X11 de la sélection au même instant.
     #[test]
     fn a_number_copied_by_the_user_is_still_synced() {
-        assert!(!is_selection_timestamp_echo(
-            "text/plain",
-            "451432216",
-            "452550525"
-        ));
-        assert!(!is_selection_timestamp_echo("text/plain", "0612345678", "452550525"));
+        assert!(!is_server_clock_echo("text/plain", "451432216", 452550525));
+        assert!(!is_server_clock_echo("text/plain", "0612345678", 452550525));
         // Une image dont le base64 coïnciderait n'est pas concernée.
-        assert!(!is_selection_timestamp_echo("image/png", "452550525", "452550525"));
+        assert!(!is_server_clock_echo("image/png", "452550525", 452550525));
     }
 
     #[test]

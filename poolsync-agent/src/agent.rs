@@ -337,6 +337,14 @@ async fn clipboard_poll_loop(
                 read_clipboard_payload_filtered(true, state.keep_formatting()).await
             {
                 if prepare_local_clipboard(&payload, &last_clip_hash) {
+                    // Trace de diagnostic : identifier d'où sort une « copie »
+                    // que l'utilisateur n'a pas faite (cf. tempête du 29/08).
+                    info!(
+                        "clipboard local: mime={} bytes={} preview={:?}",
+                        payload.mime,
+                        payload.wire_data.len(),
+                        payload.wire_data.chars().take(40).collect::<String>()
+                    );
                     // Horloge logique de cette copie : elle domine tout ce que
                     // ce nœud a déjà vu, donc un message plus ancien encore en
                     // vol ne pourra plus l'écraser.
