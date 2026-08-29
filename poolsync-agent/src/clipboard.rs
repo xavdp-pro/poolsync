@@ -512,11 +512,13 @@ fn offer_local_image_if_needed(mime: &str, bytes: Vec<u8>, hash: &str) {
 }
 
 async fn stable_primary_text() -> Option<String> {
-    let raw = match read_selection_bytes("primary", "UTF8_STRING").await {
+    let raw = match read_text_selection_bytes("primary", "UTF8_STRING", XCLIP_TEXT_TIMEOUT).await {
         Ok(b) => b,
-        Err(_) => match read_selection_bytes("primary", "STRING").await {
+        Err(_) => match read_text_selection_bytes("primary", "STRING", XCLIP_TEXT_TIMEOUT).await {
             Ok(b) => b,
-            Err(_) => read_selection_bytes("primary", "TEXT").await.ok()?,
+            Err(_) => read_text_selection_bytes("primary", "TEXT", XCLIP_TEXT_TIMEOUT)
+                .await
+                .ok()?,
         },
     };
     if raw.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
@@ -650,6 +652,84 @@ impl Clone for ClipboardPayload {
     }
 }
 
+/// Atomes que le serveur X annonce dans `TARGETS` — jamais du contenu copié.
+const X11_TARGET_ATOMS: &[&str] = &[
+    "TIMESTAMP",
+    "TARGETS",
+    "MULTIPLE",
+    "SAVE_TARGETS",
+    "UTF8_STRING",
+    "STRING",
+    "TEXT",
+    "COMPOUND_TEXT",
+    "DELETE",
+    "INSERT_SELECTION",
+    "INSERT_PROPERTY",
+    "ATOM",
+    "ATOM_PAIR",
+    "INCR",
+    "NULL",
+    "PIXMAP",
+    "OWNER_OS",
+    "HOST_NAME",
+    "USER",
+];
+
+/// Cibles texte que l'on a le droit de demander pour obtenir du *contenu*.
+/// Toute autre cible (TIMESTAMP, TARGETS…) renvoie des métadonnées : les lire
+/// comme du texte, c'est diffuser nos propres sondes dans le pool.
+const X11_TEXT_TARGETS: &[&str] = &[
+    "UTF8_STRING",
+    "STRING",
+    "TEXT",
+    "COMPOUND_TEXT",
+    "text/plain",
+    "text/plain;charset=utf-8",
+    "text/html",
+];
+
+fn is_x11_target_atom(line: &str) -> bool {
+    let l = line.trim();
+    if X11_TARGET_ATOMS.iter().any(|a| a.eq_ignore_ascii_case(l)) {
+        return true;
+    }
+    // Un type MIME annoncé comme cible (`image/png`, `text/plain;charset=utf-8`).
+    !l.is_empty() && !l.contains(char::is_whitespace) && l.contains('/') && l.len() < 64
+}
+
+/// `xclip -t TARGETS -o` renvoie la liste des cibles, une par ligne. Sur un
+/// propriétaire de sélection à moitié mort (annonce des cibles texte mais
+/// refuse de les servir), c'est la seule sonde qui répond — et sa sortie a
+/// déjà été diffusée à tout le pool comme si l'utilisateur l'avait copiée.
+///
+/// On exige deux atomes X11 *connus* : une simple liste de chemins ou de types
+/// MIME copiée par l'utilisateur ne doit pas être confondue avec une sonde.
+pub fn is_target_list_dump(text: &str) -> bool {
+    let lines: Vec<&str> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if lines.len() < 2 {
+        return false;
+    }
+    if !lines.iter().all(|l| is_x11_target_atom(l)) {
+        return false;
+    }
+    let known = lines
+        .iter()
+        .filter(|l| X11_TARGET_ATOMS.iter().any(|a| a.eq_ignore_ascii_case(l)))
+        .count();
+    known >= 2
+}
+
+/// La sélection annonce-t-elle au moins une cible texte ?
+pub fn targets_advertise_text(targets: &[String]) -> bool {
+    targets
+        .iter()
+        .any(|t| X11_TEXT_TARGETS.iter().any(|k| k.eq_ignore_ascii_case(t)))
+}
+
 pub fn targets_have_image(targets: &[String]) -> bool {
     targets.iter().any(|t| t.starts_with("image/"))
 }
@@ -699,6 +779,16 @@ pub async fn read_clipboard_payload_filtered(
     }
 
     let payload = read_clipboard_payload_uncached(allow_images, keep_formatting).await?;
+    // Deuxième sonde diffusée par erreur dans le pool le 29/08 : la valeur de
+    // `xclip -t TIMESTAMP -o`. La comparaison est exacte, donc un vrai numéro
+    // copié par l'utilisateur (téléphone, référence) n'est jamais rejeté — il
+    // faudrait qu'il soit égal à l'horloge X11 de la sélection au même instant.
+    if let (Some(ts), Some(p)) = (ts.as_deref(), payload.as_ref()) {
+        if is_selection_timestamp_echo(&p.mime, &p.wire_data, ts) {
+            tracing::warn!("clipboard: TIMESTAMP X11 lu comme du texte ({ts}) — ignoré");
+            return Ok(None);
+        }
+    }
     if payload
         .as_ref()
         .is_some_and(|p| p.mime.starts_with("image/"))
@@ -708,12 +798,17 @@ pub async fn read_clipboard_payload_filtered(
     Ok(payload)
 }
 
+/// Le texte lu est-il exactement l'horodatage X11 de la sélection ?
+fn is_selection_timestamp_echo(mime: &str, text: &str, selection_ts: &str) -> bool {
+    !mime.starts_with("image/") && text.trim() == selection_ts
+}
+
 async fn read_plain_text_timeout(limit: Duration) -> Option<String> {
-    let raw = match read_selection_bytes_timeout("clipboard", "UTF8_STRING", limit).await {
+    let raw = match read_text_selection_bytes("clipboard", "UTF8_STRING", limit).await {
         Ok(b) => b,
-        Err(_) => match read_selection_bytes_timeout("clipboard", "STRING", limit).await {
+        Err(_) => match read_text_selection_bytes("clipboard", "STRING", limit).await {
             Ok(b) => b,
-            Err(_) => read_selection_bytes_timeout("clipboard", "TEXT", limit).await.ok()?,
+            Err(_) => read_text_selection_bytes("clipboard", "TEXT", limit).await.ok()?,
         },
     };
     if looks_like_image_bytes(&raw) {
@@ -862,6 +957,12 @@ async fn read_clipboard_payload_uncached(
             return Ok(Some(payload));
         }
     }
+    // Idem pour le texte : notre propre offre GTK n'a pas à être relue. Sans
+    // ce garde-fou, une offre qui n'honore pas les demandes de conversion fait
+    // échouer toutes les cibles texte et l'agent se rabat sur les métadonnées.
+    if crate::clipboard_gtk::owns_text_clipboard() {
+        return Ok(None);
+    }
     // We already own this image through the GTK offer. Reading it again calls
     // our own image/png callback every poll (320 KiB × 20/s on p2), creating a
     // SERVE→CAPTURE loop that races xrdp-chansrv and freezes Chromium.
@@ -896,6 +997,13 @@ async fn read_clipboard_payload_uncached(
     }
     let has_image = targets_have_pasteable_image(&targets);
     let plain = read_plain_text().await;
+    // Propriétaire de sélection à moitié mort : il annonce des cibles texte et
+    // refuse de les servir. Seules les sondes (TARGETS, TIMESTAMP) répondent
+    // encore — c'est l'état qui a inondé le pool. Le tracer explicitement, une
+    // ligne de log suffit alors à l'identifier.
+    if plain.is_none() && !has_image && targets_advertise_text(&targets) {
+        note_broken_text_owner(&targets);
+    }
     let mut image_payload = if allow_images && has_image {
         read_image_payload(&targets).await
     } else {
@@ -1304,6 +1412,7 @@ pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
     invalidate_payload_cache();
     if mime == "text/plain" || mime == "text/html" {
         offer_text_payload(data, mime)?;
+        ensure_text_is_actually_served(data, mime).await;
         return Ok(());
     } else if mime.starts_with("image/") {
         let bytes = B64
@@ -1379,6 +1488,48 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
             return Ok(());
         }
         write_selection_text_sync("clipboard", data)
+    }
+}
+
+/// Vérifie que l'offre GTK sert réellement le texte, sinon repasse par xclip.
+///
+/// `try_offer` ne dit que « la demande est partie sur la boucle GTK ». Sur
+/// certaines sessions, l'offre prend bien la sélection puis n'honore aucune
+/// demande de conversion : les applications collent du vide, et l'agent
+/// lui-même ne peut plus relire que TARGETS et TIMESTAMP. Un propriétaire
+/// `xclip` détaché, lui, sert le contenu de façon fiable.
+async fn ensure_text_is_actually_served(data: &str, mime: &str) {
+    // L'offre est appliquée sur la boucle GTK, et sur certaines sessions elle
+    // sert correctement pendant quelques secondes *puis* se dégrade : elle
+    // garde la sélection en n'honorant plus aucune conversion. Une seule
+    // vérification immédiate ne verrait donc rien. On revient plusieurs fois.
+    let mut degraded = false;
+    for delay_ms in [250_u64, 1_500, 4_000] {
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        let targets = clipboard_targets("clipboard").await.unwrap_or_default();
+        if !targets_advertise_text(&targets) {
+            return; // Une image ou un autre propriétaire a pris la main.
+        }
+        if read_plain_text_timeout(XCLIP_TEXT_TIMEOUT).await.is_none() {
+            degraded = true;
+            break;
+        }
+    }
+    if !degraded {
+        return; // L'offre sert bien le texte.
+    }
+    let plain = if mime == "text/html" {
+        html_to_visible_text(data)
+    } else {
+        data.to_string()
+    };
+    tracing::warn!(
+        "clipboard: l'offre GTK a cessé de servir le texte — bascule sur xclip ({} octets)",
+        plain.len()
+    );
+    crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Release);
+    if let Err(err) = write_selection_text_sync("clipboard", &plain) {
+        tracing::warn!("clipboard: bascule xclip échouée: {err:#}");
     }
 }
 
@@ -1554,9 +1705,32 @@ fn run_clipboard_py_script_output(name: &str, stdin_bytes: &[u8]) -> Result<std:
     child.wait_with_output().context("clipboard py wait")
 }
 
+/// Avertissement limité à une fois par minute : l'état peut durer des heures.
+fn note_broken_text_owner(targets: &[String]) {
+    static LAST_WARN: Mutex<Option<Instant>> = Mutex::new(None);
+    let Ok(mut last) = LAST_WARN.lock() else {
+        return;
+    };
+    if last.is_some_and(|at| at.elapsed() < Duration::from_secs(60)) {
+        return;
+    }
+    *last = Some(Instant::now());
+    tracing::warn!(
+        "clipboard: propriétaire de sélection cassé — cibles annoncées ({}) mais aucun texte lisible",
+        targets.join(",")
+    );
+}
+
 fn is_syncable_text(text: &str) -> bool {
     let t = text.trim();
     if t.len() < MIN_TEXT_SYNC_LEN {
+        return false;
+    }
+    if is_target_list_dump(t) {
+        tracing::warn!(
+            "clipboard: sortie de sonde X11 ignorée ({} octets) — propriétaire de sélection cassé",
+            t.len()
+        );
         return false;
     }
     if text.len() > MAX_TEXT_BYTES {
@@ -1650,6 +1824,20 @@ async fn read_selection_bytes(selection: &str, mime: &str) -> Result<Vec<u8>> {
         XCLIP_READ_TIMEOUT
     };
     read_selection_bytes_timeout(selection, mime, limit).await
+}
+
+/// Lecture de *contenu* texte. Refuse toute cible non textuelle : c'est ce
+/// garde-fou qui rend structurellement impossible de renvoyer la sortie d'une
+/// sonde (TARGETS, TIMESTAMP) comme si c'était le presse-papiers.
+async fn read_text_selection_bytes(
+    selection: &str,
+    target: &str,
+    limit: Duration,
+) -> Result<Vec<u8>> {
+    if !X11_TEXT_TARGETS.iter().any(|t| t.eq_ignore_ascii_case(target)) {
+        anyhow::bail!("refus de lire {target} comme du texte");
+    }
+    read_selection_bytes_timeout(selection, target, limit).await
 }
 
 async fn read_selection_bytes_timeout(
@@ -1749,6 +1937,88 @@ mod tests {
             "asus",
             7,
         ));
+    }
+
+    /// Charge réellement capturée dans le pool le 29/08/2026 : la sortie de
+    /// `xclip -t TARGETS -o` d'acer, diffusée à tous les nœuds comme du texte.
+    /// Seconde charge capturée le 29/08 : la valeur de `xclip -t TIMESTAMP -o`,
+    /// qui change à chaque sonde et générait donc du contenu neuf à l'infini.
+    #[test]
+    fn the_selection_timestamp_is_never_synced_as_text() {
+        assert!(is_selection_timestamp_echo(
+            "text/plain",
+            "452550525",
+            "452550525"
+        ));
+        assert!(is_selection_timestamp_echo(
+            "text/plain",
+            " 452550525\n",
+            "452550525"
+        ));
+    }
+
+    /// Un vrai nombre copié par l'utilisateur ne doit pas être confondu : il
+    /// faudrait qu'il soit égal à l'horloge X11 de la sélection au même instant.
+    #[test]
+    fn a_number_copied_by_the_user_is_still_synced() {
+        assert!(!is_selection_timestamp_echo(
+            "text/plain",
+            "451432216",
+            "452550525"
+        ));
+        assert!(!is_selection_timestamp_echo("text/plain", "0612345678", "452550525"));
+        // Une image dont le base64 coïnciderait n'est pas concernée.
+        assert!(!is_selection_timestamp_echo("image/png", "452550525", "452550525"));
+    }
+
+    #[test]
+    fn the_targets_dump_that_flooded_the_pool_is_recognised() {
+        let acer = "TIMESTAMP\nTARGETS\nUTF8_STRING\nSTRING";
+        assert!(is_target_list_dump(acer));
+        assert!(!is_syncable_text(acer));
+    }
+
+    #[test]
+    fn a_longer_targets_dump_with_mime_targets_is_recognised_too() {
+        let dump = "TIMESTAMP\nTARGETS\nMULTIPLE\nUTF8_STRING\nSTRING\nTEXT\ntext/plain\ntext/plain;charset=utf-8";
+        assert!(is_target_list_dump(dump));
+    }
+
+    /// Le garde-fou ne doit pas manger du vrai contenu : deux chemins, une
+    /// liste de types MIME écrite par l'utilisateur, une seule ligne.
+    #[test]
+    fn ordinary_multiline_text_is_never_taken_for_a_probe_dump() {
+        assert!(!is_target_list_dump("src/main.rs\nsrc/lib.rs"));
+        assert!(!is_target_list_dump("image/png\nimage/jpeg"));
+        assert!(!is_target_list_dump("TARGETS"));
+        assert!(!is_target_list_dump("bonjour\nle monde"));
+        assert!(!is_target_list_dump(""));
+    }
+
+    /// Un seul atome connu ne suffit pas : « STRING » peut apparaître dans du
+    /// code copié à côté d'un chemin.
+    #[test]
+    fn a_single_known_atom_next_to_a_path_is_not_a_probe_dump() {
+        assert!(!is_target_list_dump("STRING\nsrc/main.rs"));
+    }
+
+    #[test]
+    fn only_text_targets_may_be_read_as_content() {
+        for good in ["UTF8_STRING", "STRING", "TEXT", "text/plain"] {
+            assert!(X11_TEXT_TARGETS.iter().any(|t| t.eq_ignore_ascii_case(good)));
+        }
+        // Les deux sondes qui ont inondé le pool ne sont pas des cibles texte.
+        for probe in ["TIMESTAMP", "TARGETS"] {
+            assert!(!X11_TEXT_TARGETS.iter().any(|t| t.eq_ignore_ascii_case(probe)));
+        }
+    }
+
+    #[test]
+    fn a_half_dead_owner_advertising_text_is_detected() {
+        let advertised = targets(&["TIMESTAMP", "TARGETS", "UTF8_STRING", "STRING"]);
+        assert!(targets_advertise_text(&advertised));
+        // Une sélection qui n'annonce que des métadonnées n'a rien de textuel.
+        assert!(!targets_advertise_text(&targets(&["TIMESTAMP", "TARGETS"])));
     }
 
     #[test]

@@ -45,6 +45,16 @@ pub async fn apply_incoming_clipboard(
         );
         return Ok(());
     }
+    // Un pair encore sur l'ancien binaire peut diffuser la sortie de ses propres
+    // sondes X11 (liste de cibles) comme si c'était une copie. Ne jamais
+    // l'appliquer : sinon un nœud corrigé se fait re-polluer par le pool.
+    if !mime.starts_with("image/") && crate::clipboard::is_target_list_dump(data) {
+        tracing::warn!(
+            "ignore sortie de sonde X11 reçue de {source_node} ({} octets)",
+            data.len()
+        );
+        return Ok(());
+    }
     // Ordre total : rejette d'un coup le message périmé (une copie locale ou
     // distante plus récente est déjà appliquée), notre propre écho revenu par
     // le mesh, et le doublon hub + pair — sans aucune minuterie.

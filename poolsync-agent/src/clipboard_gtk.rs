@@ -29,6 +29,9 @@ static LAST_PNG: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 static LAST_REOFFER: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_IMAGE_CLAIM_AT: Mutex<Option<Instant>> = Mutex::new(None);
 static IMAGE_OWNER: AtomicU32 = AtomicU32::new(0);
+/// Fenêtre X11 propriétaire de CLIPBOARD après *notre* offre de texte.
+/// Symétrique de `IMAGE_OWNER` : sans elle, l'agent relit son propre texte.
+static TEXT_OWNER: AtomicU32 = AtomicU32::new(0);
 
 pub fn current_clipboard_owner() -> u32 {
     use x11rb::protocol::xproto::ConnectionExt;
@@ -51,6 +54,19 @@ pub fn current_clipboard_owner() -> u32 {
 /// clipboard. Unlike the 45s keepalive timer, this remains exact indefinitely.
 pub fn owns_image_clipboard() -> bool {
     let expected = IMAGE_OWNER.load(Ordering::SeqCst);
+    expected != 0 && current_clipboard_owner() == expected
+}
+
+/// Le texte actuellement dans CLIPBOARD est-il notre propre offre GTK ?
+///
+/// Notre propriétaire GTK annonce UTF8_STRING/STRING mais ne répond pas
+/// toujours aux demandes de conversion venant de `xclip` : la lecture échoue
+/// alors sur toutes les cibles texte, et seules les métadonnées (TARGETS,
+/// TIMESTAMP) répondent encore. C'est ainsi que la sortie de nos propres
+/// sondes s'est retrouvée diffusée dans tout le pool. On ne relit donc jamais
+/// notre propre offre : on sait déjà ce qu'elle contient.
+pub fn owns_text_clipboard() -> bool {
+    let expected = TEXT_OWNER.load(Ordering::SeqCst);
     expected != 0 && current_clipboard_owner() == expected
 }
 
@@ -187,6 +203,10 @@ fn apply_offer(offer: ClipboardOffer) {
             // (stale URL). Mirror text on both selections.
             let ok_clip = set_text_only(&clip, text.clone());
             let _ = set_text_only(&primary, text);
+            TEXT_OWNER.store(
+                if ok_clip { current_clipboard_owner() } else { 0 },
+                Ordering::SeqCst,
+            );
             if !ok_clip {
                 tracing::warn!("gtk clipboard set_with_data failed — text not owned by agent");
             }
@@ -197,12 +217,18 @@ fn apply_offer(offer: ClipboardOffer) {
                 *last = None;
             }
             clear_image_claim();
-            if !set_text_and_html(&clip, plain.clone(), html) {
+            let ok_html = set_text_and_html(&clip, plain.clone(), html);
+            TEXT_OWNER.store(
+                if ok_html { current_clipboard_owner() } else { 0 },
+                Ordering::SeqCst,
+            );
+            if !ok_html {
                 tracing::warn!("gtk clipboard set_with_data failed — html not owned by agent");
             }
             let _ = set_text_only(&primary, plain);
         }
         ClipboardOffer::Image { mime, bytes } => {
+            TEXT_OWNER.store(0, Ordering::SeqCst);
             // Ctrl+V falls back to PRIMARY when CLIPBOARD has no UTF8 → old text.
             primary.clear();
             if !set_image_png_bmp(&clip, &mime, bytes) {
@@ -212,6 +238,7 @@ fn apply_offer(offer: ClipboardOffer) {
             }
         }
         ClipboardOffer::Release => {
+            TEXT_OWNER.store(0, Ordering::SeqCst);
             IMAGE_OWNER.store(0, Ordering::SeqCst);
             if let Ok(mut last) = LAST_PNG.lock() {
                 *last = None;
