@@ -36,6 +36,11 @@ static TEXT_OWNER: AtomicU32 = AtomicU32::new(0);
 /// sélection. C'est le seul signal fiable qu'un collage est en cours : X11 ne
 /// dit pas « je colle », mais il vient chercher la donnée chez le propriétaire.
 static LAST_SERVE_AT: Mutex<Option<Instant>> = Mutex::new(None);
+/// Nombre de lectures que l'agent fait lui-même en ce moment (xclip interne).
+/// Nos propres lectures passent par le même rappel GTK que celles des autres
+/// applications : sans ce compteur, l'agent se prend pour un collage en cours
+/// et diffère ses écritures pour rien.
+static INTERNAL_READS: AtomicU32 = AtomicU32::new(0);
 
 pub fn current_clipboard_owner() -> u32 {
     use x11rb::protocol::xproto::ConnectionExt;
@@ -58,8 +63,27 @@ pub fn current_clipboard_owner() -> u32 {
 /// clipboard. Unlike the 45s keepalive timer, this remains exact indefinitely.
 /// Appelé depuis les rappels GTK quand un client vient lire notre sélection.
 fn note_selection_served() {
+    if INTERNAL_READS.load(Ordering::SeqCst) > 0 {
+        return; // c'est nous qui lisons : ce n'est pas un collage utilisateur
+    }
     if let Ok(mut g) = LAST_SERVE_AT.lock() {
         *g = Some(Instant::now());
+    }
+}
+
+/// Garde RAII : marque la durée d'une lecture faite par l'agent lui-même.
+pub struct InternalRead;
+
+impl InternalRead {
+    pub fn begin() -> Self {
+        INTERNAL_READS.fetch_add(1, Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for InternalRead {
+    fn drop(&mut self) {
+        INTERNAL_READS.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -136,6 +160,56 @@ pub fn image_claim_debug_state() -> (bool, usize) {
         .and_then(|last| last.as_ref().map(Vec::len))
         .unwrap_or(0);
     (active, bytes)
+}
+
+#[cfg(test)]
+mod internal_read_tests {
+    use super::*;
+
+    /// Ces tests manipulent des états globaux ; les sérialiser évite qu'ils se
+    /// marchent dessus quand cargo les exécute en parallèle.
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Nos propres lectures xclip passent par le même rappel GTK que celles des
+    /// applications. Sans le compteur, l'agent se prenait lui-même pour un
+    /// collage en cours et différait ses écritures pour rien (observé le 29/08 :
+    /// « écriture après 909 ms d'attente — lectures continues »).
+    #[test]
+    fn our_own_reads_are_ignored_but_a_real_application_read_is_seen() {
+        let _serial = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        *LAST_SERVE_AT.lock().unwrap() = None;
+
+        {
+            let _internal = InternalRead::begin();
+            note_selection_served();
+        }
+        assert!(
+            !selection_served_recently(Duration::from_secs(5)),
+            "une lecture interne ne doit pas ressembler à un collage"
+        );
+
+        note_selection_served();
+        assert!(
+            selection_served_recently(Duration::from_secs(5)),
+            "une vraie lecture applicative doit rester détectée"
+        );
+        *LAST_SERVE_AT.lock().unwrap() = None;
+    }
+
+    #[test]
+    fn nested_internal_reads_restore_the_counter() {
+        let _serial = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(INTERNAL_READS.load(Ordering::SeqCst), 0);
+        {
+            let _outer = InternalRead::begin();
+            {
+                let _inner = InternalRead::begin();
+                assert_eq!(INTERNAL_READS.load(Ordering::SeqCst), 2);
+            }
+            assert_eq!(INTERNAL_READS.load(Ordering::SeqCst), 1);
+        }
+        assert_eq!(INTERNAL_READS.load(Ordering::SeqCst), 0);
+    }
 }
 
 #[cfg(test)]

@@ -599,6 +599,10 @@ fn note_gtk_read_attempt() {
 /// Lance `xclip` en lecture avec timeout. `kill_on_drop` garantit qu'un xclip
 /// bloqué est tué (pas d'accumulation de processus zombies figés).
 async fn xclip_read_timeout(args: &[&str], limit: Duration) -> Result<std::process::Output> {
+    // Marquer la lecture comme interne : elle passe par le même rappel GTK que
+    // celle d'une application qui colle, et serait sinon prise pour un collage
+    // en cours — l'agent différerait alors ses propres écritures pour rien.
+    let _internal = crate::clipboard_gtk::InternalRead::begin();
     let child = Command::new("xclip")
         .args(args)
         .stdin(Stdio::null())
