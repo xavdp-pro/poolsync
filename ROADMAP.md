@@ -23,6 +23,43 @@ in the Agent local tab; optional snap-to-edge polish.
 
 ---
 
+## v2 — chiffrer les communications entre machines
+
+Décidé le 29/08/2026, à la suite de la fuite du token du pool sur le dépôt
+public (rotation effectuée, cf. `docs/tempete-presse-papiers-2026-08-29.md`).
+
+Aujourd'hui tout circule **en clair** entre les nœuds : le presse-papiers
+(texte *et* images) et les événements clavier/souris du KVM voyagent en
+WebSocket non chiffré, et le token d'authentification est passé en **paramètre
+d'URL** (`?token=…`), donc écrit tel quel dans les journaux d'accès du hub.
+
+La confidentialité repose donc entièrement sur le fait que le pool tourne
+au-dessus de WireGuard. C'est acceptable tant que c'est vrai, mais :
+
+- un nœud joignable hors VPN expose tout le contenu copié à qui écoute ;
+- le token, une fois vu dans un log ou une capture, donne un accès complet ;
+- l'authentification est un secret **partagé** : impossible de révoquer une
+  seule machine sans changer le token de tout le pool (ce qu'on vient de faire,
+  et qui demande de toucher au hub plus aux quatre agents).
+
+Pistes à trancher au moment de l'implémentation :
+
+- **TLS sur le lien** (`wss://`) pour le hub comme pour le maillage direct,
+  avec des certificats propres au pool. Simple, éprouvé, mais ne protège pas
+  d'un hub compromis : celui-ci voit tout en clair.
+- **Chiffrement de bout en bout de la charge utile** — le hub ne relaie que
+  des blobs opaques et ne peut plus rien lire, ce qui vaut aussi pour son
+  historique presse-papiers. Demande une gestion de clés entre nœuds.
+- **Identité par nœud** (une clé par machine plutôt qu'un secret partagé),
+  pour pouvoir révoquer une machine seule.
+- Sortir le token de l'URL dans tous les cas, vers un en-tête ou une poignée
+  de main applicative.
+
+Le chiffrement de bout en bout est le seul qui rende la fuite d'un secret
+non catastrophique ; c'est la direction à privilégier si le coût le permet.
+
+---
+
 ## Later ideas
 
 - Mouse wheel (`MouseWheel`) in KVM grab (`kvm_input.rs`)
