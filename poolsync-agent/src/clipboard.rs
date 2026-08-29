@@ -109,7 +109,7 @@ pub async fn selections_dead() -> bool {
 
 /// Stable PRIMARY text that is a real user copy (not screenshot path sidecar).
 async fn primary_user_text_override() -> Option<String> {
-    if xrdp_session_active() && primary_owner_is_browser() {
+    if xrdp_session_active() && primary_owner_is_chromium_based() {
         return None;
     }
     let text = stable_primary_text().await?;
@@ -126,12 +126,12 @@ pub async fn maintain_xrdp_clipboard_fixup() {
         return;
     }
     // Rewriting CLIPBOARD while Chromium owns it freezes the tab ("Attendre / Quitter").
-    if clipboard_owner_is_browser() {
+    if clipboard_owner_is_chromium_based() {
         return;
     }
     // Selecting text in Chrome changes PRIMARY without being a Ctrl+C. Never
     // mirror that selection into CLIPBOARD: ownership churn freezes Chromium.
-    if primary_owner_is_browser() {
+    if primary_owner_is_chromium_based() {
         return;
     }
     // xrdp-chansrv strips image/png within seconds — keep PNG alive for Ctrl+V.
@@ -248,15 +248,15 @@ fn xrdp_session_active_scan() -> bool {
     false
 }
 
-fn clipboard_owner_is_browser() -> bool {
-    selection_owner_is_browser(b"CLIPBOARD")
+fn clipboard_owner_is_chromium_based() -> bool {
+    selection_owner_is_chromium_based(b"CLIPBOARD")
 }
 
-fn primary_owner_is_browser() -> bool {
-    selection_owner_is_browser(b"PRIMARY")
+fn primary_owner_is_chromium_based() -> bool {
+    selection_owner_is_chromium_based(b"PRIMARY")
 }
 
-fn selection_owner_is_browser(selection: &[u8]) -> bool {
+fn selection_owner_is_chromium_based(selection: &[u8]) -> bool {
     use x11rb::protocol::xproto::ConnectionExt;
     let Ok((conn, _)) = x11rb::connect(None) else {
         return false;
@@ -276,10 +276,10 @@ fn selection_owner_is_browser(selection: &[u8]) -> bool {
     if owner.owner == 0 {
         return false;
     }
-    wm_class_looks_like_browser(&conn, owner.owner)
+    wm_class_is_chromium_based(&conn, owner.owner)
 }
 
-fn wm_class_looks_like_browser(
+fn wm_class_is_chromium_based(
     conn: &x11rb::rust_connection::RustConnection,
     mut current: x11rb::protocol::xproto::Window,
 ) -> bool {
@@ -294,7 +294,7 @@ fn wm_class_looks_like_browser(
             break;
         };
         if let Ok(reply) = cookie.reply() {
-            if browser_identity_looks_like(&reply.value) {
+            if chromium_based_identity(&reply.value) {
                 return true;
             }
         }
@@ -306,7 +306,7 @@ fn wm_class_looks_like_browser(
             break;
         };
         if let Ok(reply) = name_cookie.reply() {
-            if browser_identity_looks_like(&reply.value) {
+            if chromium_based_identity(&reply.value) {
                 return true;
             }
         }
@@ -324,13 +324,38 @@ fn wm_class_looks_like_browser(
     false
 }
 
-fn browser_identity_looks_like(raw: &[u8]) -> bool {
+/// Applications bâties sur Chromium dont le `WM_CLASS` ne contient ni « chrom »
+/// ni « electron » : c'est le cas de VSCode (`code`) et de Cursor (`cursor`),
+/// donc des deux éditeurs qui gelaient au collage. Comparaison jeton par jeton,
+/// pour ne pas confondre « code » avec un « barcode-scanner ».
+const CHROMIUM_BASED_CLASSES: &[&str] = &[
+    "code",
+    "code-oss",
+    "codium",
+    "vscodium",
+    "cursor",
+    "windsurf",
+    "slack",
+    "discord",
+    "signal",
+    "obsidian",
+    "postman",
+    "spotify",
+];
+
+fn chromium_based_identity(raw: &[u8]) -> bool {
     let name = String::from_utf8_lossy(raw).to_ascii_lowercase();
-    name.contains("chrom")
+    if name.contains("chrom")
         || name.contains("firefox")
         || name.contains("navigator")
         || name.contains("brave")
         || name.contains("electron")
+    {
+        return true;
+    }
+    // WM_CLASS = deux chaînes séparées par NUL (« code\0Code\0 »).
+    name.split(|c: char| c == '\0' || c.is_whitespace())
+        .any(|token| CHROMIUM_BASED_CLASSES.contains(&token))
 }
 
 fn mirror_text_to_selections(text: &str) -> bool {
@@ -355,7 +380,7 @@ fn mirror_text_to_selections(text: &str) -> bool {
 
 /// xrdp/XFCE: copy lands on PRIMARY, CLIPBOARD stays empty → Ctrl+V fails.
 pub async fn mirror_primary_to_clipboard_if_needed() {
-    if xrdp_session_active() && primary_owner_is_browser() {
+    if xrdp_session_active() && primary_owner_is_chromium_based() {
         return;
     }
     let pri_text = if xrdp_session_active() {
@@ -414,7 +439,7 @@ pub async fn mirror_primary_to_clipboard_if_needed() {
     }
 
     if xrdp_session_active() {
-        if clip_text.is_some() && clipboard_owner_is_browser() {
+        if clip_text.is_some() && clipboard_owner_is_chromium_based() {
             return;
         }
     } else if clip_text.is_some() {
@@ -967,7 +992,7 @@ async fn read_clipboard_payload_uncached(
 ) -> Result<Option<ClipboardPayload>> {
     // xrdp Ctrl+C often never hits CLIPBOARD. A *new* PRIMARY selection must
     // enter the PoolSync buffer even if CLIPBOARD still holds an older copy.
-    if xrdp_session_active() && !primary_owner_is_browser() {
+    if xrdp_session_active() && !primary_owner_is_chromium_based() {
         if let Some(text) = stable_primary_text().await {
             if !text_is_image_sidecar(&text) {
                 let already = LAST_PRIMARY_APPLIED
@@ -1490,6 +1515,7 @@ pub fn send_payload_network(
 }
 
 pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
+    defer_write_while_paste_in_flight(mime).await;
     invalidate_payload_cache();
     if mime == "text/plain" || mime == "text/html" {
         offer_text_payload(data, mime)?;
@@ -1570,6 +1596,44 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
         }
         write_selection_text_sync("clipboard", data)
     }
+}
+
+/// Fenêtre pendant laquelle une lecture récente signale un collage en cours.
+const PASTE_IN_FLIGHT_WINDOW: Duration = Duration::from_millis(300);
+/// Report maximal avant d'écrire quand même : une copie entrante doit finir par
+/// arriver, même si l'application d'en face lit la sélection en continu.
+const PASTE_DEFER_MAX: Duration = Duration::from_millis(900);
+const PASTE_DEFER_STEP: Duration = Duration::from_millis(100);
+
+/// Diffère la prise de sélection tant qu'une application est en train de lire.
+///
+/// Le 29/08, VSCode s'est figé (« CodeWindow unresponsive ») au moment précis
+/// où une copie venue d'asus faisait changer le propriétaire de CLIPBOARD :
+/// Chromium lit la sélection de façon synchrone, et se la faire retirer en
+/// plein transfert bloque sa fenêtre. GTK nous signale ces lectures, puisque
+/// c'est nous qu'on vient servir : tant qu'elles sont fraîches, on attend.
+///
+/// L'attente est bornée : passé `PASTE_DEFER_MAX`, on écrit quand même, sinon
+/// une application qui lit en boucle empêcherait toute synchronisation.
+async fn defer_write_while_paste_in_flight(mime: &str) {
+    if !crate::clipboard_gtk::selection_served_recently(PASTE_IN_FLIGHT_WINDOW) {
+        return;
+    }
+    let started = Instant::now();
+    while started.elapsed() < PASTE_DEFER_MAX {
+        tokio::time::sleep(PASTE_DEFER_STEP).await;
+        if !crate::clipboard_gtk::selection_served_recently(PASTE_IN_FLIGHT_WINDOW) {
+            tracing::info!(
+                "clipboard: écriture différée de {} ms — collage terminé (mime={mime})",
+                started.elapsed().as_millis()
+            );
+            return;
+        }
+    }
+    tracing::info!(
+        "clipboard: écriture après {} ms d'attente — lectures continues (mime={mime})",
+        started.elapsed().as_millis()
+    );
 }
 
 /// Vérifie que l'offre GTK sert réellement le texte, sinon repasse par xclip.
@@ -2042,6 +2106,45 @@ mod tests {
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
     }
 
+    /// Le trou qui a laissé VSCode geler : son WM_CLASS ne contient ni
+    /// « chrom » ni « electron », il échappait donc à toutes les protections.
+    #[test]
+    fn vscode_and_cursor_are_recognised_as_chromium_based() {
+        assert!(chromium_based_identity(b"code\0Code\0"));
+        assert!(chromium_based_identity(b"cursor\0Cursor\0"));
+        assert!(chromium_based_identity(b"Code\0Code\0"));
+    }
+
+    #[test]
+    fn the_families_already_covered_stay_covered() {
+        assert!(chromium_based_identity(b"google-chrome\0Google-chrome\0"));
+        assert!(chromium_based_identity(b"Navigator\0Firefox\0"));
+        assert!(chromium_based_identity(b"Chromium clipboard"));
+        assert!(chromium_based_identity(b"electron\0Electron\0"));
+    }
+
+    /// La comparaison est faite jeton par jeton : un nom qui *contient* « code »
+    /// sans être Chromium ne doit pas être pris pour un éditeur.
+    #[test]
+    fn a_class_merely_containing_a_short_name_is_not_matched() {
+        assert!(!chromium_based_identity(b"barcode-scanner\0Barcode-scanner\0"));
+        assert!(!chromium_based_identity(b"xterm\0XTerm\0"));
+        assert!(!chromium_based_identity(b"Thunar\0Thunar\0"));
+        assert!(!chromium_based_identity(b"poolsync-agent\0Poolsync-agent\0"));
+        assert!(!chromium_based_identity(b""));
+    }
+
+    /// Le report est borné : une application qui lit en boucle ne doit pas
+    /// pouvoir bloquer indéfiniment la synchronisation du pool.
+    #[test]
+    fn the_paste_defer_is_bounded() {
+        assert!(PASTE_DEFER_MAX <= Duration::from_secs(1));
+        assert!(PASTE_DEFER_STEP < PASTE_DEFER_MAX);
+        // La fenêtre de détection doit être plus courte que l'attente totale,
+        // sinon la condition de sortie ne peut jamais devenir fausse.
+        assert!(PASTE_IN_FLIGHT_WINDOW < PASTE_DEFER_MAX);
+    }
+
     /// Une fois l'état hérité adopté, la même charge n'est plus vue comme une
     /// copie : c'est ce qui empêche un redémarrage de faire régresser le pool.
     #[test]
@@ -2161,10 +2264,10 @@ mod tests {
 
     #[test]
     fn chromium_clipboard_window_without_wm_class_is_detected() {
-        assert!(browser_identity_looks_like(b"Chromium clipboard"));
-        assert!(browser_identity_looks_like(b"google-chrome"));
-        assert!(browser_identity_looks_like(b"Electron clipboard"));
-        assert!(!browser_identity_looks_like(b"xfce4-terminal"));
+        assert!(chromium_based_identity(b"Chromium clipboard"));
+        assert!(chromium_based_identity(b"google-chrome"));
+        assert!(chromium_based_identity(b"Electron clipboard"));
+        assert!(!chromium_based_identity(b"xfce4-terminal"));
     }
 
     #[test]

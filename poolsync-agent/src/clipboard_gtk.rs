@@ -32,6 +32,10 @@ static IMAGE_OWNER: AtomicU32 = AtomicU32::new(0);
 /// Fenêtre X11 propriétaire de CLIPBOARD après *notre* offre de texte.
 /// Symétrique de `IMAGE_OWNER` : sans elle, l'agent relit son propre texte.
 static TEXT_OWNER: AtomicU32 = AtomicU32::new(0);
+/// Dernière fois qu'une application nous a *demandé* le contenu de la
+/// sélection. C'est le seul signal fiable qu'un collage est en cours : X11 ne
+/// dit pas « je colle », mais il vient chercher la donnée chez le propriétaire.
+static LAST_SERVE_AT: Mutex<Option<Instant>> = Mutex::new(None);
 
 pub fn current_clipboard_owner() -> u32 {
     use x11rb::protocol::xproto::ConnectionExt;
@@ -52,6 +56,27 @@ pub fn current_clipboard_owner() -> u32 {
 
 /// True only while the X11 selection is still the image offered by our GTK
 /// clipboard. Unlike the 45s keepalive timer, this remains exact indefinitely.
+/// Appelé depuis les rappels GTK quand un client vient lire notre sélection.
+fn note_selection_served() {
+    if let Ok(mut g) = LAST_SERVE_AT.lock() {
+        *g = Some(Instant::now());
+    }
+}
+
+/// Une application a-t-elle lu notre sélection dans les `window` dernières ms ?
+///
+/// Chromium — donc VSCode, Cursor, Slack — fait cette lecture de façon
+/// synchrone : lui retirer la sélection en plein transfert laisse sa fenêtre
+/// bloquée (« CodeWindow unresponsive »). Tant que la réponse est fraîche, un
+/// collage est probablement en cours et il ne faut pas toucher à la sélection.
+pub fn selection_served_recently(window: Duration) -> bool {
+    LAST_SERVE_AT
+        .lock()
+        .ok()
+        .and_then(|g| *g)
+        .is_some_and(|at| at.elapsed() < window)
+}
+
 pub fn owns_image_clipboard() -> bool {
     let expected = IMAGE_OWNER.load(Ordering::SeqCst);
     expected != 0 && current_clipboard_owner() == expected
@@ -265,6 +290,7 @@ fn set_text_and_html(clip: &Clipboard, plain: String, html: String) -> bool {
         TargetEntry::new("text/plain;charset=utf-8", TargetFlags::empty(), INFO_TEXT),
     ];
     clip.set_with_data(&targets, move |_cb, selection, info| {
+        note_selection_served();
         if info == INFO_HTML {
             selection.set(&gdk::Atom::intern("text/html"), 8, html.as_bytes());
         } else if info == INFO_TEXT {
@@ -282,6 +308,7 @@ fn set_text_only(clip: &Clipboard, text: String) -> bool {
         TargetEntry::new("text/plain;charset=utf-8", TargetFlags::empty(), INFO_TEXT),
     ];
     clip.set_with_data(&targets, move |_cb, selection, info| {
+        note_selection_served();
         if info == INFO_TEXT {
             selection.set_text(&text);
         }
@@ -325,6 +352,7 @@ fn set_image_png_bmp(clip: &Clipboard, mime: &str, bytes: Vec<u8>) -> bool {
         ]);
     }
     clip.set_with_data(&targets, move |_cb, selection, info| {
+        note_selection_served();
         if info == INFO_PNG {
             tracing::info!(
                 "image-trace SERVE id={} target=image/png bytes={}",
