@@ -17,8 +17,19 @@ pub const IMAGE_CLAIM_KEEPALIVE: Duration = Duration::from_secs(45);
 
 #[derive(Clone)]
 pub enum ClipboardOffer {
-    Text(String),
-    Rich { plain: String, html: String },
+    /// `mirror_primary` : recopier aussi le texte dans PRIMARY.
+    ///
+    /// Utile sur un bureau classique (Ctrl+V se rabat parfois sur PRIMARY),
+    /// mais à proscrire sur les sessions xrdp : y réécrire PRIMARY entre en
+    /// concurrence avec la sélection souris de l'utilisateur et avec
+    /// xrdp-chansrv, ce qui fait vaciller la propriété de la sélection sous
+    /// les doigts de Chromium — donc VSCode et Chrome qui se figent au collage.
+    Text { text: String, mirror_primary: bool },
+    Rich {
+        plain: String,
+        html: String,
+        mirror_primary: bool,
+    },
     Image { mime: String, bytes: Vec<u8> },
     /// Drop GTK ownership so the native X11 clipboard can work (PoolSync sync OFF).
     Release,
@@ -292,7 +303,10 @@ fn apply_offer(offer: ClipboardOffer) {
         .unwrap_or_else(|| Clipboard::get(&gdk::SELECTION_CLIPBOARD));
     let primary = Clipboard::get(&gdk::SELECTION_PRIMARY);
     match offer {
-        ClipboardOffer::Text(text) => {
+        ClipboardOffer::Text {
+            text,
+            mirror_primary,
+        } => {
             IMAGE_OWNER.store(0, Ordering::SeqCst);
             if let Ok(mut last) = LAST_PNG.lock() {
                 *last = None;
@@ -301,7 +315,9 @@ fn apply_offer(offer: ClipboardOffer) {
             // xrdp / Chrome Ctrl+V: CLIPBOARD without UTF8 falls back to PRIMARY
             // (stale URL). Mirror text on both selections.
             let ok_clip = set_text_only(&clip, text.clone());
-            let _ = set_text_only(&primary, text);
+            if mirror_primary {
+                let _ = set_text_only(&primary, text);
+            }
             TEXT_OWNER.store(
                 if ok_clip { current_clipboard_owner() } else { 0 },
                 Ordering::SeqCst,
@@ -310,7 +326,11 @@ fn apply_offer(offer: ClipboardOffer) {
                 tracing::warn!("gtk clipboard set_with_data failed — text not owned by agent");
             }
         }
-        ClipboardOffer::Rich { plain, html } => {
+        ClipboardOffer::Rich {
+            plain,
+            html,
+            mirror_primary,
+        } => {
             IMAGE_OWNER.store(0, Ordering::SeqCst);
             if let Ok(mut last) = LAST_PNG.lock() {
                 *last = None;
@@ -324,7 +344,9 @@ fn apply_offer(offer: ClipboardOffer) {
             if !ok_html {
                 tracing::warn!("gtk clipboard set_with_data failed — html not owned by agent");
             }
-            let _ = set_text_only(&primary, plain);
+            if mirror_primary {
+                let _ = set_text_only(&primary, plain);
+            }
         }
         ClipboardOffer::Image { mime, bytes } => {
             TEXT_OWNER.store(0, Ordering::SeqCst);

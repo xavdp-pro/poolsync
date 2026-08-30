@@ -369,7 +369,10 @@ fn mirror_text_to_selections(text: &str) -> bool {
             return true;
         }
     }
-    if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text(text.to_string())) {
+    if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text {
+        text: text.to_string(),
+        mirror_primary: !xrdp_session_active(),
+    }) {
         if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
             *g = Some(text.to_string());
         }
@@ -1574,17 +1577,16 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
     // p2, l'écriture xclip ne traverse pas apply_offer(Text), donc il faut
     // invalider explicitement le keepalive GTK avant de rendre la sélection.
     crate::clipboard_gtk::discard_last_image();
-    // The GTK clipboard owner rewrites PRIMARY as well as CLIPBOARD.  Under
-    // XRDP that can race Chromium/VS Code and make the application crash.
-    // Keep the selection in the small xclip owner process instead.
-    if xrdp_session_active() {
-        let plain = if mime == "text/html" {
-            html_to_visible_text(data)
-        } else {
-            data.to_string()
-        };
-        return write_selection_text_sync("clipboard", &plain);
-    }
+    // Autrefois, les sessions xrdp étaient traitées à part : on y écrivait avec
+    // xclip pour éviter que l'offre GTK ne réécrive aussi PRIMARY, ce qui fait
+    // vaciller la propriété de la sélection et fige Chromium au collage.
+    //
+    // Mais c'est le *miroir PRIMARY* qui posait problème, pas GTK. Passer par
+    // xclip privait ces sessions de tout ce que l'offre GTK apporte — dont la
+    // détection des collages en cours, qui est justement le garde-fou contre
+    // ces gels. On garde donc GTK partout, et on n'écrit PRIMARY que là où
+    // c'est utile : sur un bureau classique.
+    let mirror_primary = !xrdp_session_active();
     if mime == "text/html" {
         if data.len() > MAX_HTML_BYTES {
             anyhow::bail!("html too large to paste safely ({} bytes)", data.len());
@@ -1597,14 +1599,17 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
         if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Rich {
             plain: plain.clone(),
             html: data.to_string(),
+            mirror_primary,
         }) {
             if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
                 *g = Some(plain.clone());
             }
             return Ok(());
         }
-        if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text(plain.clone()))
-        {
+        if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text {
+            text: plain.clone(),
+            mirror_primary,
+        }) {
             if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
                 *g = Some(plain.clone());
             }
@@ -1615,9 +1620,10 @@ fn offer_text_payload(data: &str, mime: &str) -> Result<()> {
         if data.len() > MAX_TEXT_BYTES {
             anyhow::bail!("text too large to paste safely ({} bytes)", data.len());
         }
-        if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text(
-            data.to_string(),
-        )) {
+        if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text {
+            text: data.to_string(),
+            mirror_primary,
+        }) {
             if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
                 *g = Some(data.to_string());
             }
@@ -2133,6 +2139,28 @@ mod tests {
             455_771_100
         ));
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
+    }
+
+    /// Sous xrdp on ne doit jamais réécrire PRIMARY : c'est ce miroir, et non
+    /// GTK lui-même, qui faisait vaciller la sélection sous Chromium. L'offre
+    /// GTK, elle, doit être utilisée partout — c'est elle qui nous signale les
+    /// collages en cours, donc le garde-fou contre les gels.
+    #[test]
+    fn the_gtk_offer_is_used_everywhere_and_primary_is_mirrored_only_off_xrdp() {
+        let source = include_str!("clipboard.rs");
+        let offer = source
+            .split("fn offer_text_payload")
+            .nth(1)
+            .expect("fonction présente");
+        let body = offer.split("\nfn ").next().unwrap_or(offer);
+        assert!(
+            body.contains("let mirror_primary = !xrdp_session_active();"),
+            "le miroir PRIMARY doit être conditionné à l'absence de xrdp"
+        );
+        assert!(
+            !body.contains("return write_selection_text_sync(\"clipboard\""),
+            "plus de court-circuit xclip sous xrdp : GTK est utilisé partout"
+        );
     }
 
     /// Une lecture en échec n'est pas un presse-papiers vide : sous la pression

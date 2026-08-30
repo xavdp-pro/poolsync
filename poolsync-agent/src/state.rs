@@ -500,6 +500,12 @@ impl AgentState {
         if !value {
             // Leave remote-grab state so resume does not keep driving another screen.
             self.set_kvm_focus(&self.config.node);
+            // Mettre PoolSync en pause doit rendre le presse-papiers à la
+            // session : garder la propriété de la sélection sans plus la
+            // synchroniser laisse l'utilisateur avec un copier-coller mort,
+            // et empêche le mécanisme natif (XFCE, xrdp) de reprendre la main.
+            crate::clipboard_gtk::clear_image_claim();
+            crate::clipboard_gtk::release_ownership();
         } else if !was && self.kvm_enabled() {
             // Resume: this keyboard/mouse must own the pool again (edge switching).
             self.request_master_claim();
