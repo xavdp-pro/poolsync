@@ -438,11 +438,12 @@ pub async fn mirror_primary_to_clipboard_if_needed() {
         }
     }
 
-    if xrdp_session_active() {
-        if clip_text.is_some() && clipboard_owner_is_chromium_based() {
-            return;
-        }
-    } else if clip_text.is_some() {
+    // Même règle sous xrdp qu'ailleurs : PRIMARY est un secours, jamais un
+    // remplaçant. Écraser un CLIPBOARD qui contient déjà du texte, c'était
+    // rejouer indéfiniment un surlignage par-dessus les copies du pool — et
+    // changer de propriétaire de sélection sous les doigts de l'utilisateur,
+    // ce qui fige Chromium en plein Ctrl+V.
+    if clip_text.is_some() {
         return;
     }
 
@@ -990,30 +991,38 @@ pub fn local_write_text(data: &str, mime: &str, keep_formatting: bool) -> (Strin
     }
 }
 
+/// Secours xrdp : sous xrdp, Ctrl+C n'atteint pas toujours CLIPBOARD, et la
+/// copie se retrouve seulement dans PRIMARY (la sélection à la souris).
+///
+/// Ce secours ne doit s'appliquer QUE si CLIPBOARD n'a rien d'utilisable.
+/// Le faire primer, comme c'était le cas, laisse un simple surlignage écraser
+/// une copie arrivée du réseau : les deux machines se renvoient alors leurs
+/// sélections respectives sans fin (boucle observée le 30/08 entre gbs-p2 et
+/// le reste du pool, une notification par seconde et Chrome figé au collage).
+async fn xrdp_primary_fallback_payload() -> Option<ClipboardPayload> {
+    if !xrdp_session_active() || primary_owner_is_chromium_based() {
+        return None;
+    }
+    let text = stable_primary_text().await?;
+    if text_is_image_sidecar(&text) {
+        return None;
+    }
+    let already = LAST_PRIMARY_APPLIED.lock().ok().and_then(|g| g.clone());
+    if already.as_deref() == Some(text.as_str()) {
+        return None;
+    }
+    tracing::debug!("clipboard read source=xrdp-primary-fallback");
+    Some(ClipboardPayload {
+        mime: "text/plain".into(),
+        wire_data: text.clone(),
+        hash: hash_text(&text),
+    })
+}
+
 async fn read_clipboard_payload_uncached(
     allow_images: bool,
     keep_formatting: bool,
 ) -> Result<Option<ClipboardPayload>> {
-    // xrdp Ctrl+C often never hits CLIPBOARD. A *new* PRIMARY selection must
-    // enter the PoolSync buffer even if CLIPBOARD still holds an older copy.
-    if xrdp_session_active() && !primary_owner_is_chromium_based() {
-        if let Some(text) = stable_primary_text().await {
-            if !text_is_image_sidecar(&text) {
-                let already = LAST_PRIMARY_APPLIED
-                    .lock()
-                    .ok()
-                    .and_then(|g| g.clone());
-                if already.as_deref() != Some(text.as_str()) {
-                    tracing::debug!("clipboard read source=xrdp-primary");
-                    return Ok(Some(ClipboardPayload {
-                        mime: "text/plain".into(),
-                        wire_data: text.clone(),
-                        hash: hash_text(&text),
-                    }));
-                }
-            }
-        }
-    }
     if let Some(text) = primary_user_text_override()
         .await
         .filter(|text| primary_differs_from_applied(text))
@@ -1131,6 +1140,11 @@ async fn read_clipboard_payload_uncached(
                     hash: hash_text(&html),
                 }));
             }
+        }
+    }
+    if plain.is_none() && image_payload.is_none() {
+        if let Some(payload) = xrdp_primary_fallback_payload().await {
+            return Ok(Some(payload));
         }
     }
     if !prefer_image {
@@ -2108,6 +2122,51 @@ mod tests {
             455_771_100
         ));
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
+    }
+
+    /// La boucle du 30/08 : sur xrdp, un surlignage souris (PRIMARY) écrasait
+    /// une copie arrivée du réseau, qui était aussitôt rediffusée, et les deux
+    /// machines se renvoyaient leurs sélections sans fin. PRIMARY ne doit servir
+    /// que quand CLIPBOARD n'a rien d'utilisable.
+    #[test]
+    fn primary_is_a_fallback_never_an_override() {
+        // Le miroir PRIMARY→CLIPBOARD s'arrête dès que CLIPBOARD a du texte,
+        // et cette règle ne dépend plus du fait d'être sous xrdp.
+        let source = include_str!("clipboard.rs");
+        let mirror = source
+            .split("pub async fn mirror_primary_to_clipboard_if_needed")
+            .nth(1)
+            .expect("fonction présente");
+        let body = mirror.split("\nasync fn ").next().unwrap_or(mirror);
+        assert!(
+            body.contains("if clip_text.is_some() {\n        return;"),
+            "le miroir doit renoncer dès que CLIPBOARD contient du texte"
+        );
+        assert!(
+            !body.contains("clip_text.is_some() && clipboard_owner_is_chromium_based()"),
+            "l'ancienne exception xrdp laissait PRIMARY écraser CLIPBOARD"
+        );
+    }
+
+    /// Le secours xrdp doit être appelé après la lecture de CLIPBOARD, et
+    /// seulement si celle-ci n'a rien donné.
+    #[test]
+    fn the_xrdp_primary_fallback_runs_only_when_the_clipboard_is_empty() {
+        let source = include_str!("clipboard.rs");
+        assert!(
+            source.contains("if plain.is_none() && image_payload.is_none() {"),
+            "le secours doit être conditionné à un CLIPBOARD sans contenu"
+        );
+        let call = source
+            .find("xrdp_primary_fallback_payload().await")
+            .expect("appel présent");
+        let read_plain = source
+            .find("let plain = read_plain_text().await;")
+            .expect("lecture CLIPBOARD présente");
+        assert!(
+            call > read_plain,
+            "le secours PRIMARY doit venir après la lecture de CLIPBOARD"
+        );
     }
 
     /// Le trou qui a laissé VSCode geler : son WM_CLASS ne contient ni
