@@ -446,6 +446,17 @@ pub async fn mirror_primary_to_clipboard_if_needed() {
     if clip_text.is_some() {
         return;
     }
+    // Une lecture qui *échoue* n'est pas un presse-papiers vide. Quand une
+    // application colle en boucle, notre lecture expire — et croire le
+    // CLIPBOARD vide à ce moment-là revient à y réinjecter un vieux surlignage
+    // par-dessus la copie qui vient d'arriver (observé en test le 30/08 : la
+    // copie d'asus atterrissait sur gbs-p2, puis disparaissait aussitôt).
+    // On ne mirroite donc que si la sélection n'annonce aucune cible texte.
+    let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
+    if targets_advertise_text(&clip_targets) {
+        tracing::debug!("clipboard mirror: CLIPBOARD illisible mais non vide — miroir annulé");
+        return;
+    }
 
     let now = Instant::now();
     if let Ok(mut g) = LAST_MIRROR.lock() {
@@ -2122,6 +2133,23 @@ mod tests {
             455_771_100
         ));
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
+    }
+
+    /// Une lecture en échec n'est pas un presse-papiers vide : sous la pression
+    /// des collages, croire l'inverse réinjectait un vieux surlignage par-dessus
+    /// la copie qui venait d'arriver.
+    #[test]
+    fn an_unreadable_clipboard_is_not_treated_as_empty() {
+        let source = include_str!("clipboard.rs");
+        let mirror = source
+            .split("pub async fn mirror_primary_to_clipboard_if_needed")
+            .nth(1)
+            .expect("fonction présente");
+        let body = mirror.split("\nasync fn ").next().unwrap_or(mirror);
+        assert!(
+            body.contains("targets_advertise_text(&clip_targets)"),
+            "le miroir doit vérifier les cibles avant de conclure au vide"
+        );
     }
 
     /// La boucle du 30/08 : sur xrdp, un surlignage souris (PRIMARY) écrasait
