@@ -364,9 +364,19 @@ async fn clipboard_poll_loop(
                             payload.mime,
                             payload.wire_data.len()
                         );
-                        // Images only: rewriting text CLIPBOARD after Chrome's
-                        // own copy (HTML+plain) freezes the tab.
-                        if let Err(err) =
+                        // Reprendre la sélection d'une image que l'application
+                        // d'origine sert déjà correctement ne sert à rien, et
+                        // c'est dangereux : si l'utilisateur colle à cet
+                        // instant précis, sa demande part vers l'ancien
+                        // propriétaire qui vient de la perdre, et l'application
+                        // reste bloquée (Flameshot → WhatsApp, 31/08).
+                        //
+                        // On ne revendique donc que si l'image n'est pas
+                        // collable en l'état — le cas xrdp/chansrv, où le
+                        // propriétaire n'expose qu'un BMP vide ou rien du tout.
+                        if crate::clipboard::local_image_is_already_pasteable().await {
+                            info!("clipboard image locale déjà collable — sélection laissée à l'application");
+                        } else if let Err(err) =
                             write_clipboard(&payload.wire_data, &payload.mime).await
                         {
                             tracing::warn!("claim local clipboard: {err:#}");

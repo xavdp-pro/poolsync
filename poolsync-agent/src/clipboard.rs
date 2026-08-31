@@ -1005,6 +1005,22 @@ pub fn local_write_text(data: &str, mime: &str, keep_formatting: bool) -> (Strin
     }
 }
 
+/// L'image déjà présente dans CLIPBOARD est-elle collable telle quelle ?
+///
+/// Si l'application qui vient de copier (Flameshot, GIMP, un navigateur…)
+/// expose un PNG ou un JPEG et le sert, il n'y a aucune raison de lui prendre
+/// la sélection : la reprendre au moment où l'utilisateur colle laisse sa
+/// demande partir vers un propriétaire qui n'existe plus, et l'application
+/// se fige. On ne revendique que ce qui n'est pas utilisable — le cas
+/// xrdp/chansrv, qui n'annonce qu'un BMP vide.
+pub async fn local_image_is_already_pasteable() -> bool {
+    if crate::clipboard_gtk::owns_image_clipboard() {
+        return true; // c'est déjà notre offre : rien à reprendre
+    }
+    let targets = clipboard_targets("clipboard").await.unwrap_or_default();
+    targets_have_pasteable_image(&targets)
+}
+
 /// Secours xrdp : sous xrdp, Ctrl+C n'atteint pas toujours CLIPBOARD, et la
 /// copie se retrouve seulement dans PRIMARY (la sélection à la souris).
 ///
