@@ -323,6 +323,9 @@ async fn clipboard_poll_loop(
         // CLIPBOARD from the apps and native Ctrl+V dies (xrdp session).
         if state.clipboard_sync_enabled() && state.local_poolsync_active() {
             crate::clipboard::maintain_xrdp_clipboard_fixup().await;
+            // Une application fermée emporte avec elle ce qu'elle avait copié :
+            // reprendre alors la sélection avec le contenu gardé en mémoire.
+            crate::clipboard::reclaim_orphaned_selection().await;
             let rdp_active = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
 
             let skip_echo = state.incoming_poll_suppress_active()

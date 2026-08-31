@@ -1005,6 +1005,70 @@ pub fn local_write_text(data: &str, mime: &str, keep_formatting: bool) -> (Strin
     }
 }
 
+/// Dernier contenu connu du presse-papiers, gardé dans notre propre mémoire.
+///
+/// Sous X11, le presse-papiers n'est pas un stockage central : le contenu reste
+/// dans la mémoire de l'application qui a copié, et meurt avec elle. D'où le
+/// symptôme classique — fermer une application fait perdre ce qu'on y avait
+/// copié. Garder une copie ici permet de la resservir quand le propriétaire
+/// disparaît, sans jamais avoir à lui voler la sélection de son vivant.
+static LAST_KNOWN_PAYLOAD: Mutex<Option<ClipboardPayload>> = Mutex::new(None);
+/// Le sondage du propriétaire ouvre une connexion X11 : ne pas le faire à
+/// chaque tour de boucle (jusqu'à 20 fois par seconde sur certains nœuds).
+static LAST_ORPHAN_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
+const ORPHAN_CHECK_INTERVAL: Duration = Duration::from_millis(1_000);
+
+/// Mémorise le contenu courant, quelle que soit son origine (locale ou réseau).
+pub fn remember_clipboard_content(mime: &str, wire_data: &str, hash: &str) {
+    if let Ok(mut g) = LAST_KNOWN_PAYLOAD.lock() {
+        *g = Some(ClipboardPayload {
+            mime: mime.to_string(),
+            wire_data: wire_data.to_string(),
+            hash: hash.to_string(),
+        });
+    }
+}
+
+/// Reprend la sélection quand son propriétaire a disparu.
+///
+/// C'est le rôle d'un gestionnaire de presse-papiers : l'application qui a
+/// copié garde la sélection tant qu'elle vit — on ne la dérange pas, donc
+/// aucune course avec un collage en cours — et on ne prend le relais qu'au
+/// moment où elle s'en va, avec le contenu qu'on avait mis de côté.
+pub async fn reclaim_orphaned_selection() -> bool {
+    {
+        let Ok(mut last) = LAST_ORPHAN_CHECK.lock() else {
+            return false;
+        };
+        if last.is_some_and(|at| at.elapsed() < ORPHAN_CHECK_INTERVAL) {
+            return false;
+        }
+        *last = Some(Instant::now());
+    }
+    // Zéro = plus aucun propriétaire : l'application a été fermée. C'est le
+    // seul cas sans ambiguïté, et le seul où l'on intervient.
+    if crate::clipboard_gtk::current_clipboard_owner() != 0 {
+        return false;
+    }
+    let Some(payload) = LAST_KNOWN_PAYLOAD.lock().ok().and_then(|g| g.clone()) else {
+        return false;
+    };
+    match write_clipboard(&payload.wire_data, &payload.mime).await {
+        Ok(()) => {
+            tracing::info!(
+                "clipboard: propriétaire disparu — contenu restauré depuis la mémoire de l'agent (mime={} bytes={})",
+                payload.mime,
+                payload.wire_data.len()
+            );
+            true
+        }
+        Err(err) => {
+            tracing::warn!("clipboard: restauration après disparition du propriétaire: {err:#}");
+            false
+        }
+    }
+}
+
 /// L'image déjà présente dans CLIPBOARD est-elle collable telle quelle ?
 ///
 /// Si l'application qui vient de copier (Flameshot, GIMP, un navigateur…)
@@ -1517,6 +1581,8 @@ pub fn prepare_local_clipboard(
         return false;
     }
     *last = payload.hash.clone();
+    drop(last);
+    remember_clipboard_content(&payload.mime, &payload.wire_data, &payload.hash);
     true
 }
 
@@ -2155,6 +2221,45 @@ mod tests {
             455_771_100
         ));
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
+    }
+
+    /// La mémoire tampon de l'agent : sous X11 le contenu copié meurt avec
+    /// l'application qui l'a copié. En garder une copie permet de le resservir
+    /// quand elle se ferme, sans jamais lui prendre la sélection de son vivant.
+    #[test]
+    fn the_agent_keeps_its_own_copy_of_the_clipboard() {
+        remember_clipboard_content("text/plain", "contenu à conserver", "h1");
+        let kept = LAST_KNOWN_PAYLOAD.lock().unwrap().clone().expect("mémorisé");
+        assert_eq!(kept.wire_data, "contenu à conserver");
+        assert_eq!(kept.mime, "text/plain");
+
+        // Une copie plus récente remplace la précédente.
+        remember_clipboard_content("text/plain", "plus récent", "h2");
+        assert_eq!(
+            LAST_KNOWN_PAYLOAD.lock().unwrap().clone().unwrap().wire_data,
+            "plus récent"
+        );
+    }
+
+    /// La reprise n'a lieu que lorsqu'il n'y a plus AUCUN propriétaire : tant
+    /// qu'une application sert la sélection, on ne la dérange pas — c'est ce
+    /// qui évite la course qui figeait Chrome et VSCode au collage.
+    #[test]
+    fn the_takeover_only_targets_an_ownerless_selection() {
+        let source = include_str!("clipboard.rs");
+        let f = source
+            .split("pub async fn reclaim_orphaned_selection")
+            .nth(1)
+            .expect("fonction présente");
+        let body = f.split("\n/// ").next().unwrap_or(f);
+        assert!(
+            body.contains("current_clipboard_owner() != 0"),
+            "on ne doit intervenir que sans propriétaire"
+        );
+        assert!(
+            body.contains("ORPHAN_CHECK_INTERVAL"),
+            "le sondage ouvre une connexion X11 : il doit être limité en fréquence"
+        );
     }
 
     /// Sous xrdp on ne doit jamais réécrire PRIMARY : c'est ce miroir, et non

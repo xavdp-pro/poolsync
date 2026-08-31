@@ -82,6 +82,9 @@ pub async fn apply_incoming_clipboard(
     } else {
         local_write_text(data, mime, state.keep_formatting())
     };
+    // Garder aussi en mémoire ce qui vient du réseau : si l'application qui
+    // l'affiche est fermée ensuite, on pourra le resservir.
+    crate::clipboard::remember_clipboard_content(&write_mime, &write_data, hash);
     let context = format!("incoming-{source_node}");
     match write_clipboard(&write_data, &write_mime).await {
         Ok(()) => {
