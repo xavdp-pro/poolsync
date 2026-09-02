@@ -25,11 +25,13 @@ aucun voisin vers acer/asus/gbs-p2/gbs-p3.
 |--------|--------------------------|--------------------------------|
 | desk-a | http://10.87.78.36:9081  | `ssh -p 3222 zaza@10.87.78.36` |
 | desk-b | http://10.87.78.36:9082  | `ssh -p 3223 zaza@10.87.78.36` |
+| desk-c (Xubuntu) | http://10.87.78.36:9083/vnc.html (noVNC, sans mot de passe, VPN seulement) | `ssh -p 3224 zaza@10.87.78.36` |
 
 Mots de passe Neko : `neko-desk status desk-a` dans le conteneur. Rien n'est
 exposé sur l'IP publique : le DNAT (`30-vpn-dnat.sh`) n'écoute que sur l'IP WireGuard.
 
-Dans un bureau, l'affichage est `DISPLAY=:99.0`, `XAUTHORITY=/data/xauthority`.
+Dans un bureau Neko, l'affichage est `DISPLAY=:99.0`, `XAUTHORITY=/data/xauthority` ;
+sur desk-c (Xubuntu) `DISPLAY=:99` sans XAUTHORITY.
 
 ## Piloter un bureau
 
@@ -66,10 +68,24 @@ avalent le reste du script sur stdin comme du YAML.
 | `61-fix-home-ownership.sh` | `/home/zaza` doit appartenir à zaza, sinon sshd refuse les clés |
 | `90-test-text-and-image.sh` | test de bout en bout : frappe réelle, Ctrl+Shift+V, capture d'écran |
 | `91-diag-typing.sh` | diagnostic focus/frappe |
-| `xubuntu/` | image Xubuntu 24.04 (Xorg dummy + XFCE + noVNC + ssh) pour desk-c |
+| `70-desk-c-xubuntu.sh` | lance desk-c (image `bench-xubuntu`), relais 9083/3224, agent, voisinage b↔c |
+| `71-desk-c-xfce-restart.sh` | (historique) dbus-x11 manquait dans l'image : XFCE ne démarrait pas |
+| `92-test-multihop.sh`, `93-test-paste-xubuntu.sh`, `94-soak-idle.sh` | multi-sauts a→b→c, collage réel sur Xubuntu, repos 3 min |
+| `xubuntu/` | image Xubuntu 24.04 (Xorg dummy + XFCE + dbus-x11 + noVNC + ssh) pour desk-c |
+
+## Topologie
+
+```
+desk-a (Debian 13) ── desk-b (Debian 13) ── desk-c (Xubuntu 24.04)
+        \_______________ hub (conteneur, 10.89.2.1:9470) _______________/
+```
 
 ## Résultats de référence (02/09/2026)
 
 - texte tapé sur desk-a, collé par Ctrl+Shift+V sur desk-b dans un fichier : identique ;
 - capture d'écran réelle (`xfce4-screenshooter -f -c`) sur desk-a : `image/png` de
   60 064 octets, empreinte identique sur desk-b, 8 cibles annoncées (PNG + BMP + texte).
+- multi-sauts : texte desk-a → desk-b → desk-c identique ; capture réelle sur la Xubuntu
+  (46 008 octets) identique sur desk-b et desk-a ;
+- collage réel (Ctrl+Shift+V) dans un `xfce4-terminal` de la Xubuntu : identique ;
+- repos 3 min sur desk-a/desk-b : 0 copie locale, 0 notification, 0 WARN.
