@@ -37,14 +37,11 @@ pub async fn apply_incoming_clipboard(
             data.len()
         );
     }
-    if !state.clipboard_sync_enabled() || !state.local_poolsync_active() {
-        tracing::info!(
-            "ignore incoming clipboard ({source_node}): sync={} local_active={}",
-            state.clipboard_sync_enabled(),
-            state.local_poolsync_active()
-        );
-        return Ok(());
-    }
+    // Synchro coupée ou agent en pause : on ne touche pas à la sélection X11 —
+    // c'est le copier-coller natif de la session qui fait foi. Mais « coupé »
+    // ne veut pas dire « sourd » : ce que le pool partage est quand même gardé
+    // dans le tampon et l'historique, donc récupérable à la demande.
+    let touch_selection = state.clipboard_sync_enabled() && state.local_poolsync_active();
     // Un pair encore sur l'ancien binaire peut diffuser la sortie de ses propres
     // sondes X11 (liste de cibles) comme si c'était une copie. Ne jamais
     // l'appliquer : sinon un nœud corrigé se fait re-polluer par le pool.
@@ -76,6 +73,19 @@ pub async fn apply_incoming_clipboard(
         *last = hash.to_string();
     }
 
+    if !touch_selection {
+        let preview = clip_preview_mime(mime, data);
+        state.record_clip_received(preview.clone());
+        clip_cache::store_received(hash, mime, data, &preview, source_node);
+        crate::clipboard::remember_clipboard_content(mime, data, hash);
+        state.notify_tray_history_changed();
+        tracing::info!(
+            "synchro coupée sur ce nœud : copie de {source_node} gardée dans le tampon, sélection non touchée (sync={} local_active={})",
+            state.clipboard_sync_enabled(),
+            state.local_poolsync_active()
+        );
+        return Ok(());
+    }
     let (write_data, write_mime) = if mime.starts_with("image/") {
         crate::clipboard::seed_primary_baseline().await;
         (data.to_string(), mime.to_string())

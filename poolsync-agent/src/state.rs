@@ -419,7 +419,16 @@ impl AgentState {
     }
 
     pub fn set_clipboard_sync(&self, value: bool) {
-        self.clipboard_sync.store(value, Ordering::SeqCst);
+        let was = self.clipboard_sync.swap(value, Ordering::SeqCst);
+        if was != value {
+            // Tracé au niveau info : un nœud « sourd » sans trace dans le
+            // journal a coûté une matinée de diagnostic (gbs-p2, 02/09).
+            tracing::info!(
+                "synchro presse-papiers {} sur {} (menu systray)",
+                if value { "ACTIVÉE" } else { "COUPÉE" },
+                self.config.node
+            );
+        }
     }
 
     pub fn toggle_clipboard_sync(&self) -> bool {

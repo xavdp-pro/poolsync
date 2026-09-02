@@ -83,8 +83,14 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     clip_item.set_active(state.clipboard_sync_enabled());
     let state_clip = state.clone();
     clip_item.connect_toggled(move |item| {
-        let on = apply_clipboard_sync_toggle(&state_clip);
-        item.set_label(&clip_sync_label(on));
+        // Suivre l'état réel de la case plutôt que basculer à l'aveugle :
+        // une émission parasite de « toggled » inversait la synchro sans
+        // que la case le reflète, et personne ne pouvait le savoir.
+        let wanted = item.is_active();
+        if wanted != state_clip.clipboard_sync_enabled() {
+            let on = apply_clipboard_sync_toggle(&state_clip);
+            item.set_label(&clip_sync_label(on));
+        }
     });
     menu.append(&clip_item);
 
