@@ -4,7 +4,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive LANG=fr_FR.UTF-8 LC_ALL=fr_FR.UTF-8
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     xubuntu-core xfce4-terminal xfce4-screenshooter mousepad \
-    xserver-xorg-core xserver-xorg-video-dummy xserver-xorg-input-void xinit x11-xserver-utils xauth \
+    xserver-xorg-core xserver-xorg-video-dummy xinit x11-xserver-utils xauth \
     x11vnc novnc websockify supervisor openssh-server sudo locales \
     xdotool xclip python3-gi gir1.2-gtk-3.0 libnotify-bin libayatana-appindicator3-1 \
     fonts-dejavu ca-certificates curl \
