@@ -9,6 +9,7 @@ import {
   saveTopology,
 } from '../api'
 import NodeBadges, { LastClip } from '../components/NodeBadges'
+import MonitorMap from '../components/MonitorMap'
 import {
   CANVAS_PAD,
   connectionLines,
@@ -278,6 +279,10 @@ export default function Config() {
                   <LayoutGrid size={14} className="mb-0.5 opacity-40" />
                   <span className="px-1 text-sm font-bold leading-tight">{nodeLabel(id)}</span>
                   <span className="font-mono text-[10px] opacity-60">{n.width}×{n.height}</span>
+                  <MonitorMap
+                    monitors={status?.monitors}
+                    poolMonitor={{ x: n.monitor_x, y: n.monitor_y }}
+                  />
                   <LastClip clip={status?.last_clip} />
                   {!n.kvm_enabled && (
                     <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
@@ -322,6 +327,13 @@ export default function Config() {
                     <span className="font-mono text-[10px] opacity-60">
                       {topology.nodes[id].width}×{topology.nodes[id].height}
                     </span>
+                    <MonitorMap
+                      monitors={status?.monitors}
+                      poolMonitor={{
+                        x: topology.nodes[id].monitor_x,
+                        y: topology.nodes[id].monitor_y,
+                      }}
+                    />
                     <LastClip clip={status?.last_clip} />
                   </div>
                 )
