@@ -67,8 +67,21 @@ export function inferNeighbors(topology, tolerancePx = EDGE_TOLERANCE_PX) {
   return { nodes }
 }
 
+/**
+ * Une machine sans KVM est garée très bas (y = 100000) par le hub, pour la
+ * sortir de la mosaïque sans perdre sa position si le KVM est réactivé.
+ * Elle ne doit pas entrer dans le calcul d'échelle : sinon les écrans réels
+ * se réduisent à quelques pixels dans un canevas presque vide.
+ */
+export const PARKED_Y = 50000
+
+export function isParked(n) {
+  return !n || n.y >= PARKED_Y
+}
+
 export function scaleLayout(nodes, maxW = 720, maxH = 420) {
-  const entries = Object.entries(nodes || {})
+  const all = Object.entries(nodes || {})
+  const entries = all.filter(([, n]) => !isParked(n))
   if (!entries.length) {
     return { scale: 0.2, width: 400, height: 200, maxX: 0, maxY: 0 }
   }

@@ -3,14 +3,17 @@ import { LayoutGrid, Link2, MousePointer2, Save, Settings2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import {
+  fetchStatus,
   fetchTopology,
   nodeLabel,
   saveTopology,
 } from '../api'
+import NodeBadges, { LastClip } from '../components/NodeBadges'
 import {
   CANVAS_PAD,
   connectionLines,
   inferNeighbors,
+  isParked,
   nodeRect,
   scaleLayout,
   snapPosition,
@@ -26,6 +29,10 @@ export default function Config() {
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [dragId, setDragId] = useState(null)
+  // État vivant des nœuds (en ligne, synchro, pause, maître, dernière copie).
+  // Rafraîchi en continu : la mosaïque doit refléter le pool tel qu'il est,
+  // pas seulement la géométrie enregistrée.
+  const [statusByNode, setStatusByNode] = useState({})
   const dragStart = useRef({})
   const canvasRef = useRef(null)
 
@@ -43,6 +50,28 @@ export default function Config() {
     load()
   }, [load])
 
+  useEffect(() => {
+    let alive = true
+    const refresh = async () => {
+      try {
+        const json = await fetchStatus()
+        if (!alive) return
+        const byNode = {}
+        for (const n of json.nodes || []) byNode[n.name] = n
+        setStatusByNode(byNode)
+      } catch {
+        // Le hub peut être momentanément injoignable : on garde le dernier
+        // état connu plutôt que de faire clignoter toute la mosaïque.
+      }
+    }
+    refresh()
+    const timer = setInterval(refresh, 3000)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [])
+
   const layout = useMemo(() => scaleLayout(topology?.nodes), [topology])
 
   const lines = useMemo(
@@ -50,13 +79,23 @@ export default function Config() {
     [topology, layout.scale],
   )
 
-  const nodeIds = useMemo(
+  const allIds = useMemo(
     () => Object.keys(topology?.nodes || {}).sort((a, b) => {
       const na = topology.nodes[a]
       const nb = topology.nodes[b]
       return na.x - nb.x || na.y - nb.y
     }),
     [topology],
+  )
+  // Les machines sans KVM sont garées hors mosaïque par le hub : on les liste
+  // à part plutôt que de les dessiner à 100 000 px, ce qui écrasait l'échelle.
+  const nodeIds = useMemo(
+    () => allIds.filter((id) => !isParked(topology?.nodes?.[id])),
+    [allIds, topology],
+  )
+  const parkedIds = useMemo(
+    () => allIds.filter((id) => isParked(topology?.nodes?.[id])),
+    [allIds, topology],
   )
 
   const applyTopology = (nodes) => {
@@ -204,6 +243,9 @@ export default function Config() {
               const n = topology.nodes[id]
               const rect = nodeRect(n, layout.scale)
               const active = dragId === id
+              const status = statusByNode[id]
+              const offline = !status || !status.online
+              const deaf = status?.online && !status.clipboard_sync
               return (
                 <motion.div
                   key={id}
@@ -216,9 +258,13 @@ export default function Config() {
                   }}
                   onDragEnd={(e, info) => onDragEnd(id, e, info)}
                   className={`absolute flex cursor-grab flex-col items-center justify-center overflow-hidden rounded-md border-2 text-center shadow-lg active:cursor-grabbing ${
-                    n.kvm_enabled
-                      ? 'border-indigo-400 bg-indigo-100/90 text-indigo-950'
-                      : 'border-slate-400 bg-slate-200/90 text-slate-600'
+                    offline
+                      ? 'border-slate-300 border-dashed bg-slate-100/70 text-slate-400'
+                      : deaf
+                        ? 'border-red-400 bg-red-50/90 text-red-900'
+                        : n.kvm_enabled
+                          ? 'border-indigo-400 bg-indigo-100/90 text-indigo-950'
+                          : 'border-slate-400 bg-slate-200/90 text-slate-600'
                   } ${active ? 'z-20 ring-2 ring-indigo-500' : 'z-10'}`}
                   style={{
                     left: rect.left,
@@ -228,9 +274,11 @@ export default function Config() {
                   }}
                   title={`${id} — ${n.width}×${n.height}`}
                 >
+                  <NodeBadges status={status} />
                   <LayoutGrid size={14} className="mb-0.5 opacity-40" />
                   <span className="px-1 text-sm font-bold leading-tight">{nodeLabel(id)}</span>
                   <span className="font-mono text-[10px] opacity-60">{n.width}×{n.height}</span>
+                  <LastClip clip={status?.last_clip} />
                   {!n.kvm_enabled && (
                     <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                       clip only
@@ -248,6 +296,39 @@ export default function Config() {
             return `${nodeLabel(id)} (${n.x}, ${n.y})`
           }).join(' · ')}
         </p>
+
+        {parkedIds.length > 0 && (
+          <div className="mt-4 border-t border-slate-200 pt-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Presse-papiers seul — hors mosaïque KVM
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {parkedIds.map((id) => {
+                const status = statusByNode[id]
+                return (
+                  <div
+                    key={id}
+                    className={`relative flex min-w-[7rem] flex-col rounded-md border px-2 py-1.5 text-xs ${
+                      !status || !status.online
+                        ? 'border-dashed border-slate-300 bg-slate-50 text-slate-400'
+                        : status.clipboard_sync
+                          ? 'border-slate-300 bg-white text-slate-700'
+                          : 'border-red-300 bg-red-50 text-red-900'
+                    }`}
+                    title={`${id} — ${topology.nodes[id].width}×${topology.nodes[id].height}`}
+                  >
+                    <NodeBadges status={status} />
+                    <span className="font-semibold">{nodeLabel(id)}</span>
+                    <span className="font-mono text-[10px] opacity-60">
+                      {topology.nodes[id].width}×{topology.nodes[id].height}
+                    </span>
+                    <LastClip clip={status?.last_clip} />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

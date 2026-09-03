@@ -77,6 +77,30 @@ function NodeCard({ node, index }) {
             {online ? 'Connecté' : 'Hors ligne'}
           </span>
         </div>
+        {/* Un nœud connecté mais dont la synchro est coupée, ou en pause, ne
+            réplique rien : c'est l'anomalie la plus coûteuse à ne pas voir. */}
+        <div className="flex justify-between gap-2">
+          <span className="text-slate-400">Presse-papiers</span>
+          {!online ? (
+            <span className="text-slate-400">—</span>
+          ) : node.clipboard_sync === false ? (
+            <span
+              className="font-semibold text-red-600"
+              title="La case « Presse-papiers PoolSync » est décochée dans le menu systray de ce poste"
+            >
+              synchro coupée
+            </span>
+          ) : node.local_active === false ? (
+            <span
+              className="font-semibold text-amber-600"
+              title="PoolSync est suspendu sur ce poste (Ctrl+Alt+Shift+P)"
+            >
+              en pause
+            </span>
+          ) : (
+            <span className="font-semibold text-emerald-600">synchronisé</span>
+          )}
+        </div>
         <div className="flex justify-between gap-2">
           <span className="text-slate-400">Mode</span>
           <span className="text-slate-600">{modeLabel(node.mode)}</span>
@@ -88,15 +112,37 @@ function NodeCard({ node, index }) {
           </span>
         </div>
         <div className="flex justify-between gap-2">
-          <span className="text-slate-400">Écran</span>
-          <span className="font-mono text-slate-600">
-            {node.screen?.width}×{node.screen?.height}
+          <span className="text-slate-400">
+            {(node.monitors?.length || 0) > 1 ? `Écrans (${node.monitors.length})` : 'Écran'}
+          </span>
+          <span className="text-right font-mono text-slate-600">
+            {(node.monitors?.length || 0) > 1 ? (
+              node.monitors.map((m) => (
+                <span key={`${m.name}-${m.x}`} className="block text-[11px] leading-tight">
+                  {m.name || '?'} {m.width}×{m.height}
+                  {m.primary && <span className="ml-1 text-indigo-500">principal</span>}
+                </span>
+              ))
+            ) : (
+              <>{node.screen?.width}×{node.screen?.height}</>
+            )}
           </span>
         </div>
         <div className="flex justify-between gap-2">
           <span className="text-slate-400">Depuis</span>
           <span className="text-slate-600">{formatTs(node.connected_at)}</span>
         </div>
+        {node.last_clip && (
+          <div className="flex justify-between gap-2">
+            <span className="shrink-0 text-slate-400">Dernière copie</span>
+            <span
+              className="truncate text-right text-slate-600"
+              title={`${node.last_clip.preview} — ${formatTs(node.last_clip.at)}`}
+            >
+              {node.last_clip.is_image ? 'image' : node.last_clip.preview}
+            </span>
+          </div>
+        )}
       </div>
     </motion.div>
   )
