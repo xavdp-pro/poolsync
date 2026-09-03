@@ -60,6 +60,9 @@ pub async fn run_agent(
                 neighbors: cfg.neighbors.clone(),
                 kvm_enabled: state.kvm_effective(),
                 kvm_desktop,
+                clipboard_sync: state.clipboard_sync_enabled(),
+                local_active: state.local_poolsync_active(),
+                monitors: crate::kvm_x11::described_monitors().unwrap_or_default(),
             })?
             .into(),
         ))
@@ -89,6 +92,11 @@ pub async fn run_agent(
     };
 
     let mut link_check = interval(HUB_LINK_CHECK);
+    // Le hub doit refléter l'état réel du nœud (synchro coupée, pause locale,
+    // écrans branchés). L'agent le lui redit dès que ça bouge : sans ça, un
+    // nœud « sourd » ou un écran ajouté restent invisibles dans l'interface.
+    let mut state_check = interval(Duration::from_secs(3));
+    let mut last_state = node_state_snapshot(&state);
 
     loop {
         tokio::select! {
@@ -118,6 +126,13 @@ pub async fn run_agent(
                     break;
                 }
             }
+            _ = state_check.tick() => {
+                let now = node_state_snapshot(&state);
+                if now != last_state {
+                    last_state = now;
+                    send_hello(&state, &out_tx);
+                }
+            }
         }
     }
 
@@ -127,6 +142,52 @@ pub async fn run_agent(
         kvm_task.abort();
     }
     Ok(())
+}
+
+/// Ce que le hub doit savoir de l'état du nœud, pour détecter un changement.
+fn node_state_snapshot(state: &AgentState) -> (bool, bool, bool, Vec<poolsync_core::MonitorInfo>) {
+    (
+        state.clipboard_sync_enabled(),
+        state.local_poolsync_active(),
+        state.kvm_effective(),
+        crate::kvm_x11::described_monitors().unwrap_or_default(),
+    )
+}
+
+/// Renvoie un Hello au hub avec l'état courant (écrans, synchro, pause).
+///
+/// Relit la géométrie réelle plutôt que d'envoyer une valeur par défaut :
+/// le hub s'en sert pour la topologie, et lui transmettre des zéros
+/// effacerait la position des écrans qu'il a mémorisée.
+fn send_hello(state: &AgentState, out_tx: &mpsc::UnboundedSender<String>) {
+    let monitors = crate::kvm_x11::described_monitors().unwrap_or_default();
+    let screen = crate::kvm_x11::kvm_display()
+        .map(|d| poolsync_core::ScreenInfo { width: d.width, height: d.height })
+        .unwrap_or(state.config.screen);
+    let kvm_desktop = crate::kvm_x11::kvm_layout_snapshot().unwrap_or_default();
+    match encode_message(&Message::Hello {
+        node: state.config.node.clone(),
+        mode: state.config.mode,
+        screen,
+        neighbors: state.config.neighbors.clone(),
+        kvm_enabled: state.kvm_effective(),
+        kvm_desktop,
+        clipboard_sync: state.clipboard_sync_enabled(),
+        local_active: state.local_poolsync_active(),
+        monitors: monitors.clone(),
+    }) {
+        Ok(payload) => {
+            if out_tx.send(payload).is_ok() {
+                info!(
+                    "état renvoyé au hub (synchro={} pause={} écrans={})",
+                    state.clipboard_sync_enabled(),
+                    !state.local_poolsync_active(),
+                    monitors.len()
+                );
+            }
+        }
+        Err(err) => tracing::warn!("encode Hello (état): {err:#}"),
+    }
 }
 
 async fn handle_incoming(

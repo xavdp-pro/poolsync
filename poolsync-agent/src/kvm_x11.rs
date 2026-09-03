@@ -289,6 +289,62 @@ pub fn kvm_display() -> Result<KvmDisplay> {
 }
 
 /// All active RandR CRTCs (each physical monitor).
+/// Tous les moniteurs actifs, avec leur nom RandR et le drapeau « primaire ».
+///
+/// `active_monitors` ne rend que des rectangles anonymes, suffisants pour le KVM
+/// mais pas pour l'interface : on veut y afficher « eDP-1 » et « HDMI-1 », et
+/// savoir lequel est primaire. Sans primaire déclaré, aucun n'est marqué —
+/// l'appelant sait alors que le choix de l'écran de travail est arbitraire.
+pub fn described_monitors() -> Result<Vec<poolsync_core::MonitorInfo>> {
+    with_x11_conn(|conn, screen_num| {
+        let root = conn.setup().roots[screen_num].root;
+        let primary_out = randr::get_output_primary(conn, root)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .map(|r| r.output);
+        let res = randr::get_screen_resources_current(conn, root)
+            .context("randr get_screen_resources")?
+            .reply()?;
+        let mut out = Vec::new();
+        for &crtc_id in &res.crtcs {
+            let crtc = match randr::get_crtc_info(conn, crtc_id, res.config_timestamp) {
+                Ok(cookie) => match cookie.reply() {
+                    Ok(info) => info,
+                    Err(_) => continue,
+                },
+                Err(_) => continue,
+            };
+            if crtc.width == 0 || crtc.height == 0 {
+                continue;
+            }
+            let mut name = String::new();
+            let mut primary = false;
+            for &output in &crtc.outputs {
+                if Some(output) == primary_out {
+                    primary = true;
+                }
+                if name.is_empty() {
+                    if let Ok(cookie) = randr::get_output_info(conn, output, res.config_timestamp) {
+                        if let Ok(info) = cookie.reply() {
+                            name = String::from_utf8_lossy(&info.name).into_owned();
+                        }
+                    }
+                }
+            }
+            out.push(poolsync_core::MonitorInfo {
+                name,
+                x: crtc.x as i32,
+                y: crtc.y as i32,
+                width: crtc.width as u32,
+                height: crtc.height as u32,
+                primary,
+            });
+        }
+        out.sort_by_key(|m| (m.x, m.y));
+        Ok(out)
+    })
+}
+
 pub fn active_monitors() -> Result<Vec<KvmDisplay>> {
     with_x11_conn(|conn, screen_num| {
         let root = conn.setup().roots[screen_num].root;

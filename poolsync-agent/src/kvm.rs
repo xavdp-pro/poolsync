@@ -1014,6 +1014,9 @@ fn announce_screen_to_hub(
         neighbors: state.config.neighbors.clone(),
         kvm_enabled: state.kvm_effective(),
         kvm_desktop: *kvm_desktop,
+        clipboard_sync: state.clipboard_sync_enabled(),
+        local_active: state.local_poolsync_active(),
+        monitors: crate::kvm_x11::described_monitors().unwrap_or_default(),
     }) {
         Ok(p) => p,
         Err(err) => {

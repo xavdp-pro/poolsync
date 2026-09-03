@@ -22,7 +22,8 @@ use axum::{
 use clap::Parser;
 use futures_util::StreamExt;
 use poolsync_core::{
-    decode_message, encode_message, infer_neighbors, AgentMode, Message, Neighbor, PoolTopology,
+    decode_message, encode_message, infer_neighbors, AgentMode, Message, MonitorInfo, Neighbor,
+    PoolTopology,
     ScreenInfo, TopologyNode, DEFAULT_EDGE_TOLERANCE_PX,
 };
 use serde::Serialize;
@@ -82,6 +83,12 @@ struct NodeInfo {
     neighbors: Vec<Neighbor>,
     kvm_enabled: bool,
     connected_at: u64,
+    /// Synchro presse-papiers active sur ce nœud, telle qu'il la déclare.
+    clipboard_sync: bool,
+    /// PoolSync actif localement (pas en pause clavier).
+    local_active: bool,
+    /// Tous ses moniteurs RandR (vide si agent d'une version antérieure).
+    monitors: Vec<MonitorInfo>,
     sender: broadcast::Sender<String>,
 }
 
@@ -192,6 +199,23 @@ struct NodeStatus {
     connected_at: u64,
     online: bool,
     is_master: bool,
+    /// Synchro presse-papiers : `false` = nœud « sourd », il ne réplique rien.
+    clipboard_sync: bool,
+    /// `false` = PoolSync en pause sur ce poste (raccourci clavier).
+    local_active: bool,
+    /// Moniteurs de ce nœud, pour la mosaïque multi-écrans.
+    monitors: Vec<MonitorInfo>,
+    /// Dernière copie venue de ce nœud (aperçu, mime, horodatage).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_clip: Option<NodeClip>,
+}
+
+#[derive(Serialize)]
+struct NodeClip {
+    preview: String,
+    mime: String,
+    at: u64,
+    is_image: bool,
 }
 
 #[derive(Deserialize)]
@@ -339,6 +363,31 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
     let last_at = state.last_clipboard_at.read().await;
     let node_count = nodes_map.len();
 
+    // Dernière copie par nœud : l'historique la porte déjà, il suffit de
+    // prendre la plus récente de chaque source. L'interface peut alors montrer
+    // « acer a copié tel texte il y a 3 min » sans requête supplémentaire.
+    let mut last_clip_by_node: HashMap<String, NodeClip> = {
+        let history = state.clipboard_history.read().await;
+        let mut map: HashMap<String, NodeClip> = HashMap::new();
+        for entry in history.iter() {
+            let slot = map.entry(entry.source_node.clone()).or_insert_with(|| NodeClip {
+                preview: entry.preview.clone(),
+                mime: entry.mime.clone(),
+                at: entry.at,
+                is_image: entry.mime.starts_with("image/"),
+            });
+            if entry.at > slot.at {
+                *slot = NodeClip {
+                    preview: entry.preview.clone(),
+                    mime: entry.mime.clone(),
+                    at: entry.at,
+                    is_image: entry.mime.starts_with("image/"),
+                };
+            }
+        }
+        map
+    };
+
     let nodes: Vec<NodeStatus> = nodes_map
         .iter()
         .map(|(name, info)| NodeStatus {
@@ -350,6 +399,10 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
             connected_at: info.connected_at,
             online: true,
             is_master: master.as_deref() == Some(name.as_str()),
+            clipboard_sync: info.clipboard_sync,
+            local_active: info.local_active,
+            monitors: info.monitors.clone(),
+            last_clip: last_clip_by_node.remove(name),
         })
         .collect();
 
@@ -770,6 +823,9 @@ async fn register_node(
             neighbors,
             kvm_enabled,
             kvm_desktop,
+            clipboard_sync,
+            local_active,
+            monitors,
         } => {
             let topology_update =
                 apply_hello_geometry(state, &node, &screen, &kvm_desktop, kvm_enabled).await?;
@@ -784,6 +840,9 @@ async fn register_node(
                         neighbors,
                         kvm_enabled,
                         connected_at: now_secs(),
+                        clipboard_sync,
+                        local_active,
+                        monitors,
                         sender: sender.clone(),
                     },
                 );
@@ -929,6 +988,9 @@ async fn handle_message(
             neighbors,
             kvm_enabled,
             kvm_desktop,
+            clipboard_sync,
+            local_active,
+            monitors,
         } => {
             // Mise à jour hotplug (HDMI etc.) — même message Hello après la connexion initiale.
             if node != from {

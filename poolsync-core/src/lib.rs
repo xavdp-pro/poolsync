@@ -241,6 +241,21 @@ fn default_peer_listen_port() -> u16 {
     9472
 }
 
+/// Un moniteur physique, tel que RandR le rapporte (coordonnées du bureau X11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MonitorInfo {
+    /// Nom de la sortie RandR (« eDP-1 », « HDMI-1 »…), pour l'affichage.
+    #[serde(default)]
+    pub name: String,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    /// Moniteur primaire RandR — celui où l'utilisateur travaille.
+    #[serde(default)]
+    pub primary: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Message {
@@ -253,6 +268,18 @@ pub enum Message {
         kvm_enabled: bool,
         #[serde(default)]
         kvm_desktop: KvmDesktopInfo,
+        /// Synchro presse-papiers active sur ce nœud (case du menu systray).
+        /// Un nœud « sourd » est invisible sans cette information : c'est ce qui
+        /// a coûté une matinée de diagnostic le 02/09.
+        #[serde(default = "default_true")]
+        clipboard_sync: bool,
+        /// PoolSync actif localement (raccourci de pause Ctrl+Alt+Shift+P).
+        #[serde(default = "default_true")]
+        local_active: bool,
+        /// Tous les moniteurs RandR actifs, pour la mosaïque multi-écrans.
+        /// Vide = agent d'une version antérieure : le hub retombe sur `screen`.
+        #[serde(default)]
+        monitors: Vec<MonitorInfo>,
     },
     Clipboard {
         msg_id: String,
@@ -416,6 +443,59 @@ mod tests {
                 assert_eq!(mime, "text/plain");
                 assert_eq!(origin, "asus");
                 assert_eq!(seq, 42);
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    /// Un agent d'une version antérieure n'envoie ni l'état de sa synchro ni
+    /// ses moniteurs : le Hello doit rester décodable, et l'absence
+    /// d'information ne doit pas le faire passer pour « sourd ».
+    #[test]
+    fn hello_from_an_older_agent_defaults_to_active() {
+        let raw = r#"{"type":"hello","node":"acer","mode":"full",
+            "screen":{"width":1366,"height":768},"neighbors":[]}"#;
+        match decode_message(raw).unwrap() {
+            Message::Hello {
+                clipboard_sync,
+                local_active,
+                monitors,
+                ..
+            } => {
+                assert!(clipboard_sync, "sans information, on suppose la synchro active");
+                assert!(local_active);
+                assert!(monitors.is_empty(), "le hub retombe alors sur `screen`");
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    /// Les moniteurs font l'aller-retour, drapeau primaire compris.
+    #[test]
+    fn monitors_round_trip_with_their_primary_flag() {
+        let msg = Message::Hello {
+            node: "asus".into(),
+            mode: AgentMode::Full,
+            screen: ScreenInfo { width: 1344, height: 756 },
+            neighbors: vec![],
+            kvm_enabled: true,
+            kvm_desktop: KvmDesktopInfo::default(),
+            clipboard_sync: false,
+            local_active: true,
+            monitors: vec![
+                MonitorInfo { name: "eDP-1".into(), x: 1920, y: 614, width: 1344, height: 756, primary: true },
+                MonitorInfo { name: "HDMI-1".into(), x: 0, y: 0, width: 1920, height: 1080, primary: false },
+            ],
+        };
+        let raw = encode_message(&msg).unwrap();
+        match decode_message(&raw).unwrap() {
+            Message::Hello { clipboard_sync, monitors, .. } => {
+                assert!(!clipboard_sync, "un nœud sourd doit être visible comme tel");
+                assert_eq!(monitors.len(), 2);
+                assert_eq!(monitors[0].name, "eDP-1");
+                assert!(monitors[0].primary);
+                assert!(!monitors[1].primary);
+                assert_eq!(monitors[1].width, 1920);
             }
             other => panic!("wrong variant: {other:?}"),
         }
