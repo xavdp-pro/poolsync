@@ -80,6 +80,33 @@ desk-a (Debian 13) ── desk-b (Debian 13) ── desk-c (Xubuntu 24.04)
         \_______________ hub (conteneur, 10.89.2.1:9470) _______________/
 ```
 
+## Simuler des écrans (HDMI, triple écran)
+
+Les bureaux tournent sous **Xorg avec le pilote dummy**, qui expose `DUMMY0` à
+`DUMMY15`. On allume donc autant d'écrans qu'on veut, **à chaud**, sans
+redémarrer le bureau ni le serveur X :
+
+```bash
+lxc exec poolsync-test -- bash /srv/poolsync/simulate-screens.sh desk-c hdmi
+#   mono | hdmi (1600x900 + 1920x1080 à droite, comme asus) | triple | no-primary | show
+```
+
+`cvt` étant absent des images, les modelines sont écrites en dur dans le script.
+
+### Ce que PoolSync perçoit selon la configuration (03/09/2026, desk-c)
+
+| Écrans | Moniteur « pool » retenu | Bureau complet |
+|--------|--------------------------|----------------|
+| mono 1600x900 | 1600x900 @x=0 | 1600x900 |
+| + HDMI 1920x1080 à droite | 1600x900 @x=0 ✔ | 3520x1080 |
+| triple, primaire à droite | 1600x900 @x=3200 ✔ | 4800x1080 |
+| **sans moniteur primaire RandR** | **1920x1080 @x=1600 ✘** | 3520x1080 |
+
+Le bureau complet est toujours juste. Le moniteur « pool » suit correctement le
+primaire RandR — **sauf quand aucun n'est défini** : PoolSync prend alors le
+premier CRTC venu, qui n'est pas forcément celui où l'utilisateur travaille.
+C'est le défaut à corriger avec le multi-écrans de l'interface (point 2).
+
 ## Résultats de référence (02/09/2026)
 
 - texte tapé sur desk-a, collé par Ctrl+Shift+V sur desk-b dans un fichier : identique ;
