@@ -1005,6 +1005,12 @@ async fn handle_message(
                     info.screen = screen;
                     info.neighbors = neighbors;
                     info.kvm_enabled = kvm_enabled;
+                    // Sans ces trois lignes, un nœud qui coupe sa synchro ou
+                    // débranche un écran reste affiché comme avant : c'est le
+                    // renvoi d'état de l'agent qui deviendrait inutile.
+                    info.clipboard_sync = clipboard_sync;
+                    info.local_active = local_active;
+                    info.monitors = monitors;
                 }
             }
             info!(
