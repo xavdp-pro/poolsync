@@ -241,6 +241,10 @@ fn default_peer_listen_port() -> u16 {
     9472
 }
 
+fn default_edge_flash_ms() -> u64 {
+    2500
+}
+
 /// Un moniteur physique, tel que RandR le rapporte (coordonnées du bureau X11).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MonitorInfo {
@@ -321,6 +325,16 @@ pub enum Message {
     },
     TopologyUpdate {
         topology: PoolTopology,
+    },
+    /// Le hub demande à un nœud de matérialiser ses bords KVM à l'écran.
+    ///
+    /// Enregistrer une topologie ne dit pas si elle correspond au terrain :
+    /// on découvrait l'erreur en promenant la souris. Ce message fait clignoter
+    /// la bordure concernée sur la vraie machine, avant d'y croire.
+    ShowEdges {
+        /// Durée d'affichage en millisecondes.
+        #[serde(default = "default_edge_flash_ms")]
+        duration_ms: u64,
     },
     Ping,
     Pong,

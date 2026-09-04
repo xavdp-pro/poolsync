@@ -8,6 +8,7 @@ import {
   Save,
   Settings2,
   Undo2,
+  Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
@@ -16,6 +17,7 @@ import {
   fetchTopology,
   nodeLabel,
   saveTopology,
+  showEdges,
 } from '../api'
 import NodeBadges, { LastClip } from '../components/NodeBadges'
 import MonitorMap from '../components/MonitorMap'
@@ -317,6 +319,26 @@ export default function Config() {
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          onClick={async () => {
+            if (!token.trim()) {
+              setError('Token requis pour tester les bords')
+              return
+            }
+            try {
+              await showEdges(token.trim(), null)
+              setError(null)
+            } catch (err) {
+              setError(err.message)
+            }
+          }}
+          title="Fait apparaître 3 secondes, sur chaque machine, une bande lumineuse le long des bords reliés à un voisin"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+        >
+          <Zap size={16} className="text-amber-500" />
+          Tester les bords
+        </button>
         <button
           type="button"
           onClick={recalcNeighbors}

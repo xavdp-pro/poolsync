@@ -325,6 +325,7 @@ async fn main() -> Result<()> {
         .route("/api/clipboard/history", get(api_clipboard_history))
         .route("/api/clipboard/item", get(api_clipboard_item))
         .route("/api/clipboard/events", get(api_clipboard_events))
+        .route("/api/edges/show", axum::routing::post(api_edges_show))
         .route("/api/clipboard/pick", axum::routing::post(api_clipboard_pick))
         .route("/api/clipboard/clear", axum::routing::post(api_clipboard_clear))
         .route("/api/clipboard/delete", axum::routing::post(api_clipboard_delete))
@@ -563,6 +564,48 @@ async fn api_clipboard_item(
         source_node: entry.source_node.clone(),
         at: entry.at,
     }))
+}
+
+#[derive(Deserialize)]
+struct EdgesShowBody {
+    /// Nœud visé ; absent = tous les nœuds du pool.
+    #[serde(default)]
+    node: Option<String>,
+    #[serde(default)]
+    duration_ms: Option<u64>,
+}
+
+/// Demande aux agents de matérialiser leurs bords KVM à l'écran.
+///
+/// Enregistrer une topologie ne dit pas si elle correspond au terrain : cette
+/// route permet de le vérifier sans promener la souris de bord en bord.
+async fn api_edges_show(
+    Query(query): Query<TokenQuery>,
+    State(state): State<HubState>,
+    Json(body): Json<EdgesShowBody>,
+) -> Result<StatusCode, StatusCode> {
+    if query.token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let payload = encode_message(&Message::ShowEdges {
+        duration_ms: body.duration_ms.unwrap_or(2500),
+    })
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let nodes = state.nodes.read().await;
+    let mut sent = 0;
+    for (name, info) in nodes.iter() {
+        if body.node.as_deref().is_some_and(|n| n != name) {
+            continue;
+        }
+        if info.sender.send(payload.clone()).is_ok() {
+            sent += 1;
+        }
+    }
+    info!("bords : demande envoyée à {sent} nœud(s)");
+    if sent == 0 {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(StatusCode::OK)
 }
 
 async fn api_clipboard_pick(

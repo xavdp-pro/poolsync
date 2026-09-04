@@ -9,6 +9,7 @@ mod clipboard_incoming;
 mod crashlog;
 mod config_window;
 mod cursor_ripple;
+mod edge_flash;
 mod hotkey;
 mod notify_util;
 mod kvm;

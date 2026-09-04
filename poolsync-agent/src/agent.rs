@@ -216,6 +216,13 @@ async fn handle_incoming(
             // distante « vole » le clavier et les bords ne répondent plus localement.
             info!("primary KVM → {node}");
         }
+        Message::ShowEdges { duration_ms } => {
+            let st = state.clone();
+            // Les fenêtres GTK ne se créent que sur la boucle GTK.
+            let _ = glib::MainContext::default().invoke(move || {
+                crate::edge_flash::show(&st, Duration::from_millis(duration_ms.clamp(300, 15_000)));
+            });
+        }
         Message::TopologyUpdate { topology } => {
             state.set_topology(topology);
             info!("topology updated from hub");

@@ -46,3 +46,17 @@ export function shortHash(hash) {
   if (!hash) return '—'
   return `${hash.slice(0, 8)}…${hash.slice(-6)}`
 }
+
+/**
+ * Demande aux agents d'afficher leurs bords KVM à l'écran.
+ * `node` absent = tout le pool.
+ */
+export async function showEdges(token, node) {
+  const res = await fetch(`/api/edges/show?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ node: node || null, duration_ms: 3000 }),
+  })
+  if (!res.ok) throw new Error(`Bords : HTTP ${res.status}`)
+  return true
+}
