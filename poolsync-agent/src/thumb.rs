@@ -5,8 +5,6 @@ use image::{ImageFormat, ImageReader};
 use std::io::Cursor;
 
 pub const NOTIFY_THUMB_MAX_PX: u32 = 96;
-pub const TRAY_THUMB_MAX_PX: u32 = 64;
-pub const TRAY_MENU_DISPLAY_PX: u32 = 48;
 pub const TRAY_MENU_SOURCE_PX: u32 = 144;
 pub const LIST_THUMB_MAX_PX: u32 = 128;
 pub const PREVIEW_THUMB_MAX_PX: u32 = 320;

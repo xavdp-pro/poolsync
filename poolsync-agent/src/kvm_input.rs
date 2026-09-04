@@ -185,29 +185,7 @@ fn release_stale_grabs(conn: &x11rb::rust_connection::RustConnection) {
 
 /// Masque rapide avant que le grab Barrier soit prêt (warp hors écran).
 /// Préférer InputGrab::begin seul — n'appeler qu'après grab réussi si besoin.
-pub fn hide_cursor_best_effort(screen_w: u32, screen_h: u32) {
-    if let Err(err) = hide_and_warp_off(screen_w, screen_h) {
-        warn!("masque curseur: {err:#}");
-    }
-}
 
-fn hide_and_warp_off(screen_w: u32, screen_h: u32) -> Result<()> {
-    let (conn, screen_num) = x11rb::connect(None)?;
-    let root = conn.setup().roots[screen_num].root;
-    let _ = xfixes::hide_cursor(&conn, root);
-    conn.warp_pointer(
-        NONE,
-        root,
-        0,
-        0,
-        0,
-        0,
-        (screen_w as i16).saturating_add(200),
-        (screen_h as i16).saturating_add(200),
-    )?;
-    conn.flush()?;
-    Ok(())
-}
 
 fn create_grab_window(
     conn: &x11rb::rust_connection::RustConnection,

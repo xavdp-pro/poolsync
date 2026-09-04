@@ -163,15 +163,6 @@ pub fn warp_mouse(x: i32, y: i32) -> Result<()> {
 pub fn move_mouse_absolute(x: i32, y: i32) -> Result<()> {
     warp_mouse(x, y)
 }
-
-/// Positionne la souris en coordonnées pool (relatives au moniteur primaire KVM).
-pub fn move_mouse_pool(lx: i32, ly: i32) -> Result<()> {
-    let display = kvm_display()?;
-    let (lx, ly) = display.clamp_local(lx, ly);
-    let (rx, ry) = display.to_root(lx, ly);
-    warp_mouse(rx, ry)
-}
-
 pub fn move_mouse_relative(dx: i32, dy: i32) -> Result<()> {
     if dx == 0 && dy == 0 {
         return Ok(());
@@ -226,18 +217,6 @@ pub fn set_cursor_visible_best_effort(visible: bool) {
         warn!("curseur X11 (visible={visible}): {err:#}");
     }
 }
-
-/// Taille du bureau X11 complet (tous écrans) — éviter pour le KVM pool.
-pub fn display_size() -> Result<(u32, u32)> {
-    with_x11_conn(|conn, screen_num| {
-        let screen = &conn.setup().roots[screen_num];
-        Ok((
-            screen.width_in_pixels as u32,
-            screen.height_in_pixels as u32,
-        ))
-    })
-}
-
 /// Moniteur primaire RandR : bords KVM + coordonnées pool (style Barrier).
 pub fn kvm_display() -> Result<KvmDisplay> {
     with_x11_conn(|conn, screen_num| {

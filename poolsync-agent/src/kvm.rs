@@ -918,11 +918,6 @@ fn pool_to_root(
         ly.clamp(0, primary.height as i32 - 1),
     )
 }
-
-fn local_display_from_config(state: &AgentState) -> KvmDisplay {
-    KvmDisplay::from_screen_at_origin(local_screen_from_config(state))
-}
-
 fn local_screen_from_config(state: &AgentState) -> ScreenInfo {
     state
         .topology_node(&state.config.node)

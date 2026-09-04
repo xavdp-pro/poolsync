@@ -157,6 +157,18 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     });
     menu.append(&history_item);
 
+    // Le tableau de bord du hub est l'interface complète (état du pool,
+    // historique, mosaïque). Le menu local y renvoie plutôt que de dupliquer.
+    let dash_item = gtk::MenuItem::with_label("Tableau de bord du pool (navigateur)…");
+    let dash_url = crate::state::hub_dashboard_url(&state.config.hub_url);
+    dash_item.connect_activate(move |_| {
+        let url = dash_url.clone();
+        std::thread::spawn(move || {
+            let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+        });
+    });
+    menu.append(&dash_item);
+
     let logs_item = gtk::MenuItem::with_label("Voir les logs en direct (Debug)…");
     let node_for_logs = state.config.node.clone();
     logs_item.connect_activate(move |_| {

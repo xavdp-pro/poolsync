@@ -895,19 +895,6 @@ pub fn delete_hashes(state: &AgentState, hashes: &[String]) -> Result<()> {
     state.notify_tray_history_changed();
     Ok(())
 }
-
-/// Vignette GTK pour le menu systray (48×48 affichés).
-pub fn tray_menu_gtk_image(
-    entry: &HistoryItem,
-    state: &AgentState,
-) -> Option<gtk::Image> {
-    use crate::thumb::TRAY_MENU_DISPLAY_PX;
-    let bytes = thumb_bytes(entry, state, crate::thumb::TRAY_MENU_SOURCE_PX)?;
-    pixbuf_from_bytes(&bytes, TRAY_MENU_DISPLAY_PX as i32)
-        .map(|pixbuf| gtk::Image::from_pixbuf(Some(&pixbuf)))
-}
-
-
 /// Libellé court pour une entrée texte du menu systray.
 pub fn tray_label(item: &HistoryItem) -> String {
     let ago = format_time(item.at);

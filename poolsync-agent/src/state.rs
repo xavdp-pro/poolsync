@@ -117,6 +117,24 @@ fn persist_history_double_click_paste(path: &PathBuf, value: bool) {
     persist_config_bool(path, "history_double_click_paste", value);
 }
 
+/// URL du tableau de bord, déduite de l'adresse WebSocket du hub.
+///
+/// `ws://10.87.78.22:9470/ws` → `http://10.87.78.22:9470/`. Évite d'ajouter un
+/// réglage que l'utilisateur devrait tenir à jour en double.
+pub fn hub_dashboard_url(hub_ws_url: &str) -> String {
+    let base = hub_ws_url
+        .strip_prefix("wss://")
+        .map(|rest| format!("https://{rest}"))
+        .or_else(|| {
+            hub_ws_url
+                .strip_prefix("ws://")
+                .map(|rest| format!("http://{rest}"))
+        })
+        .unwrap_or_else(|| hub_ws_url.to_string());
+    let base = base.strip_suffix("/ws").unwrap_or(&base);
+    format!("{}/", base.trim_end_matches('/'))
+}
+
 impl AgentState {
     pub fn new(config: AgentConfig, config_path: PathBuf) -> Self {
         let kvm_default = config.kvm_active();
@@ -446,11 +464,6 @@ impl AgentState {
         persist_keep_formatting(&self.config_path, value);
     }
 
-    pub fn toggle_keep_formatting(&self) -> bool {
-        let new = !self.keep_formatting();
-        self.set_keep_formatting(new);
-        new
-    }
 
     pub fn history_double_click_paste(&self) -> bool {
         self.history_double_click_paste.load(Ordering::SeqCst)
@@ -680,19 +693,7 @@ impl AgentState {
         }
     }
 
-    pub fn last_clip_preview(&self) -> String {
-        self.last_clip_preview
-            .read()
-            .map(|p| p.clone())
-            .unwrap_or_default()
-    }
 
-    pub fn last_clip_ago_secs(&self) -> Option<u64> {
-        self.last_clip_at
-            .read()
-            .ok()
-            .and_then(|t| t.map(|i| i.elapsed().as_secs()))
-    }
 
     pub fn status_line(&self) -> String {
         let clip = if self.clipboard_sync_enabled() {
@@ -748,15 +749,21 @@ pub fn clip_preview_mime(mime: &str, data: &str) -> String {
         clip_preview(data)
     }
 }
+#[cfg(test)]
+mod dashboard_url_tests {
+    use super::hub_dashboard_url;
 
-pub fn format_time_ago(secs: u64) -> String {
-    if secs < 5 {
-        "à l'instant".into()
-    } else if secs < 60 {
-        format!("il y a {secs}s")
-    } else {
-        format!("il y a {}min", secs / 60)
+    #[test]
+    fn derives_the_dashboard_url_from_the_hub_websocket() {
+        assert_eq!(
+            hub_dashboard_url("ws://10.87.78.22:9470/ws"),
+            "http://10.87.78.22:9470/"
+        );
+        assert_eq!(
+            hub_dashboard_url("wss://hub.example.net/ws"),
+            "https://hub.example.net/"
+        );
+        // Une adresse sans /ws ni schéma connu reste utilisable telle quelle.
+        assert_eq!(hub_dashboard_url("http://hub:9470"), "http://hub:9470/");
     }
 }
-
-

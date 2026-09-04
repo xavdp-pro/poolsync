@@ -404,9 +404,3 @@ fn opposite(dir: &str) -> &str {
         _ => "left",
     }
 }
-
-fn escape_markup(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
