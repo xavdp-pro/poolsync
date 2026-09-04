@@ -42,6 +42,18 @@ au-dessus de WireGuard. C'est acceptable tant que c'est vrai, mais :
   seule machine sans changer le token de tout le pool (ce qu'on vient de faire,
   et qui demande de toucher au hub plus aux quatre agents).
 
+### Fait depuis (branche `clipboard-total-order`)
+
+- **Gestionnaire de presse-papiers X11** (`clipboard_manager.rs`) : PoolSync sait
+  tenir le rôle `CLIPBOARD_MANAGER` et recueillir la sélection d'une application
+  qui se ferme. Il s'abstient quand un autre gestionnaire est déjà en place —
+  c'est le cas sur les quatre machines du pool, la fonction y est donc inerte.
+  Le filet qui agit réellement aujourd'hui est la reprise par sondage
+  (`reclaim_orphaned_selection`) : le contenu survit à la fermeture de
+  l'application qui l'avait copié.
+
+Reste donc pour la v2 : le chiffrement et Wayland.
+
 Pistes à trancher au moment de l'implémentation :
 
 - **TLS sur le lien** (`wss://`) pour le hub comme pour le maillage direct,
@@ -54,6 +66,14 @@ Pistes à trancher au moment de l'implémentation :
   pour pouvoir révoquer une machine seule.
 - Sortir le token de l'URL dans tous les cas, vers un en-tête ou une poignée
   de main applicative.
+
+### Wayland
+
+Toutes les machines sont en X11 aujourd'hui, mais Debian 13 et Ubuntu poussent
+Wayland : sans une couche d'abstraction « bureau », la v2 y serait aveugle.
+Le presse-papiers passerait par `ext-data-control` (ou `wlr-data-control`), et
+le KVM par le portail RemoteDesktop / `libei` — deux protocoles sans rapport
+avec les sélections X11, donc un second backend complet, pas une adaptation.
 
 Le chiffrement de bout en bout est le seul qui rende la fuite d'un secret
 non catastrophique ; c'est la direction à privilégier si le coût le permet.
