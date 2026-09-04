@@ -66,6 +66,7 @@ avalent le reste du script sur stdin comme du YAML.
 | `52-launch-agents.sh` | lance les agents, vérifie le maillage et le hub |
 | `60-persist-and-snapshot.sh` | unités systemd (démarrage + relance toutes les 2 min), snapshot |
 | `61-fix-home-ownership.sh` | `/home/zaza` doit appartenir à zaza, sinon sshd refuse les clés |
+| `bench-agents.sh` | démarrage idempotent des trois bureaux et de leurs agents (copié dans `/srv/poolsync/`, lancé au boot et toutes les 2 min) |
 | `90-test-text-and-image.sh` | test de bout en bout : frappe réelle, Ctrl+Shift+V, capture d'écran |
 | `91-diag-typing.sh` | diagnostic focus/frappe |
 | `70-desk-c-xubuntu.sh` | lance desk-c (image `bench-xubuntu`), relais 9083/3224, agent, voisinage b↔c |
@@ -116,3 +117,11 @@ C'est le défaut à corriger avec le multi-écrans de l'interface (point 2).
   (46 008 octets) identique sur desk-b et desk-a ;
 - collage réel (Ctrl+Shift+V) dans un `xfce4-terminal` de la Xubuntu : identique ;
 - repos 3 min sur desk-a/desk-b : 0 copie locale, 0 notification, 0 WARN.
+
+## Tableau de bord du banc
+
+Le hub du banc sert la même interface que la production :
+`http://10.87.78.36:9470/` (VPN uniquement). C'est là qu'on valide les
+changements d'interface avant de les déployer sur les vraies machines.
+
+Snapshots LXD : `base-2desks`, `base-3desks`, `base-3desks-ui`.
