@@ -6,6 +6,7 @@ mod clipboard_diag;
 mod clipboard_gtk;
 mod clipboard_history;
 mod clipboard_incoming;
+mod clipboard_manager;
 mod crashlog;
 mod config_window;
 mod cursor_ripple;
@@ -115,6 +116,9 @@ fn main() -> Result<()> {
     );
 
     hotkey::spawn_hotkey_listener(state.clone());
+    // Recueille le presse-papiers des applications qui se ferment (X11
+    // CLIPBOARD_MANAGER). S'abstient si un autre gestionnaire est déjà en place.
+    clipboard_manager::spawn();
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
