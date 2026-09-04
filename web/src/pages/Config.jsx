@@ -1,5 +1,14 @@
 import { motion } from 'framer-motion'
-import { LayoutGrid, Link2, MousePointer2, Save, Settings2 } from 'lucide-react'
+import {
+  LayoutGrid,
+  Link2,
+  MonitorSmartphone,
+  MousePointer2,
+  Redo2,
+  Save,
+  Settings2,
+  Undo2,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import {
@@ -18,6 +27,7 @@ import {
   nodeRect,
   scaleLayout,
   snapPosition,
+  snapToNeighbors,
   SNAP_GRID_PX,
 } from '../topologyLayout'
 
@@ -34,6 +44,9 @@ export default function Config() {
   // Rafraîchi en continu : la mosaïque doit refléter le pool tel qu'il est,
   // pas seulement la géométrie enregistrée.
   const [statusByNode, setStatusByNode] = useState({})
+  // Écran sélectionné (déplaçable au clavier) et machine devant laquelle on est.
+  const [selected, setSelected] = useState(null)
+  const [myNode, setMyNode] = useState(() => localStorage.getItem('poolsync_my_node') || '')
   const dragStart = useRef({})
   const canvasRef = useRef(null)
 
@@ -73,6 +86,32 @@ export default function Config() {
     }
   }, [])
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        e.shiftKey ? redo() : undo()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+        return
+      }
+      if (!selected || !topology?.nodes?.[selected]) return
+      const moves = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+      const move = moves[e.key]
+      if (move) {
+        e.preventDefault()
+        nudge(selected, move[0], move[1], e.shiftKey)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   const layout = useMemo(() => scaleLayout(topology?.nodes), [topology])
 
   const lines = useMemo(
@@ -104,6 +143,34 @@ export default function Config() {
     setSaved(false)
   }
 
+  // Annuler / refaire : un glisser raté se corrigeait à l'œil, en re-glissant.
+  const [past, setPast] = useState([])
+  const [future, setFuture] = useState([])
+  const pushHistory = () => {
+    setPast((p) => [...p.slice(-49), topology.nodes])
+    setFuture([])
+  }
+  const undo = () => {
+    setPast((p) => {
+      if (!p.length) return p
+      const previous = p[p.length - 1]
+      setFuture((f) => [topology.nodes, ...f])
+      setTopology((t) => ({ ...t, nodes: previous }))
+      setSaved(false)
+      return p.slice(0, -1)
+    })
+  }
+  const redo = () => {
+    setFuture((f) => {
+      if (!f.length) return f
+      const [next, ...rest] = f
+      setPast((p) => [...p, topology.nodes])
+      setTopology((t) => ({ ...t, nodes: next }))
+      setSaved(false)
+      return rest
+    })
+  }
+
   const updateNode = (id, patch) => {
     applyTopology({
       ...topology.nodes,
@@ -124,19 +191,49 @@ export default function Config() {
     applyTopology(next.nodes)
   }
 
-  const onDragEnd = (id, _e, info) => {
-    setDragId(null)
+  /** Position visée pendant/à la fin d'un glisser, aimantée aux bords voisins. */
+  const draggedPosition = (id, info) => {
     const start = dragStart.current[id] || topology.nodes[id]
-    const [sx, sy] = snapPosition(
+    const [sx, sy] = snapToNeighbors(
+      topology.nodes,
+      id,
       start.x + info.offset.x / layout.scale,
       start.y + info.offset.y / layout.scale,
     )
+    return { x: Math.max(0, sx), y: Math.max(0, sy) }
+  }
+
+  // Pendant le glisser, on recalcule les voisins en direct : les liaisons
+  // apparaissent quand les bords se touchent, au lieu de n'être découvertes
+  // qu'après avoir lâché — et en cas de raté, il n'y a rien à défaire.
+  const onDrag = (id, _e, info) => {
+    const pos = draggedPosition(id, info)
+    const node = topology.nodes[id]
+    if (node.x === pos.x && node.y === pos.y) return
+    const patched = { ...topology.nodes, [id]: { ...node, ...pos } }
+    setTopology((prev) => ({ ...prev, nodes: inferNeighbors({ nodes: patched }).nodes }))
+  }
+
+  const onDragEnd = (id, _e, info) => {
+    setDragId(null)
     const patched = {
       ...topology.nodes,
-      [id]: { ...topology.nodes[id], x: Math.max(0, sx), y: Math.max(0, sy) },
+      [id]: { ...topology.nodes[id], ...draggedPosition(id, info) },
     }
-    const next = inferNeighbors({ nodes: patched })
-    applyTopology(next.nodes)
+    pushHistory()
+    applyTopology(inferNeighbors({ nodes: patched }).nodes)
+  }
+
+  /** Déplacement au clavier : un cran de grille, dix avec Maj. */
+  const nudge = (id, dx, dy, big) => {
+    const step = SNAP_GRID_PX * (big ? 10 : 1)
+    const n = topology.nodes[id]
+    const patched = {
+      ...topology.nodes,
+      [id]: { ...n, x: Math.max(0, n.x + dx * step), y: Math.max(0, n.y + dy * step) },
+    }
+    pushHistory()
+    applyTopology(inferNeighbors({ nodes: patched }).nodes)
   }
 
   const handleSave = async () => {
@@ -185,6 +282,43 @@ export default function Config() {
         </label>
         <button
           type="button"
+          onClick={undo}
+          disabled={!past.length}
+          title="Annuler le dernier déplacement (Ctrl+Z)"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Undo2 size={16} />
+          Annuler
+        </button>
+        <button
+          type="button"
+          onClick={redo}
+          disabled={!future.length}
+          title="Refaire (Ctrl+Maj+Z)"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Redo2 size={16} />
+          Refaire
+        </button>
+        <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+          <MonitorSmartphone size={16} className="text-emerald-600" />
+          Ma machine
+          <select
+            value={myNode}
+            onChange={(e) => {
+              setMyNode(e.target.value)
+              localStorage.setItem('poolsync_my_node', e.target.value)
+            }}
+            className="rounded border border-slate-200 bg-white px-1 py-0.5 text-sm"
+          >
+            <option value="">—</option>
+            {allIds.map((id) => (
+              <option key={id} value={id}>{nodeLabel(id)}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
           onClick={recalcNeighbors}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
         >
@@ -210,7 +344,7 @@ export default function Config() {
             Mosaïque d&apos;écrans
           </div>
           <span className="text-xs text-slate-400">
-            Grille {SNAP_GRID_PX}px · alignez les bords pour lier les machines
+            Grille {SNAP_GRID_PX}px · aimantation sur les bords · flèches pour déplacer, Maj pour 10 crans
           </span>
         </div>
         <div
@@ -255,9 +389,12 @@ export default function Config() {
                   dragElastic={0}
                   onDragStart={() => {
                     setDragId(id)
+                    setSelected(id)
                     dragStart.current[id] = { x: n.x, y: n.y }
                   }}
+                  onDrag={(e, info) => onDrag(id, e, info)}
                   onDragEnd={(e, info) => onDragEnd(id, e, info)}
+                  onPointerDown={() => setSelected(id)}
                   className={`absolute flex cursor-grab flex-col items-center justify-center overflow-hidden rounded-md border-2 text-center shadow-lg active:cursor-grabbing ${
                     offline
                       ? 'border-slate-300 border-dashed bg-slate-100/70 text-slate-400'
@@ -266,7 +403,9 @@ export default function Config() {
                         : n.kvm_enabled
                           ? 'border-indigo-400 bg-indigo-100/90 text-indigo-950'
                           : 'border-slate-400 bg-slate-200/90 text-slate-600'
-                  } ${active ? 'z-20 ring-2 ring-indigo-500' : 'z-10'}`}
+                  } ${active ? 'z-20 ring-2 ring-indigo-500' : selected === id ? 'z-20 ring-2 ring-sky-400' : 'z-10'} ${
+                    myNode === id ? 'outline outline-2 outline-offset-2 outline-emerald-500' : ''
+                  }`}
                   style={{
                     left: rect.left,
                     top: rect.top,
@@ -276,6 +415,11 @@ export default function Config() {
                   title={`${id} — ${n.width}×${n.height}`}
                 >
                   <NodeBadges status={status} />
+                  {myNode === id && (
+                    <span className="absolute left-1 top-1 rounded bg-emerald-600 px-1 text-[8px] font-bold uppercase text-white">
+                      ici
+                    </span>
+                  )}
                   <LayoutGrid size={14} className="mb-0.5 opacity-40" />
                   <span className="px-1 text-sm font-bold leading-tight">{nodeLabel(id)}</span>
                   <span className="font-mono text-[10px] opacity-60">{n.width}×{n.height}</span>

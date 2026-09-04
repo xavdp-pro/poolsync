@@ -79,6 +79,41 @@ export function isParked(n) {
   return !n || n.y >= PARKED_Y
 }
 
+/**
+ * Aligne un écran sur les bords des autres, comme dans un éditeur graphique.
+ *
+ * L'aimantation sur grille seule ne suffit pas : deux écrans de hauteurs
+ * différentes ne se touchent jamais franchement, et les voisins KVM ne se
+ * déduisent pas. On propose donc d'abord les bords des autres écrans, et on
+ * retombe sur la grille si aucun n'est assez proche.
+ */
+export function snapToNeighbors(nodes, id, x, y, tolerance = 24) {
+  const self = nodes[id]
+  if (!self) return snapPosition(x, y)
+  const others = Object.entries(nodes).filter(([oid, n]) => oid !== id && !isParked(n))
+  let bestX = null
+  let bestY = null
+  const consider = (candidate, current, best) => {
+    const d = Math.abs(candidate - current)
+    if (d <= tolerance && (best === null || d < Math.abs(best - current))) return candidate
+    return best
+  }
+  for (const [, o] of others) {
+    // bord à bord horizontalement, ou alignement des bords gauche/droit
+    bestX = consider(o.x + o.width, x, bestX)
+    bestX = consider(o.x - self.width, x, bestX)
+    bestX = consider(o.x, x, bestX)
+    bestX = consider(o.x + o.width - self.width, x, bestX)
+    // idem verticalement
+    bestY = consider(o.y + o.height, y, bestY)
+    bestY = consider(o.y - self.height, y, bestY)
+    bestY = consider(o.y, y, bestY)
+    bestY = consider(o.y + o.height - self.height, y, bestY)
+  }
+  const [gx, gy] = snapPosition(x, y)
+  return [bestX ?? gx, bestY ?? gy]
+}
+
 export function scaleLayout(nodes, maxW = 720, maxH = 420) {
   const all = Object.entries(nodes || {})
   const entries = all.filter(([, n]) => !isParked(n))
