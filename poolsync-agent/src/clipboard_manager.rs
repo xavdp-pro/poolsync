@@ -12,6 +12,7 @@
 //! le sondage rattrape après coup, ce protocole prévient — l'application nous
 //! donne son contenu avant de disparaître, sans fenêtre d'oubli possible.
 
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -27,11 +28,6 @@ use x11rb::wrapper::ConnectionExt as _;
 use x11rb::CURRENT_TIME;
 
 static OWNED: AtomicBool = AtomicBool::new(false);
-
-/// Le gestionnaire est-il actif sur cette machine ?
-pub fn is_active() -> bool {
-    OWNED.load(Ordering::SeqCst)
-}
 
 /// Démarre le gestionnaire dans un fil dédié. Sans effet si un autre programme
 /// (clipman, klipper…) possède déjà la sélection : deux gestionnaires sur un
@@ -110,7 +106,9 @@ fn run() -> Result<()> {
         match conn.wait_for_event() {
             Ok(Event::SelectionRequest(req)) => handle_request(&conn, &atoms, &req)?,
             Ok(Event::SelectionClear(_)) => {
-                tracing::info!("gestionnaire de presse-papiers : un autre programme a pris le relais");
+                tracing::info!(
+                    "gestionnaire de presse-papiers : un autre programme a pris le relais"
+                );
                 return Ok(());
             }
             Ok(_) => {}
@@ -171,16 +169,80 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
     if owner == x11rb::NONE {
         return Ok(());
     }
+    let targets = clipboard_targets_via_xclip();
+    if let Some(mime) = preferred_image_target(&targets) {
+        match read_target_via_xclip(mime) {
+            Ok(Some(bytes)) => {
+                let (stored_mime, hash) =
+                    crate::clipboard::remember_clipboard_manager_image(&bytes)?;
+                tracing::info!(
+                    "gestionnaire : image recueillie avant fermeture mime={} bytes={} id={}",
+                    stored_mime,
+                    bytes.len(),
+                    crate::clipboard::trace_id(&hash)
+                );
+                return Ok(());
+            }
+            Ok(None) => {}
+            Err(err) => {
+                tracing::warn!("gestionnaire : cible image {mime} annoncée mais illisible: {err:#}")
+            }
+        }
+    }
+
     let text = read_utf8_selection(conn, atoms, owner)?;
     if let Some(text) = text {
-        let hash = poolsync_core::hash_text(&text);
-        crate::clipboard::remember_clipboard_content("text/plain", &text, &hash);
+        let len = text.len();
+        crate::clipboard::remember_clipboard_manager_text(text);
         tracing::info!(
             "gestionnaire : {} octets recueillis d'une application qui se ferme",
-            text.len()
+            len
         );
     }
     Ok(())
+}
+
+fn clipboard_targets_via_xclip() -> Vec<String> {
+    let Ok(output) = Command::new("timeout")
+        .args([
+            "2",
+            "xclip",
+            "-selection",
+            "clipboard",
+            "-t",
+            "TARGETS",
+            "-o",
+        ])
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn preferred_image_target(targets: &[String]) -> Option<&str> {
+    ["image/png", "image/jpeg", "image/jpg", "image/bmp"]
+        .into_iter()
+        .find(|candidate| targets.iter().any(|target| target == candidate))
+}
+
+fn read_target_via_xclip(target: &str) -> Result<Option<Vec<u8>>> {
+    let output = Command::new("timeout")
+        .args(["12", "xclip", "-selection", "clipboard", "-t", target, "-o"])
+        .output()
+        .with_context(|| format!("lecture xclip {target}"))?;
+    if !output.status.success() || output.stdout.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(output.stdout))
 }
 
 fn read_utf8_selection(
@@ -231,4 +293,25 @@ fn read_utf8_selection(
     conn.destroy_window(dest)?;
     conn.flush()?;
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preferred_image_target;
+
+    fn targets(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_string()).collect()
+    }
+
+    #[test]
+    fn png_is_saved_before_other_screenshot_formats() {
+        let offered = targets(&["UTF8_STRING", "image/bmp", "image/png"]);
+        assert_eq!(preferred_image_target(&offered), Some("image/png"));
+    }
+
+    #[test]
+    fn text_only_clipboards_do_not_trigger_an_image_read() {
+        let offered = targets(&["UTF8_STRING", "text/plain"]);
+        assert_eq!(preferred_image_target(&offered), None);
+    }
 }

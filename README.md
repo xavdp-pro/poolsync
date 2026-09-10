@@ -6,7 +6,7 @@ Shared **clipboard + keyboard/mouse** across multiple Linux desktops — a moder
 
 - **Hub** — lightweight central coordinator (any host reachable over your VPN)
 - **Agent** — one daemon per machine in the pool (XFCE / X11)
-- **Transport** — WebSocket over WireGuard or any private network
+- **Transport** — WebSocket/TLS over WireGuard, LAN or another trusted network
 - **Dynamic master** — whichever machine you use becomes the input master
 
 ## Rust workspace
@@ -39,8 +39,10 @@ Config file: `~/.config/poolsync/agent.toml`
 
 ```toml
 node = "laptop-b"
-hub_url = "ws://10.0.0.1:9470/ws"
+hub_url = "wss://hub.example:9470/ws"
 token = "YOUR_TOKEN"
+node_token = "THIS_NODE_TOKEN"
+e2e_key = "BASE64_32_BYTE_GROUP_KEY"
 mode = "full"   # or "clipboard_only"
 
 [screen]
@@ -60,6 +62,15 @@ POOLSYNC_TOKEN=your_token ./deploy/install-agent-local.sh my-node-name
 POOLSYNC_TOKEN=your_token ./deploy/install-agent.sh ssh-host my-node-name
 ```
 
+Secure deployment after generating the security directory:
+
+```bash
+POOLSYNC_TOKEN=admin POOLSYNC_SECURITY_DIR=/secure/path/poolsync \
+  ./deploy/install-hub-gbs-p3.sh
+POOLSYNC_TOKEN=admin POOLSYNC_SECURITY_DIR=/secure/path/poolsync \
+  ./deploy/install-agent.sh ssh-host my-node-name
+```
+
 Agents start via **systemd user** + **XFCE autostart** after graphical login.
 
 ## Keyboard shortcuts
@@ -77,13 +88,19 @@ macOS: **Ctrl+Option+Shift+P / M / C / L**. Systray: **Devenir maître KVM** is 
 
 ## Security model
 
-PoolSync is designed to run **inside a private network** (WireGuard VPN, LAN). Be aware of the current threat model:
+- All HTTP and WebSocket credentials use `Authorization: Bearer`; PoolSync no longer accepts or emits secrets in URL query parameters.
+- The hub supports native TLS with `--tls-cert` and `--tls-key`; peer listeners support `peer_tls_cert`/`peer_tls_key`, and `wss://` clients validate the system trust store. Peer certificate SANs must match the hostnames used in `peer_url`.
+- `--node-tokens-file` enables one independently revocable identity per node. The JSON entry accepts `token`, `previous_tokens` for zero-downtime rotation, and `revoked`; secure agent installs do not retain the dashboard administrator token.
+- `e2e_key` enables XChaCha20-Poly1305 clipboard encryption. The hub relays opaque authenticated ciphertext and therefore cannot populate its central clipboard history in this mode. Use `--require-e2e` after every agent has migrated to prevent downgrade.
+- `/health` is deliberately public and contains only `ok`; every status, topology and clipboard API is private.
 
-- **Transport is `ws://` (unencrypted).** Clipboard content — text *and* images — and keyboard/mouse events travel in clear text. Confidentiality relies entirely on the underlying VPN/LAN. Run the hub on `wss://` behind a reverse proxy (or over WireGuard) if the link is not already private.
-- **The token authenticates, it does not encrypt.** It is passed as a URL query parameter (`/ws?token=…`, `/api/topology?token=…`) and can therefore leak into proxy/access logs. Treat it as a shared secret and rotate it if exposed.
-- **No per-node authorization.** Any client presenting a valid token can join the pool, become master, and read/write the shared clipboard.
+Generate a local CA, hub certificate, node identities and E2E key outside the repository:
 
-Do **not** expose the hub port directly on the public internet without a TLS-terminating proxy and network-level access control.
+```bash
+./deploy/generate-security.sh /secure/path/poolsync hub.example desk-a desk-b
+```
+
+For native Wayland, install `wl-clipboard`; text, HTML and image synchronization uses `wl-paste`/`wl-copy`. KVM injection uses `ydotool`/`uinput`. Global input capture remains intentionally receive-only on Wayland until a user-authorized RemoteDesktop/libei portal session is available; set `kvm_capture = false` on such nodes.
 
 ## License
 

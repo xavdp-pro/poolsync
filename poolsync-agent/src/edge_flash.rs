@@ -104,10 +104,7 @@ fn spawn_band(neighbor: &str, dir: Direction, x: i32, y: i32, w: i32, h: i32) {
         cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
         cr.set_font_size(18.0);
         if let Ok(ext) = cr.text_extents(&label) {
-            cr.move_to(
-                (width - ext.width()) / 2.0,
-                (height + ext.height()) / 2.0,
-            );
+            cr.move_to((width - ext.width()) / 2.0, (height + ext.height()) / 2.0);
             let _ = cr.show_text(&label);
         }
         gtk::glib::Propagation::Proceed

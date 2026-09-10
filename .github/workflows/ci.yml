@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, v1.2]
+    branches: [main, v1.2, clipboard-total-order]
   pull_request:
 
 env:
@@ -34,7 +34,12 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Deploy script checks
+        run: |
+          find deploy -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          for test in deploy/tests/*-test.sh; do bash "$test"; done
 
       - name: Tests
         run: cargo test --workspace

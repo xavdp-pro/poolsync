@@ -1,15 +1,12 @@
 //! Historique presse-papiers pool (hub) — fenêtre GTK depuis le systray.
 
 use crate::clipboard::write_clipboard_sync;
-use crate::network::hub_tcp_endpoint;
 use crate::state::AgentState;
-use crate::thumb::{
-    thumb_b64_from_wire, LIST_THUMB_MAX_PX, PREVIEW_THUMB_MAX_PX,
-};
+use crate::thumb::{thumb_b64_from_wire, LIST_THUMB_MAX_PX, PREVIEW_THUMB_MAX_PX};
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use gtk::gdk_pixbuf::PixbufLoader;
 use gtk::gdk::prelude::GdkContextExt;
+use gtk::gdk_pixbuf::PixbufLoader;
 use gtk::prelude::*;
 use gtk::{
     Box as GtkBox, Button, CheckButton, Frame, Image, Label, ListBox, ListBoxRow, MessageDialog,
@@ -27,10 +24,6 @@ const TRAY_FETCH_TIMEOUT: Duration = Duration::from_secs(2);
 const LIST_THUMB_PX: i32 = 160;
 const PREVIEW_PX: i32 = 420;
 const PAGE_SIZE: usize = 20;
-
-thread_local! {
-    static OPEN_WINDOW: RefCell<Option<Rc<HistoryWindow>>> = const { RefCell::new(None) };
-}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct HistoryItem {
@@ -50,7 +43,6 @@ struct HistoryResponse {
 
 #[derive(Debug, Deserialize)]
 struct ItemResponse {
-    hash: String,
     mime: String,
     data: String,
 }
@@ -77,8 +69,6 @@ pub struct HistoryWindow {
 /// Construit la page « Presse-papiers » destinée au `Notebook` de la fenêtre
 /// unique, et renvoie le widget racine accompagné du handle qui la pilote.
 ///
-/// La fenêtre autonome (`show`) reste disponible, mais l'entrée du systray passe
-/// désormais par la fenêtre à onglets.
 pub fn build_page(state: Arc<AgentState>) -> (gtk::Widget, Rc<HistoryWindow>) {
     crate::crashlog::set_context("clipboard_history::build_page");
     let win = HistoryWindow::new(state);
@@ -99,27 +89,6 @@ pub fn build_page(state: Arc<AgentState>) -> (gtk::Widget, Rc<HistoryWindow>) {
     }
     page.show_all();
     (page, win)
-}
-
-impl HistoryWindow {
-    /// Recharge la liste — utilisé par la fenêtre à onglets.
-    pub fn refresh(&self) {
-        self.reload();
-    }
-}
-
-pub fn show(state: Arc<AgentState>) {
-    OPEN_WINDOW.with(|slot| {
-        if let Some(existing) = slot.borrow().as_ref() {
-            existing.window.present();
-            existing.reload();
-            return;
-        }
-        let win = HistoryWindow::new(state);
-        *slot.borrow_mut() = Some(Rc::clone(&win));
-        win.reload();
-        win.window.show_all();
-    });
 }
 
 /// Dialogue « vider l'historique » depuis le systray (sans ouvrir la fenêtre).
@@ -267,20 +236,15 @@ impl HistoryWindow {
                   button:hover { background-color: #45475a; }\n\
                   entry { background-color: #181825; color: #cdd6f4; border-radius: 6px; padding: 6px; }\n"
             );
-            window.style_context().add_provider(
-                &css_provider,
-                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-            );
+            window
+                .style_context()
+                .add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
             root.pack_start(&toolbar, false, false, 0);
             root.pack_start(&search, false, false, 0);
             root.pack_start(&body, true, true, 0);
             root.pack_start(&status, false, false, 0);
             window.add(&root);
-
-            window.connect_destroy(|_| {
-                OPEN_WINDOW.with(|slot| *slot.borrow_mut() = None);
-            });
 
             // Rafraîchissement automatique en pseudo temps réel (toutes les 1.5s)
             let w_auto = weak.clone();
@@ -386,7 +350,7 @@ impl HistoryWindow {
             search.connect_search_changed(move |entry| {
                 if let Some(v) = w.upgrade() {
                     *v.page.borrow_mut() = 0;
-                    v.apply_filter(&entry.text().to_string());
+                    v.apply_filter(entry.text().as_ref());
                 }
             });
             close_btn.connect_clicked(move |btn| {
@@ -426,7 +390,7 @@ impl HistoryWindow {
         match fetch_history(&self.state) {
             Ok(items) => {
                 *self.items.borrow_mut() = items;
-                self.apply_filter(&self.search.text().to_string());
+                self.apply_filter(self.search.text().as_ref());
             }
             Err(err) => self.set_status(&format!("Erreur chargement : {err}")),
         }
@@ -795,8 +759,7 @@ fn format_time(at: u64) -> String {
 }
 
 fn http_base(state: &AgentState) -> Result<String> {
-    let (host, port) = hub_tcp_endpoint(&state.config.hub_url)?;
-    Ok(format!("http://{host}:{port}"))
+    crate::network::hub_http_base(&state.config.hub_url)
 }
 
 fn fetch_history(state: &AgentState) -> Result<Vec<HistoryItem>> {
@@ -819,13 +782,14 @@ fn fetch_history(state: &AgentState) -> Result<Vec<HistoryItem>> {
 }
 
 fn fetch_history_from_hub(state: &AgentState) -> Result<Vec<HistoryItem>> {
-    let url = format!(
-        "{}/api/clipboard/history?token={}&limit=50",
-        http_base(state)?,
-        state.config.token
-    );
+    let url = format!("{}/api/clipboard/history?limit=50", http_base(state)?);
     let body = ureq::get(&url)
         .timeout(HTTP_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .call()
         .map_err(|e| anyhow!("{e}"))?
         .into_string()?;
@@ -839,20 +803,16 @@ pub fn fetch_history_hub_only(state: &AgentState) -> Result<Vec<HistoryItem>> {
 
 fn fetch_item(state: &AgentState, hash: &str) -> Result<ItemResponse> {
     if let Some((mime, data)) = crate::clip_cache::get(hash) {
-        return Ok(ItemResponse {
-            hash: hash.to_string(),
-            mime,
-            data,
-        });
+        return Ok(ItemResponse { mime, data });
     }
-    let url = format!(
-        "{}/api/clipboard/item?token={}&hash={}",
-        http_base(state)?,
-        state.config.token,
-        hash
-    );
+    let url = format!("{}/api/clipboard/item?hash={hash}", http_base(state)?);
     let body = ureq::get(&url)
         .timeout(HTTP_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .call()
         .map_err(|e| anyhow!("{e}"))?
         .into_string()?;
@@ -860,13 +820,14 @@ fn fetch_item(state: &AgentState, hash: &str) -> Result<ItemResponse> {
 }
 
 pub fn clear_history(state: &AgentState) -> Result<()> {
-    let url = format!(
-        "{}/api/clipboard/clear?token={}",
-        http_base(state)?,
-        state.config.token
-    );
+    let url = format!("{}/api/clipboard/clear", http_base(state)?);
     ureq::post(&url)
         .timeout(HTTP_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .call()
         .map_err(|e| anyhow!("{e}"))?;
     crate::clip_cache::clear_all();
@@ -880,14 +841,15 @@ pub fn delete_hashes(state: &AgentState, hashes: &[String]) -> Result<()> {
     if hashes.is_empty() {
         return Ok(());
     }
-    let url = format!(
-        "{}/api/clipboard/delete?token={}",
-        http_base(state)?,
-        state.config.token
-    );
+    let url = format!("{}/api/clipboard/delete", http_base(state)?);
     let body = serde_json::json!({ "hashes": hashes }).to_string();
     ureq::post(&url)
         .timeout(HTTP_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .set("Content-Type", "application/json")
         .send_string(&body)
         .map_err(|e| anyhow!("{e}"))?;
@@ -934,13 +896,14 @@ pub fn fetch_history_tray(state: &AgentState) -> Result<Vec<HistoryItem>> {
 }
 
 fn fetch_history_tray_from_hub(state: &AgentState, limit: usize) -> Result<Vec<HistoryItem>> {
-    let url = format!(
-        "{}/api/clipboard/history?token={}&limit={limit}",
-        http_base(state)?,
-        state.config.token
-    );
+    let url = format!("{}/api/clipboard/history?limit={limit}", http_base(state)?);
     let body = ureq::get(&url)
         .timeout(TRAY_FETCH_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .call()
         .map_err(|e| anyhow!("{e}"))?
         .into_string()?;
@@ -965,9 +928,11 @@ pub fn notify_local_clipboard_sent(
 ) {
     let preview = crate::state::clip_preview_mime(&payload.mime, &payload.wire_data);
     crate::clip_cache::store_payload(payload, &preview, &state.config.node);
-    let thumb_b64 = payload.mime.starts_with("image/").then(|| {
-        thumb_b64_from_wire(&payload.wire_data, crate::thumb::TRAY_MENU_SOURCE_PX).ok()
-    }).flatten();
+    let thumb_b64 = payload
+        .mime
+        .starts_with("image/")
+        .then(|| thumb_b64_from_wire(&payload.wire_data, crate::thumb::TRAY_MENU_SOURCE_PX).ok())
+        .flatten();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -997,10 +962,10 @@ pub fn pick_and_paste(state: &AgentState, hash: &str) -> Result<()> {
     }
     let hash = hash.to_string();
     let node = state.config.node.clone();
-    let token = state.config.token.clone();
+    let token = state.config.authentication_token().to_string();
     let hub_base = http_base(state)?;
     std::thread::spawn(move || {
-        let url = format!("{hub_base}/api/clipboard/pick?token={token}");
+        let url = format!("{hub_base}/api/clipboard/pick");
         let body = serde_json::json!({
             "hash": hash,
             "node": node,
@@ -1008,6 +973,8 @@ pub fn pick_and_paste(state: &AgentState, hash: &str) -> Result<()> {
         .to_string();
         if let Err(err) = ureq::post(&url)
             .timeout(HTTP_TIMEOUT)
+            .set("Authorization", &format!("Bearer {token}"))
+            .set("X-PoolSync-Node", &node)
             .set("Content-Type", "application/json")
             .send_string(&body)
         {

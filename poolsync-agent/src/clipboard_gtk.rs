@@ -24,13 +24,19 @@ pub enum ClipboardOffer {
     /// concurrence avec la sélection souris de l'utilisateur et avec
     /// xrdp-chansrv, ce qui fait vaciller la propriété de la sélection sous
     /// les doigts de Chromium — donc VSCode et Chrome qui se figent au collage.
-    Text { text: String, mirror_primary: bool },
+    Text {
+        text: String,
+        mirror_primary: bool,
+    },
     Rich {
         plain: String,
         html: String,
         mirror_primary: bool,
     },
-    Image { mime: String, bytes: Vec<u8> },
+    Image {
+        mime: String,
+        bytes: Vec<u8>,
+    },
     /// Drop GTK ownership so the native X11 clipboard can work (PoolSync sync OFF).
     Release,
 }
@@ -272,7 +278,11 @@ pub fn offer_now_from_gtk(offer: ClipboardOffer) {
 
 /// xrdp-chansrv often replaces a PNG offer with empty image/bmp. Put PNG back.
 pub fn reoffer_last_image() -> bool {
-    let min_ms = if recent_image_claim_active() { 200 } else { 400 };
+    let min_ms = if recent_image_claim_active() {
+        200
+    } else {
+        400
+    };
     let too_soon = LAST_REOFFER
         .lock()
         .ok()
@@ -299,8 +309,8 @@ fn apply_offer(offer: ClipboardOffer) {
         tracing::warn!("gtk clipboard: no display");
         return;
     };
-    let clip = Clipboard::default(&display)
-        .unwrap_or_else(|| Clipboard::get(&gdk::SELECTION_CLIPBOARD));
+    let clip =
+        Clipboard::default(&display).unwrap_or_else(|| Clipboard::get(&gdk::SELECTION_CLIPBOARD));
     let primary = Clipboard::get(&gdk::SELECTION_PRIMARY);
     match offer {
         ClipboardOffer::Text {
@@ -319,7 +329,11 @@ fn apply_offer(offer: ClipboardOffer) {
                 let _ = set_text_only(&primary, text);
             }
             TEXT_OWNER.store(
-                if ok_clip { current_clipboard_owner() } else { 0 },
+                if ok_clip {
+                    current_clipboard_owner()
+                } else {
+                    0
+                },
                 Ordering::SeqCst,
             );
             if !ok_clip {
@@ -338,7 +352,11 @@ fn apply_offer(offer: ClipboardOffer) {
             clear_image_claim();
             let ok_html = set_text_and_html(&clip, plain.clone(), html);
             TEXT_OWNER.store(
-                if ok_html { current_clipboard_owner() } else { 0 },
+                if ok_html {
+                    current_clipboard_owner()
+                } else {
+                    0
+                },
                 Ordering::SeqCst,
             );
             if !ok_html {

@@ -105,7 +105,7 @@ fi
 
 # --- Test 2: nodes online ---
 log "=== Test 2: nœuds connectés au hub ==="
-ONLINE_JSON="$(curl -sf "${HUB_HTTP}/api/status")"
+ONLINE_JSON="$(curl -sf -H "Authorization: Bearer ${TOKEN}" "${HUB_HTTP}/api/status")"
 for n in "${NODES[@]}"; do
   if echo "$ONLINE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if any(x['name']=='$n' for x in d.get('nodes',[])) else 1)"; then
     ok "hub voit $n en ligne"
@@ -139,7 +139,7 @@ except ImportError:
     sys.exit(2)
 
 token = os.environ["TOKEN"]
-hub = os.environ["HUB_WS"] + "?token=" + token
+hub = os.environ["HUB_WS"]
 text = os.environ["TEST_MSG"]
 h = hashlib.sha256(text.encode()).hexdigest()
 msg = json.dumps({
@@ -158,7 +158,11 @@ hello = json.dumps({
     "kvm_enabled": False,
 })
 
-ws = websocket.create_connection(hub, timeout=10)
+ws = websocket.create_connection(
+    hub,
+    timeout=10,
+    header=[f"Authorization: Bearer {token}", "X-PoolSync-Node: cli-test-sender"],
+)
 ws.send(hello)
 ws.recv()  # may get topology_update
 ws.send(msg)
@@ -167,7 +171,11 @@ ws.close()
 import urllib.request
 import time
 time.sleep(0.5)
-st = json.load(urllib.request.urlopen(os.environ["HUB_HTTP"] + "/api/status"))
+request = urllib.request.Request(
+    os.environ["HUB_HTTP"] + "/api/status",
+    headers={"Authorization": f"Bearer {token}"},
+)
+st = json.load(urllib.request.urlopen(request))
 last = (st.get("clipboard") or {}).get("last_hash")
 if last == h:
     print("OK hub a enregistré le hash clipboard")

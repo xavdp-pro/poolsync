@@ -36,9 +36,8 @@ import {
 const DIRS = ['left', 'right', 'up', 'down']
 const DIR_LABEL = { left: '←', right: '→', up: '↑', down: '↓' }
 
-export default function Config() {
+export default function Config({ token, onTokenChange }) {
   const [topology, setTopology] = useState(null)
-  const [token, setToken] = useState(() => localStorage.getItem('poolsync_token') || '')
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [dragId, setDragId] = useState(null)
@@ -54,13 +53,13 @@ export default function Config() {
 
   const load = useCallback(async () => {
     try {
-      const json = await fetchTopology()
+      const json = await fetchTopology(token)
       setTopology(json)
       setError(null)
     } catch (err) {
       setError(err.message || 'Erreur chargement')
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     load()
@@ -70,7 +69,7 @@ export default function Config() {
     let alive = true
     const refresh = async () => {
       try {
-        const json = await fetchStatus()
+        const json = await fetchStatus(token)
         if (!alive) return
         const byNode = {}
         for (const n of json.nodes || []) byNode[n.name] = n
@@ -86,7 +85,7 @@ export default function Config() {
       alive = false
       clearInterval(timer)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -243,7 +242,7 @@ export default function Config() {
       setError('Token requis pour enregistrer')
       return
     }
-    localStorage.setItem('poolsync_token', token.trim())
+    onTokenChange(token.trim())
     const toSave = inferNeighbors(topology)
     try {
       await saveTopology(toSave, token.trim())
@@ -277,9 +276,10 @@ export default function Config() {
           <input
             type="password"
             value={token}
-            onChange={(e) => setToken(e.target.value)}
+            onChange={(e) => onTokenChange(e.target.value)}
             className="rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm"
             placeholder="POOLSYNC_TOKEN"
+            autoComplete="current-password"
           />
         </label>
         <button

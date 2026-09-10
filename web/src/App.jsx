@@ -5,6 +5,13 @@ import { useState } from 'react'
 
 export default function App() {
   const [tab, setTab] = useState('dashboard')
+  const [token, setToken] = useState(() => localStorage.getItem('poolsync_token') || '')
+
+  const updateToken = (value) => {
+    setToken(value)
+    if (value.trim()) localStorage.setItem('poolsync_token', value.trim())
+    else localStorage.removeItem('poolsync_token')
+  }
 
   return (
     <div className="relative min-h-[100dvh] bg-slate-50">
@@ -29,7 +36,11 @@ export default function App() {
           ))}
         </div>
       </nav>
-      {tab === 'dashboard' ? <Dashboard /> : <Config />}
+      {tab === 'dashboard' ? (
+        <Dashboard token={token} onTokenChange={updateToken} />
+      ) : (
+        <Config token={token} onTokenChange={updateToken} />
+      )}
       <ThemeToggle />
     </div>
   )

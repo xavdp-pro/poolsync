@@ -10,5 +10,6 @@ for d in desk-a desk-b; do
   echo "== $d : agent pid=$(podman exec $c pgrep -u zaza -x poolsync-agent | head -1)"
   podman exec $c tail -n 6 /tmp/poolsync-agent.log 2>/dev/null | sed "s/.*poolsync_agent:*//" | cut -c1-110 | sed "s/^/   /"
 done
-echo "== hub : $(curl -s http://127.0.0.1:9470/api/status?token=$(sed -n "s/^POOLSYNC_TOKEN=//p" /srv/poolsync/hub.env) | python3 -c "import sys,json; d=json.load(sys.stdin); print(\", \".join(n[\"name\"]+(\" (en ligne)\" if n[\"online\"] else \" (hors ligne)\") for n in d[\"nodes\"]))" 2>/dev/null)"
+TOKEN=$(sed -n "s/^POOLSYNC_TOKEN=//p" /srv/poolsync/hub.env)
+echo "== hub : $(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:9470/api/status | python3 -c "import sys,json; d=json.load(sys.stdin); print(\", \".join(n[\"name\"]+(\" (en ligne)\" if n[\"online\"] else \" (hors ligne)\") for n in d[\"nodes\"]))" 2>/dev/null)"
 ' </dev/null

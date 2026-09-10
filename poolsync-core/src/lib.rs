@@ -1,5 +1,11 @@
 mod topology;
 
+use base64::{engine::general_purpose::STANDARD as B64, Engine};
+use chacha20poly1305::{
+    aead::{Aead, KeyInit},
+    XChaCha20Poly1305, XNonce,
+};
+use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -31,6 +37,13 @@ pub struct Neighbor {
     /// Secours si peer_url (LAN) injoignable — ex. IP wg-bs1 du voisin.
     #[serde(default)]
     pub peer_url_vpn: Option<String>,
+    /// Jeton propre au voisin pour authentifier ses connexions entrantes.
+    /// Vide, le jeton historique du pool reste accepté pendant la migration.
+    #[serde(default)]
+    pub auth_token: Option<String>,
+    /// Ancien jeton encore accepté pendant une rotation sans interruption.
+    #[serde(default)]
+    pub previous_auth_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +60,19 @@ pub struct AgentConfig {
     pub node: String,
     pub hub_url: String,
     pub token: String,
+    /// Identité secrète propre à ce nœud. Vide = jeton partagé historique.
+    #[serde(default)]
+    pub node_token: Option<String>,
+    /// Clef de groupe base64 (32 octets) pour chiffrer le presse-papiers E2E.
+    /// Le hub ne reçoit alors jamais le contenu en clair.
+    #[serde(default)]
+    pub e2e_key: Option<String>,
+    /// Jetons publics au sein du pool (un secret attendu par pair), indexés par nœud.
+    #[serde(default)]
+    pub peer_tokens: HashMap<String, String>,
+    /// Jetons précédents acceptés pendant une rotation.
+    #[serde(default)]
+    pub previous_peer_tokens: HashMap<String, String>,
     pub mode: AgentMode,
     pub screen: ScreenInfo,
     #[serde(default)]
@@ -75,6 +101,11 @@ pub struct AgentConfig {
     /// Port d'écoute WS peer-to-peer (clipboard direct entre voisins).
     #[serde(default = "default_peer_listen_port")]
     pub peer_listen_port: u16,
+    /// Certificat PEM du listener peer. Les deux champs activent WSS entrant.
+    #[serde(default)]
+    pub peer_tls_cert: Option<String>,
+    #[serde(default)]
+    pub peer_tls_key: Option<String>,
     /// Active le mesh clipboard direct vers les voisins configurés.
     #[serde(default = "default_true")]
     pub peer_direct_clipboard: bool,
@@ -143,9 +174,19 @@ impl KvmDesktopInfo {
                 self.desktop_height,
             )
         } else {
-            (self.monitor_x, self.monitor_y, primary.width, primary.height)
+            (
+                self.monitor_x,
+                self.monitor_y,
+                primary.width,
+                primary.height,
+            )
         };
-        KvmDisplayRect { x, y, width: w, height: h }
+        KvmDisplayRect {
+            x,
+            y,
+            width: w,
+            height: h,
+        }
     }
 
     pub fn primary_bounds(&self, primary: ScreenInfo) -> KvmDisplayRect {
@@ -207,6 +248,10 @@ impl KvmDisplayRect {
 }
 
 impl AgentConfig {
+    pub fn authentication_token(&self) -> &str {
+        self.node_token.as_deref().unwrap_or(&self.token)
+    }
+
     pub fn kvm_active(&self) -> bool {
         self.kvm_enabled
             .unwrap_or(matches!(self.mode, AgentMode::Full))
@@ -300,6 +345,15 @@ pub enum Message {
         #[serde(default)]
         seq: u64,
     },
+    /// Presse-papiers XChaCha20-Poly1305. Seuls msg_id/origin/seq sont visibles
+    /// afin que le hub puisse dédupliquer et relayer sans lire le contenu.
+    EncryptedClipboard {
+        msg_id: String,
+        origin: String,
+        seq: u64,
+        nonce: String,
+        ciphertext: String,
+    },
     /// Signal hub : l'historique presse-papiers a changé (menu systray / SSE).
     ClipboardHistoryUpdated {
         revision: u64,
@@ -384,6 +438,73 @@ pub fn encode_message(msg: &Message) -> anyhow::Result<String> {
     Ok(serde_json::to_string(msg)?)
 }
 
+fn decode_e2e_key(encoded: &str) -> anyhow::Result<[u8; 32]> {
+    let bytes = B64.decode(encoded.trim())?;
+    bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("e2e_key must be base64 encoding exactly 32 bytes"))
+}
+
+pub fn encrypt_clipboard(message: &Message, key: &str) -> anyhow::Result<Message> {
+    let Message::Clipboard {
+        msg_id,
+        origin,
+        seq,
+        ..
+    } = message
+    else {
+        anyhow::bail!("only clipboard messages can be encrypted");
+    };
+    let key = decode_e2e_key(key)?;
+    let cipher = XChaCha20Poly1305::new((&key).into());
+    let mut nonce = [0u8; 24];
+    OsRng.fill_bytes(&mut nonce);
+    let plaintext = encode_message(message)?;
+    let ciphertext = cipher
+        .encrypt(XNonce::from_slice(&nonce), plaintext.as_bytes())
+        .map_err(|_| anyhow::anyhow!("clipboard encryption failed"))?;
+    Ok(Message::EncryptedClipboard {
+        msg_id: msg_id.clone(),
+        origin: origin.clone(),
+        seq: *seq,
+        nonce: B64.encode(nonce),
+        ciphertext: B64.encode(ciphertext),
+    })
+}
+
+pub fn decrypt_clipboard(message: &Message, key: &str) -> anyhow::Result<Message> {
+    let Message::EncryptedClipboard {
+        msg_id,
+        origin,
+        seq,
+        nonce,
+        ciphertext,
+    } = message
+    else {
+        anyhow::bail!("message is not an encrypted clipboard");
+    };
+    let key = decode_e2e_key(key)?;
+    let nonce = B64.decode(nonce)?;
+    let nonce: [u8; 24] = nonce
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("invalid clipboard nonce"))?;
+    let ciphertext = B64.decode(ciphertext)?;
+    let cipher = XChaCha20Poly1305::new((&key).into());
+    let plaintext = cipher
+        .decrypt(XNonce::from_slice(&nonce), ciphertext.as_ref())
+        .map_err(|_| anyhow::anyhow!("clipboard authentication failed"))?;
+    let decrypted = decode_message(std::str::from_utf8(&plaintext)?)?;
+    match &decrypted {
+        Message::Clipboard {
+            msg_id: inner_id,
+            origin: inner_origin,
+            seq: inner_seq,
+            ..
+        } if inner_id == msg_id && inner_origin == origin && inner_seq == seq => Ok(decrypted),
+        _ => anyhow::bail!("encrypted clipboard metadata mismatch"),
+    }
+}
+
 pub fn decode_message(raw: &str) -> anyhow::Result<Message> {
     Ok(serde_json::from_str(raw)?)
 }
@@ -397,6 +518,10 @@ mod tests {
             node: "n".into(),
             hub_url: "ws://x/ws".into(),
             token: "t".into(),
+            node_token: None,
+            e2e_key: None,
+            peer_tokens: HashMap::new(),
+            previous_peer_tokens: HashMap::new(),
             mode,
             screen: ScreenInfo {
                 width: 100,
@@ -412,6 +537,8 @@ mod tests {
             kvm_capture,
             tray_history_count: default_tray_history_count(),
             peer_listen_port: default_peer_listen_port(),
+            peer_tls_cert: None,
+            peer_tls_key: None,
             peer_direct_clipboard: true,
             hub_clipboard: true,
             keep_formatting: false,
@@ -439,6 +566,14 @@ mod tests {
     }
 
     #[test]
+    fn node_token_overrides_shared_token_with_migration_fallback() {
+        let mut config = cfg(AgentMode::Full, None, None);
+        assert_eq!(config.authentication_token(), "t");
+        config.node_token = Some("node-secret".into());
+        assert_eq!(config.authentication_token(), "node-secret");
+    }
+
+    #[test]
     fn message_round_trip() {
         let msg = Message::Clipboard {
             msg_id: "id".into(),
@@ -451,7 +586,11 @@ mod tests {
         let raw = encode_message(&msg).unwrap();
         match decode_message(&raw).unwrap() {
             Message::Clipboard {
-                data, mime, origin, seq, ..
+                data,
+                mime,
+                origin,
+                seq,
+                ..
             } => {
                 assert_eq!(data, "hello");
                 assert_eq!(mime, "text/plain");
@@ -460,6 +599,30 @@ mod tests {
             }
             other => panic!("wrong variant: {other:?}"),
         }
+    }
+
+    #[test]
+    fn encrypted_clipboard_round_trip_hides_payload_and_detects_wrong_key() {
+        let key = B64.encode([7u8; 32]);
+        let wrong = B64.encode([8u8; 32]);
+        let plain = Message::Clipboard {
+            msg_id: "copy-1".into(),
+            hash: "hash-secret".into(),
+            mime: "text/plain".into(),
+            data: "very secret clipboard".into(),
+            origin: "desk-a".into(),
+            seq: 42,
+        };
+        let encrypted = encrypt_clipboard(&plain, &key).unwrap();
+        let wire = encode_message(&encrypted).unwrap();
+        assert!(!wire.contains("very secret clipboard"));
+        assert!(!wire.contains("hash-secret"));
+        assert!(decrypt_clipboard(&encrypted, &wrong).is_err());
+        let decrypted = decrypt_clipboard(&encrypted, &key).unwrap();
+        assert_eq!(
+            encode_message(&decrypted).unwrap(),
+            encode_message(&plain).unwrap()
+        );
     }
 
     /// Un agent d'une version antérieure n'envoie ni l'état de sa synchro ni
@@ -476,7 +639,10 @@ mod tests {
                 monitors,
                 ..
             } => {
-                assert!(clipboard_sync, "sans information, on suppose la synchro active");
+                assert!(
+                    clipboard_sync,
+                    "sans information, on suppose la synchro active"
+                );
                 assert!(local_active);
                 assert!(monitors.is_empty(), "le hub retombe alors sur `screen`");
             }
@@ -490,20 +656,41 @@ mod tests {
         let msg = Message::Hello {
             node: "asus".into(),
             mode: AgentMode::Full,
-            screen: ScreenInfo { width: 1344, height: 756 },
+            screen: ScreenInfo {
+                width: 1344,
+                height: 756,
+            },
             neighbors: vec![],
             kvm_enabled: true,
             kvm_desktop: KvmDesktopInfo::default(),
             clipboard_sync: false,
             local_active: true,
             monitors: vec![
-                MonitorInfo { name: "eDP-1".into(), x: 1920, y: 614, width: 1344, height: 756, primary: true },
-                MonitorInfo { name: "HDMI-1".into(), x: 0, y: 0, width: 1920, height: 1080, primary: false },
+                MonitorInfo {
+                    name: "eDP-1".into(),
+                    x: 1920,
+                    y: 614,
+                    width: 1344,
+                    height: 756,
+                    primary: true,
+                },
+                MonitorInfo {
+                    name: "HDMI-1".into(),
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1080,
+                    primary: false,
+                },
             ],
         };
         let raw = encode_message(&msg).unwrap();
         match decode_message(&raw).unwrap() {
-            Message::Hello { clipboard_sync, monitors, .. } => {
+            Message::Hello {
+                clipboard_sync,
+                monitors,
+                ..
+            } => {
                 assert!(!clipboard_sync, "un nœud sourd doit être visible comme tel");
                 assert_eq!(monitors.len(), 2);
                 assert_eq!(monitors[0].name, "eDP-1");
@@ -519,7 +706,8 @@ mod tests {
     /// message doit rester décodable, avec l'ordre neutre (0 / vide).
     #[test]
     fn clipboard_from_an_older_agent_still_decodes() {
-        let raw = r#"{"type":"clipboard","msg_id":"id","hash":"h","mime":"text/plain","data":"hello"}"#;
+        let raw =
+            r#"{"type":"clipboard","msg_id":"id","hash":"h","mime":"text/plain","data":"hello"}"#;
         match decode_message(raw).unwrap() {
             Message::Clipboard { origin, seq, .. } => {
                 assert!(origin.is_empty());

@@ -7,6 +7,16 @@ set -euo pipefail
 UID_NUM="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID_NUM}"
 
+# Une session Wayland lancée par l'autostart transmet déjà son socket. Ne pas
+# la rabattre artificiellement vers XWayland : le backend wl-clipboard en a besoin.
+if [[ -n "${WAYLAND_DISPLAY:-}" && -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
+  export XDG_SESSION_TYPE=wayland
+  export GDK_BACKEND=wayland
+  export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+  echo "poolsync-agent-launch: uid=$UID_NUM WAYLAND_DISPLAY=$WAYLAND_DISPLAY" >&2
+  exec "$HOME/.local/bin/poolsync-agent" "$@"
+fi
+
 env_of() {
   local pid="$1" key="$2"
   tr "\0" "\n" < "/proc/$pid/environ" 2>/dev/null \

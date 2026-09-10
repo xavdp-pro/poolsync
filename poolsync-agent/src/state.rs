@@ -63,12 +63,7 @@ fn incoming_grace_elapsed_less_than(
     state: &AgentState,
     grace_for: impl Fn(&str) -> std::time::Duration,
 ) -> bool {
-    let Some(started) = state
-        .last_incoming_apply_at
-        .read()
-        .ok()
-        .and_then(|t| *t)
-    else {
+    let Some(started) = state.last_incoming_apply_at.read().ok().and_then(|t| *t) else {
         return false;
     };
     let mime = state
@@ -231,8 +226,7 @@ impl AgentState {
 
     /// Incrémente le compteur local — ne jamais écraser avec la révision hub (évite régressions).
     pub fn notify_tray_history_changed(&self) {
-        self.tray_history_revision
-            .fetch_add(1, Ordering::SeqCst);
+        self.tray_history_revision.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn clear_optimistic_tray(&self, hash: &str) {
@@ -250,10 +244,7 @@ impl AgentState {
     }
 
     pub fn optimistic_tray_item(&self) -> Option<crate::clipboard_history::HistoryItem> {
-        self.optimistic_tray
-            .read()
-            .ok()
-            .and_then(|g| g.clone())
+        self.optimistic_tray.read().ok().and_then(|g| g.clone())
     }
 
     pub fn tray_history_revision(&self) -> u64 {
@@ -261,8 +252,7 @@ impl AgentState {
     }
 
     pub fn notify_tray_status_changed(&self) {
-        self.tray_status_revision
-            .fetch_add(1, Ordering::SeqCst);
+        self.tray_status_revision.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn tray_status_revision(&self) -> u64 {
@@ -420,11 +410,14 @@ impl AgentState {
     }
 
     pub fn set_connected(&self, value: bool) {
-        self.connected.store(value, Ordering::SeqCst);
+        let changed = self.connected.swap(value, Ordering::SeqCst) != value;
         if value {
             if let Ok(mut err) = self.last_error.write() {
                 *err = None;
             }
+        }
+        if changed {
+            self.notify_tray_status_changed();
         }
     }
 
@@ -464,13 +457,13 @@ impl AgentState {
         persist_keep_formatting(&self.config_path, value);
     }
 
-
     pub fn history_double_click_paste(&self) -> bool {
         self.history_double_click_paste.load(Ordering::SeqCst)
     }
 
     pub fn set_history_double_click_paste(&self, value: bool) {
-        self.history_double_click_paste.store(value, Ordering::SeqCst);
+        self.history_double_click_paste
+            .store(value, Ordering::SeqCst);
         persist_history_double_click_paste(&self.config_path, value);
     }
 
@@ -509,7 +502,6 @@ impl AgentState {
     pub fn set_kvm_enabled(&self, value: bool) {
         self.kvm_enabled.store(value, Ordering::SeqCst);
     }
-
 
     pub fn local_poolsync_active(&self) -> bool {
         self.local_active.load(Ordering::SeqCst)
@@ -580,7 +572,10 @@ impl AgentState {
         }
         self.topology_node(node)
             .map(|n| n.kvm_enabled)
-            .unwrap_or(true)
+            // Sécurité d'entrée : sans topologie connue, ne jamais considérer
+            // par défaut une cible comme injectable. Le hub/cache pourra la
+            // rendre explicitement KVM, mais un nœud clipboard_only reste sûr.
+            .unwrap_or(false)
     }
 
     pub fn set_kvm_focus(&self, node: &str) {
@@ -620,9 +615,7 @@ impl AgentState {
         }
         const MIN_INTERVAL: std::time::Duration = std::time::Duration::from_millis(2000);
         if let Ok(last_at) = self.last_notify_at.read() {
-            if last_at
-                .is_some_and(|t| t.elapsed() < MIN_INTERVAL)
-            {
+            if last_at.is_some_and(|t| t.elapsed() < MIN_INTERVAL) {
                 return false;
             }
         }
@@ -662,7 +655,7 @@ impl AgentState {
         }
         let node = node.to_string();
         let here = self.config.node.clone();
-        let _ = MainContext::default().invoke(move || {
+        MainContext::default().invoke(move || {
             crate::notify_util::notify_master_changed(&here, &node);
         });
     }
@@ -693,8 +686,6 @@ impl AgentState {
         }
     }
 
-
-
     pub fn status_line(&self) -> String {
         let clip = if self.clipboard_sync_enabled() {
             "clip ON"
@@ -705,6 +696,8 @@ impl AgentState {
             format!("● Suspendu localement ({clip})")
         } else if self.is_connected() {
             format!("● Connecté — {clip}")
+        } else if self.config.peer_direct_clipboard {
+            format!("● Hub hors ligne — P2P disponible ({clip})")
         } else if let Some(err) = self.last_error() {
             format!("● Reconnexion… — {err}")
         } else {
@@ -751,7 +744,27 @@ pub fn clip_preview_mime(mime: &str, data: &str) -> String {
 }
 #[cfg(test)]
 mod dashboard_url_tests {
-    use super::hub_dashboard_url;
+    use super::{hub_dashboard_url, AgentState};
+    use poolsync_core::AgentConfig;
+    use std::path::PathBuf;
+
+    fn test_state() -> AgentState {
+        let config: AgentConfig = toml::from_str(
+            r#"
+node = "asus"
+hub_url = "wss://hub.invalid/ws"
+token = "test"
+mode = "full"
+peer_direct_clipboard = true
+
+[screen]
+width = 100
+height = 100
+"#,
+        )
+        .unwrap();
+        AgentState::new(config, PathBuf::from("/tmp/poolsync-test-agent.toml"))
+    }
 
     #[test]
     fn derives_the_dashboard_url_from_the_hub_websocket() {
@@ -765,5 +778,24 @@ mod dashboard_url_tests {
         );
         // Une adresse sans /ws ni schéma connu reste utilisable telle quelle.
         assert_eq!(hub_dashboard_url("http://hub:9470"), "http://hub:9470/");
+    }
+
+    #[test]
+    fn disconnected_hub_does_not_claim_that_peer_clipboard_is_down() {
+        let state = test_state();
+        assert_eq!(
+            state.status_line(),
+            "● Hub hors ligne — P2P disponible (clip ON)"
+        );
+    }
+
+    #[test]
+    fn connection_changes_refresh_the_tray_and_unknown_kvm_targets_fail_closed() {
+        let state = test_state();
+        let before = state.tray_status_revision();
+        state.set_connected(true);
+        assert!(state.tray_status_revision() > before);
+        assert_eq!(state.status_line(), "● Connecté — clip ON");
+        assert!(!state.target_kvm_enabled("unknown-or-clipboard-only"));
     }
 }

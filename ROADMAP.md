@@ -23,18 +23,13 @@ in the Agent local tab; optional snap-to-edge polish.
 
 ---
 
-## v2 — chiffrer les communications entre machines
+## v2 — communications sécurisées ✅
 
 Décidé le 29/08/2026, à la suite de la fuite du token du pool sur le dépôt
 public (rotation effectuée, cf. `docs/tempete-presse-papiers-2026-08-29.md`).
 
-Aujourd'hui tout circule **en clair** entre les nœuds : le presse-papiers
-(texte *et* images) et les événements clavier/souris du KVM voyagent en
-WebSocket non chiffré, et le token d'authentification est passé en **paramètre
-d'URL** (`?token=…`), donc écrit tel quel dans les journaux d'accès du hub.
-
-La confidentialité repose donc entièrement sur le fait que le pool tourne
-au-dessus de WireGuard. C'est acceptable tant que c'est vrai, mais :
+Avant la v2, tout circulait **en clair** entre les nœuds et le token partagé
+était placé dans les URL. Les risques qui ont motivé cette migration étaient :
 
 - un nœud joignable hors VPN expose tout le contenu copié à qui écoute ;
 - le token, une fois vu dans un log ou une capture, donne un accès complet ;
@@ -42,7 +37,7 @@ au-dessus de WireGuard. C'est acceptable tant que c'est vrai, mais :
   seule machine sans changer le token de tout le pool (ce qu'on vient de faire,
   et qui demande de toucher au hub plus aux quatre agents).
 
-### Fait depuis (branche `clipboard-total-order`)
+### Fait (branche `clipboard-total-order`)
 
 - **Gestionnaire de presse-papiers X11** (`clipboard_manager.rs`) : PoolSync sait
   tenir le rôle `CLIPBOARD_MANAGER` et recueillir la sélection d'une application
@@ -51,32 +46,25 @@ au-dessus de WireGuard. C'est acceptable tant que c'est vrai, mais :
   Le filet qui agit réellement aujourd'hui est la reprise par sondage
   (`reclaim_orphaned_selection`) : le contenu survit à la fermeture de
   l'application qui l'avait copié.
+- **API et WebSocket sans token dans l'URL** : toutes les routes privées et les
+  handshakes hub/peer utilisent `Authorization: Bearer`.
+- **Identité par nœud** : fichier JSON rechargeable à chaque connexion, ancien
+  jeton accepté pendant rotation, révocation indépendante, identité liée au
+  premier `Hello`.
+- **TLS natif** : certificat/clef côté hub et listeners peer WSS; validation par
+  le trust store côté client. Un générateur crée la CA et les secrets hors dépôt.
+- **Presse-papiers E2E** : XChaCha20-Poly1305, avec refus des messages en clair
+  après activation et option hub `--require-e2e`. Le hub ne voit plus les blobs.
 
-Reste donc pour la v2 : le chiffrement et Wayland.
-
-Pistes à trancher au moment de l'implémentation :
-
-- **TLS sur le lien** (`wss://`) pour le hub comme pour le maillage direct,
-  avec des certificats propres au pool. Simple, éprouvé, mais ne protège pas
-  d'un hub compromis : celui-ci voit tout en clair.
-- **Chiffrement de bout en bout de la charge utile** — le hub ne relaie que
-  des blobs opaques et ne peut plus rien lire, ce qui vaut aussi pour son
-  historique presse-papiers. Demande une gestion de clés entre nœuds.
-- **Identité par nœud** (une clé par machine plutôt qu'un secret partagé),
-  pour pouvoir révoquer une machine seule.
-- Sortir le token de l'URL dans tous les cas, vers un en-tête ou une poignée
-  de main applicative.
-
-### Wayland
+### Wayland ✅ pour le clipboard et l'injection
 
 Toutes les machines sont en X11 aujourd'hui, mais Debian 13 et Ubuntu poussent
 Wayland : sans une couche d'abstraction « bureau », la v2 y serait aveugle.
-Le presse-papiers passerait par `ext-data-control` (ou `wlr-data-control`), et
-le KVM par le portail RemoteDesktop / `libei` — deux protocoles sans rapport
-avec les sélections X11, donc un second backend complet, pas une adaptation.
-
-Le chiffrement de bout en bout est le seul qui rende la fuite d'un secret
-non catastrophique ; c'est la direction à privilégier si le coût le permet.
+Le presse-papiers natif utilise désormais `wl-clipboard` (texte, HTML, PNG/JPEG)
+et n'exécute aucun probe X11. L'injection KVM receive-only passe par
+`ydotool`/`uinput`. La capture globale Wayland exige une session de portail
+RemoteDesktop/libei consentie par l'utilisateur : elle n'est volontairement pas
+contournée; les nœuds Wayland doivent utiliser `kvm_capture = false`.
 
 ---
 

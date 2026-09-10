@@ -133,11 +133,10 @@ fn hotkey_loop(state: Arc<AgentState>) {
                     last_center = now;
                     on_center_cursor();
                 }
-            } else if event.id == locate.id() {
-                if now.duration_since(last_locate) >= CENTER_DEBOUNCE {
-                    last_locate = now;
-                    on_locate_cursor(&state);
-                }
+            } else if event.id == locate.id() && now.duration_since(last_locate) >= CENTER_DEBOUNCE
+            {
+                last_locate = now;
+                on_locate_cursor(&state);
             }
         }
         thread::sleep(Duration::from_millis(50));
@@ -153,7 +152,7 @@ fn on_toggle(state: &AgentState) {
         info!("PoolSync désactivé localement ({node}) via {HOTKEY_LABEL}");
         crate::kvm_x11::set_cursor_visible_best_effort(true);
     }
-    let _ = glib::MainContext::default().invoke(move || {
+    glib::MainContext::default().invoke(move || {
         notify_util::notify_poolsync_toggle(active, &node);
     });
 }
@@ -162,7 +161,7 @@ fn on_master_claim(state: &AgentState) {
     let node = state.config.node.clone();
     if !state.kvm_enabled() {
         info!("master claim ignoré ({node}) : KVM inactif");
-        let _ = glib::MainContext::default().invoke(move || {
+        glib::MainContext::default().invoke(move || {
             notify_util::notify_master_claim(&node, false);
         });
         return;
@@ -172,7 +171,7 @@ fn on_master_claim(state: &AgentState) {
     }
     state.request_master_claim();
     info!("master KVM réclamé localement ({node}) via {HOTKEY_MASTER_LABEL}");
-    let _ = glib::MainContext::default().invoke(move || {
+    glib::MainContext::default().invoke(move || {
         notify_util::notify_master_claim(&node, true);
     });
 }
@@ -189,7 +188,7 @@ pub fn on_locate_cursor(state: &AgentState) {
     crate::kvm_x11::set_cursor_visible_best_effort(true);
     let node = state.config.node.clone();
     info!("localiser curseur via {HOTKEY_LOCATE_LABEL} sur {node}");
-    let _ = glib::MainContext::default().invoke(move || {
+    glib::MainContext::default().invoke(move || {
         crate::cursor_ripple::locate_cursor(&node);
     });
 }

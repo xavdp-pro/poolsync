@@ -357,7 +357,7 @@ PoolSync est conçu pour un **réseau privé** (WireGuard VPN, LAN).
 | Point | Détail |
 |-------|--------|
 | Transport | `ws://` non chiffré — confidentialité via VPN/LAN |
-| Token | Authentifie, ne chiffre pas — passé en query param (`/ws?token=…`) |
+| Auth | Bearer hors URL, identité par nœud révocable; TLS et chiffrement clipboard E2E disponibles |
 | Autorisation | Pas de contrôle par nœud — tout client avec token valide rejoint le pool |
 | Exposition | Ne pas exposer le port 9470 sur Internet sans TLS + contrôle d'accès |
 

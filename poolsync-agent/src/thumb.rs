@@ -27,4 +27,3 @@ pub fn thumb_png_bytes_from_wire(wire_b64: &str, max_px: u32) -> Result<Vec<u8>>
 pub fn thumb_b64_from_wire(wire_b64: &str, max_px: u32) -> Result<String> {
     Ok(B64.encode(thumb_png_bytes_from_wire(wire_b64, max_px)?))
 }
-

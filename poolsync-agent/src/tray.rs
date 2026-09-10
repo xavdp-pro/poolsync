@@ -47,7 +47,8 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
 
     // ── 1. En-tête & Informations Nœud ──────────────────────────────────
     let title_label = format!(
-        "● PoolSync — {} ({})",
+        "● PoolSync v{} — {} ({})",
+        env!("CARGO_PKG_VERSION"),
         state.config.node,
         if state.config.kvm_active() {
             "KVM + Clip"
@@ -79,7 +80,8 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     menu.append(&gtk::SeparatorMenuItem::new());
 
     // ── 2. Bascules & Actions Principales ────────────────────────────────
-    let clip_item = gtk::CheckMenuItem::with_label(&clip_sync_label(state.clipboard_sync_enabled()));
+    let clip_item =
+        gtk::CheckMenuItem::with_label(&clip_sync_label(state.clipboard_sync_enabled()));
     clip_item.set_active(state.clipboard_sync_enabled());
     let state_clip = state.clone();
     clip_item.connect_toggled(move |item| {
@@ -237,8 +239,7 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     });
     menu.append(&notify_item);
 
-    let master_notif_item =
-        gtk::CheckMenuItem::with_label("Notifier changement de master KVM");
+    let master_notif_item = gtk::CheckMenuItem::with_label("Notifier changement de master KVM");
     master_notif_item.set_active(state.notify_master_enabled());
     let state_mn = state.clone();
     master_notif_item.connect_toggled(move |_| {
@@ -249,6 +250,13 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     menu.append(&gtk::SeparatorMenuItem::new());
 
     // ── 6. Redémarrer & Quitter ─────────────────────────────────────────
+    // Entrée volontairement active (texte noir dans XFCE) : les informations
+    // désactivées de l'en-tête sont trop faciles à prendre pour du texte masqué.
+    let version_item = gtk::MenuItem::with_label(&version_label());
+    menu.append(&version_item);
+
+    menu.append(&gtk::SeparatorMenuItem::new());
+
     let restart_item = gtk::MenuItem::with_label("Redémarrer PoolSync");
     restart_item.connect_activate(|_| {
         std::thread::spawn(|| {
@@ -281,28 +289,27 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     if raw_status.is_null() {
         anyhow::bail!("création de l'icône systray GTK impossible");
     }
-    let status_icon: glib::Object = unsafe {
-        FromGlibPtrFull::from_glib_full(raw_status as *mut glib::gobject_ffi::GObject)
-    };
+    let status_icon: glib::Object =
+        unsafe { FromGlibPtrFull::from_glib_full(raw_status as *mut glib::gobject_ffi::GObject) };
     unsafe { gtk::ffi::gtk_status_icon_set_visible(raw_status, glib::ffi::GTRUE) };
     apply_tray_title(&status_icon, &state);
 
     let history_popup = history_menu.clone();
     status_icon.connect_local("activate", false, move |_| {
-            history_popup.popup_easy(1, gtk::current_event_time());
-            None
-        });
+        history_popup.popup_easy(1, gtk::current_event_time());
+        None
+    });
 
     let options_popup = menu.clone();
     status_icon.connect_local("popup-menu", false, move |values| {
-            let button = values.get(1).and_then(|v| v.get::<u32>().ok()).unwrap_or(3);
-            let at = values
-                .get(2)
-                .and_then(|v| v.get::<u32>().ok())
-                .unwrap_or_else(gtk::current_event_time);
-            options_popup.popup_easy(button, at);
-            None
-        });
+        let button = values.get(1).and_then(|v| v.get::<u32>().ok()).unwrap_or(3);
+        let at = values
+            .get(2)
+            .and_then(|v| v.get::<u32>().ok())
+            .unwrap_or_else(gtk::current_event_time);
+        options_popup.popup_easy(button, at);
+        None
+    });
 
     ITEM_SLOTS.with(|s| *s.borrow_mut() = slots.iter().map(|(i, _)| i.clone()).collect());
     let slots = Rc::new(slots);
@@ -462,6 +469,14 @@ fn clip_sync_label(enabled: bool) -> String {
     }
 }
 
+fn version_label() -> String {
+    format!(
+        "Version : PoolSync v{} — build {}",
+        env!("CARGO_PKG_VERSION"),
+        env!("POOLSYNC_BUILD_TIME")
+    )
+}
+
 fn apply_tray_title(status_icon: &glib::Object, state: &AgentState) {
     let title = if state.local_poolsync_active() {
         format!("PoolSync — {} — {}", state.config.node, state.status_line())
@@ -524,5 +539,13 @@ mod tests {
     fn clipboard_toggle_label_is_explicit() {
         assert!(clip_sync_label(true).contains("activé"));
         assert!(clip_sync_label(false).contains("désactivé"));
+    }
+
+    #[test]
+    fn version_label_identifies_the_release_and_build() {
+        let label = version_label();
+        assert!(label.contains(&format!("v{}", env!("CARGO_PKG_VERSION"))));
+        assert!(label.contains("build"));
+        assert!(label.contains("UTC"));
     }
 }

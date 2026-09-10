@@ -75,11 +75,7 @@ fn prune_index(mut hashes: Vec<String>) {
 }
 
 /// Enregistre un collage (local ou reçu d'un voisin).
-pub fn store_payload(
-    payload: &ClipboardPayload,
-    preview: &str,
-    source_node: &str,
-) {
+pub fn store_payload(payload: &ClipboardPayload, preview: &str, source_node: &str) {
     let item = CachedClip {
         hash: payload.hash.clone(),
         mime: payload.mime.clone(),

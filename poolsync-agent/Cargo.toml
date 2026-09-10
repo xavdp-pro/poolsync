@@ -31,4 +31,7 @@ libc = "0.2"
 global-hotkey = "0.7"
 libxdo = "0.6"
 x11rb = { version = "0.13", features = ["xfixes", "xtest", "randr"] }
-ureq = { version = "2", default-features = false }
+ureq = { version = "2", default-features = false, features = ["tls"] }
+tokio-rustls = "0.26"
+rustls-pemfile = "2"
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }

@@ -7,18 +7,19 @@ mod clipboard_gtk;
 mod clipboard_history;
 mod clipboard_incoming;
 mod clipboard_manager;
-mod crashlog;
 mod config_window;
+mod crashlog;
 mod cursor_ripple;
 mod edge_flash;
 mod hotkey;
-mod notify_util;
 mod kvm;
 mod kvm_input;
+mod kvm_wayland;
 mod kvm_x11;
 mod logs_viewer;
 mod network;
 mod notify_thumb;
+mod notify_util;
 mod peer_mesh;
 mod rdp_detect;
 mod single;
@@ -27,13 +28,14 @@ mod thumb;
 mod topology_mosaic;
 mod tray;
 
-use agent::run_agent;
+use agent::{clipboard_poll_loop, run_agent};
 use anyhow::{Context, Result};
 use clap::Parser;
 use poolsync_core::AgentConfig;
 use state::AgentState;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 
@@ -43,6 +45,7 @@ const RECONNECT_MAX: Duration = Duration::from_secs(30);
 #[derive(Parser, Debug)]
 #[command(
     name = "poolsync-agent",
+    version,
     about = "PoolSync agent — client presse-papiers + KVM"
 )]
 struct Args {
@@ -58,6 +61,10 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    // The agent has both native/ring clients and an aws-lc rustls peer server.
+    // Select one process provider explicitly before either TLS path is used.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
     crashlog::install();
     std::panic::set_hook(Box::new(|info| {
         let location = info
@@ -118,7 +125,11 @@ fn main() -> Result<()> {
     hotkey::spawn_hotkey_listener(state.clone());
     // Recueille le presse-papiers des applications qui se ferment (X11
     // CLIPBOARD_MANAGER). S'abstient si un autre gestionnaire est déjà en place.
-    clipboard_manager::spawn();
+    if std::env::var("XDG_SESSION_TYPE")
+        .is_ok_and(|session| !session.eq_ignore_ascii_case("wayland"))
+    {
+        clipboard_manager::spawn();
+    }
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -127,12 +138,25 @@ fn main() -> Result<()> {
 
     let peer_tx = rt.block_on(async { peer_mesh::spawn(state.clone()) });
 
+    // Le presse-papiers local appartient à l'agent, pas à la session hub. Le
+    // hub n'est qu'un transport facultatif : lorsqu'il est absent, le sender
+    // broadcast n'a aucun abonné et les copies continuent de partir sur le
+    // mesh direct sans s'accumuler en mémoire jusqu'à la reconnexion.
+    let (hub_clip_tx, _) = broadcast::channel::<String>(32);
+    let state_clip = state.clone();
+    let peer_tx_clip = peer_tx.clone();
+    let hub_clip_tx_loop = hub_clip_tx.clone();
+    let last_clip_hash = state.last_clip_hash_handle();
+    rt.spawn(async move {
+        clipboard_poll_loop(&state_clip, hub_clip_tx_loop, peer_tx_clip, last_clip_hash).await;
+    });
+
     let state_agent = state.clone();
-    let peer_tx_agent = peer_tx.clone();
+    let hub_clip_tx_agent = hub_clip_tx.clone();
     rt.spawn(async move {
         let mut backoff = RECONNECT_INITIAL;
         loop {
-            match run_agent(state_agent.clone(), peer_tx_agent.clone()).await {
+            match run_agent(state_agent.clone(), hub_clip_tx_agent.clone()).await {
                 Ok(()) => {
                     state_agent.set_error(None);
                     backoff = RECONNECT_INITIAL;
@@ -150,7 +174,8 @@ fn main() -> Result<()> {
         }
     });
 
-    let show_tray = !args.no_tray && std::env::var("DISPLAY").is_ok();
+    let show_tray = !args.no_tray
+        && (std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok());
     if show_tray {
         info!("starting systray");
         if let Err(err) = tray::run_tray(state.clone()) {

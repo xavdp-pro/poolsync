@@ -5,18 +5,18 @@
 //!    l'API HTTP du hub (`GET`/`POST /api/topology`), avec le token de l'agent ;
 //!  - éditer sa config locale `~/.config/poolsync/agent.toml` et se redémarrer ;
 //!  - lire ses logs (`journalctl`).
+//!
 //! Remplace le dashboard web pour la configuration au quotidien.
 
 use crate::logs_viewer::fetch_journal_logs;
-use crate::network::hub_tcp_endpoint;
 use crate::state::AgentState;
+use crate::topology_mosaic::TopologyMosaic;
 use anyhow::{anyhow, Result};
 use gtk::prelude::*;
 use gtk::{
     Align, Box as GtkBox, Button, CheckButton, ComboBoxText, Entry, Frame, Grid, Label, Notebook,
     Orientation, ScrolledWindow, SpinButton, TextView, Window,
 };
-use crate::topology_mosaic::TopologyMosaic;
 use poolsync_core::{
     infer_neighbors, AgentConfig, AgentMode, Direction, PoolTopology, TopologyNode,
     DEFAULT_EDGE_TOLERANCE_PX,
@@ -223,9 +223,7 @@ impl ConfigWindow {
                     }
                 }
             }
-            let prev = existing
-                .as_ref()
-                .and_then(|t| t.nodes.get(&row.id));
+            let prev = existing.as_ref().and_then(|t| t.nodes.get(&row.id));
             nodes.insert(
                 row.id.clone(),
                 TopologyNode {
@@ -248,7 +246,10 @@ impl ConfigWindow {
     }
 
     fn recalc_neighbors(&self) {
-        let topo = infer_neighbors(&self.collect_topology_from_rows(), DEFAULT_EDGE_TOLERANCE_PX);
+        let topo = infer_neighbors(
+            &self.collect_topology_from_rows(),
+            DEFAULT_EDGE_TOLERANCE_PX,
+        );
         self.apply_topology_layout(topo);
     }
 
@@ -378,7 +379,8 @@ impl ConfigWindow {
         cfg.keep_formatting = f.keep_formatting.is_active();
         self.state.set_keep_formatting(cfg.keep_formatting);
         cfg.history_double_click_paste = f.history_double_click_paste.is_active();
-        self.state.set_history_double_click_paste(cfg.history_double_click_paste);
+        self.state
+            .set_history_double_click_paste(cfg.history_double_click_paste);
         let disp = f.display.text().to_string();
         cfg.display = if disp.trim().is_empty() {
             None
@@ -541,18 +543,16 @@ fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (
     let pause_rdp = CheckButton::with_label("Pause presse-papiers pendant RDP actif");
     grid.attach(&pause_rdp, 1, 9, 1, 1);
 
-    let keep_formatting = CheckButton::with_label(
-        "Garder le formatage (HTML) — décoché = texte brut uniquement",
-    );
+    let keep_formatting =
+        CheckButton::with_label("Garder le formatage (HTML) — décoché = texte brut uniquement");
     keep_formatting.set_tooltip_text(Some(
         "Désactivé : copie seulement le texte visible (email dans un champ).\n\
          Activé : gras/styles pour LibreOffice. Chrome peut alors coller du HTML.",
     ));
     grid.attach(&keep_formatting, 1, 10, 1, 1);
 
-    let history_double_click_paste = CheckButton::with_label(
-        "Double-clic historique → coller dans le presse-papiers",
-    );
+    let history_double_click_paste =
+        CheckButton::with_label("Double-clic historique → coller dans le presse-papiers");
     history_double_click_paste.set_tooltip_text(Some(
         "Désactivé (défaut) : double-clic sur une ligne = aperçu seulement.\n\
          Utilisez le bouton Coller ou le menu systray.",
@@ -689,6 +689,12 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
     let _ = writeln!(s, "node = {:?}", cfg.node);
     let _ = writeln!(s, "hub_url = {:?}", cfg.hub_url);
     let _ = writeln!(s, "token = {:?}", cfg.token);
+    if let Some(token) = &cfg.node_token {
+        let _ = writeln!(s, "node_token = {token:?}");
+    }
+    if let Some(key) = &cfg.e2e_key {
+        let _ = writeln!(s, "e2e_key = {key:?}");
+    }
     let _ = writeln!(s, "mode = {:?}", mode_id(cfg.mode));
     if let Some(k) = cfg.kvm_enabled {
         let _ = writeln!(s, "kvm_enabled = {k}");
@@ -706,11 +712,13 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
         cfg.pause_clipboard_when_rdp
     );
     let _ = writeln!(s, "peer_listen_port = {}", cfg.peer_listen_port);
-    let _ = writeln!(
-        s,
-        "peer_direct_clipboard = {}",
-        cfg.peer_direct_clipboard
-    );
+    if let Some(cert) = &cfg.peer_tls_cert {
+        let _ = writeln!(s, "peer_tls_cert = {cert:?}");
+    }
+    if let Some(key) = &cfg.peer_tls_key {
+        let _ = writeln!(s, "peer_tls_key = {key:?}");
+    }
+    let _ = writeln!(s, "peer_direct_clipboard = {}", cfg.peer_direct_clipboard);
     let _ = writeln!(s, "hub_clipboard = {}", cfg.hub_clipboard);
     let _ = writeln!(s, "keep_formatting = {}", cfg.keep_formatting);
     let _ = writeln!(
@@ -720,6 +728,18 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
     );
     if let Some(d) = &cfg.display {
         let _ = writeln!(s, "display = {d:?}");
+    }
+    if !cfg.peer_tokens.is_empty() {
+        let _ = writeln!(s, "\n[peer_tokens]");
+        for (node, token) in &cfg.peer_tokens {
+            let _ = writeln!(s, "{node:?} = {token:?}");
+        }
+    }
+    if !cfg.previous_peer_tokens.is_empty() {
+        let _ = writeln!(s, "\n[previous_peer_tokens]");
+        for (node, token) in &cfg.previous_peer_tokens {
+            let _ = writeln!(s, "{node:?} = {token:?}");
+        }
     }
     let _ = writeln!(s, "\n[screen]");
     let _ = writeln!(s, "width = {}", cfg.screen.width);
@@ -733,6 +753,12 @@ fn render_agent_toml(cfg: &AgentConfig) -> String {
         }
         if let Some(url) = &n.peer_url_vpn {
             let _ = writeln!(s, "peer_url_vpn = {url:?}");
+        }
+        if let Some(token) = &n.auth_token {
+            let _ = writeln!(s, "auth_token = {token:?}");
+        }
+        if let Some(token) = &n.previous_auth_token {
+            let _ = writeln!(s, "previous_auth_token = {token:?}");
         }
     }
     s
@@ -748,14 +774,18 @@ fn dir_id(dir: Direction) -> &'static str {
 }
 
 fn http_base(state: &AgentState) -> Result<String> {
-    let (host, port) = hub_tcp_endpoint(&state.config.hub_url)?;
-    Ok(format!("http://{host}:{port}"))
+    crate::network::hub_http_base(&state.config.hub_url)
 }
 
 fn fetch_topology(state: &AgentState) -> Result<PoolTopology> {
     let url = format!("{}/api/topology", http_base(state)?);
     let body = ureq::get(&url)
         .timeout(HTTP_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .call()
         .map_err(|e| anyhow!("{e}"))?
         .into_string()?;
@@ -763,14 +793,15 @@ fn fetch_topology(state: &AgentState) -> Result<PoolTopology> {
 }
 
 fn post_topology(state: &AgentState, topo: &PoolTopology) -> Result<()> {
-    let url = format!(
-        "{}/api/topology?token={}",
-        http_base(state)?,
-        state.config.token
-    );
+    let url = format!("{}/api/topology", http_base(state)?);
     let body = serde_json::to_string(topo)?;
     ureq::post(&url)
         .timeout(HTTP_TIMEOUT)
+        .set(
+            "Authorization",
+            &format!("Bearer {}", state.config.authentication_token()),
+        )
+        .set("X-PoolSync-Node", &state.config.node)
         .set("Content-Type", "application/json")
         .send_string(&body)
         .map_err(|e| anyhow!("{e}"))?;

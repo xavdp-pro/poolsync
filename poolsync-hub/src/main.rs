@@ -11,7 +11,7 @@ use axum::{
         ws::{Message as WsMessage, WebSocket, WebSocketUpgrade},
         Query, State,
     },
-    http::StatusCode,
+    http::{header::AUTHORIZATION, HeaderMap, StatusCode},
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse,
@@ -23,10 +23,9 @@ use clap::Parser;
 use futures_util::StreamExt;
 use poolsync_core::{
     decode_message, encode_message, infer_neighbors, AgentMode, Message, MonitorInfo, Neighbor,
-    PoolTopology,
-    ScreenInfo, TopologyNode, DEFAULT_EDGE_TOLERANCE_PX,
+    PoolTopology, ScreenInfo, TopologyNode, DEFAULT_EDGE_TOLERANCE_PX,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, RwLock};
 use tokio_stream::wrappers::BroadcastStream;
 use tower_http::services::{ServeDir, ServeFile};
@@ -56,6 +55,7 @@ fn image_thumb_b64(data_b64: &str) -> Option<String> {
 #[derive(Parser, Debug)]
 #[command(
     name = "poolsync-hub",
+    version,
     about = "PoolSync hub — presse-papiers + KVM maître dynamique"
 )]
 struct Args {
@@ -63,8 +63,8 @@ struct Args {
     #[arg(long, default_value = "0.0.0.0:9470")]
     listen: String,
 
-    /// Token partagé avec les agents
-    #[arg(long, default_value = "poolsync-dev")]
+    /// Jeton administrateur des API/Web (les agents peuvent avoir leur propre identité)
+    #[arg(long, env = "POOLSYNC_TOKEN", hide_env_values = true)]
     token: String,
 
     /// Répertoire des fichiers statiques (dashboard web)
@@ -74,6 +74,22 @@ struct Args {
     /// Fichier JSON de topologie KVM (mosaïque écrans)
     #[arg(long, default_value = "/var/lib/poolsync/topology.json")]
     topology_file: PathBuf,
+
+    /// Identités par nœud, rechargées à chaque connexion (rotation/révocation à chaud).
+    #[arg(long)]
+    node_tokens_file: Option<PathBuf>,
+
+    /// Certificat PEM TLS. Doit être fourni avec --tls-key.
+    #[arg(long)]
+    tls_cert: Option<PathBuf>,
+
+    /// Clef privée PEM TLS. Doit être fournie avec --tls-cert.
+    #[arg(long)]
+    tls_key: Option<PathBuf>,
+
+    /// Refuse tout presse-papiers en clair (à activer après migration des agents).
+    #[arg(long, default_value_t = false)]
+    require_e2e: bool,
 }
 
 #[derive(Clone)]
@@ -95,6 +111,8 @@ struct NodeInfo {
 #[derive(Clone)]
 struct HubState {
     token: String,
+    node_tokens_file: Option<PathBuf>,
+    require_e2e: bool,
     started_at: u64,
     topology_file: PathBuf,
     topology: Arc<RwLock<PoolTopology>>,
@@ -160,12 +178,20 @@ struct ClipboardItemResponse {
     at: u64,
 }
 
-#[derive(Deserialize)]
-struct WsQuery {
+#[derive(Clone, Debug, Deserialize)]
+struct NodeCredential {
     token: String,
+    #[serde(default)]
+    previous_tokens: Vec<String>,
+    #[serde(default)]
+    revoked: bool,
 }
 
-use serde::Deserialize;
+#[derive(Debug, Default, Deserialize)]
+struct NodeCredentials {
+    #[serde(default)]
+    nodes: HashMap<String, NodeCredential>,
+}
 
 #[derive(Serialize)]
 struct StatusResponse {
@@ -218,9 +244,95 @@ struct NodeClip {
     is_image: bool,
 }
 
-#[derive(Deserialize)]
-struct TokenQuery {
+fn bearer_token(headers: &HeaderMap) -> Option<&str> {
+    if let Some(value) = headers.get(AUTHORIZATION) {
+        let value = value.to_str().ok()?;
+        let (scheme, credential) = value.split_once(' ')?;
+        return scheme.eq_ignore_ascii_case("bearer").then_some(credential);
+    }
+    None
+}
+
+fn request_authorized(headers: &HeaderMap, state: &HubState) -> bool {
+    let Some(token) = bearer_token(headers) else {
+        return false;
+    };
+    if token == state.token {
+        return true;
+    }
+    let Some(node) = headers
+        .get("x-poolsync-node")
+        .and_then(|value| value.to_str().ok())
+    else {
+        return false;
+    };
+    let Some(path) = state.node_tokens_file.as_ref() else {
+        return false;
+    };
+    load_node_credentials(path)
+        .ok()
+        .and_then(|credentials| credentials.nodes.get(node).cloned())
+        .is_some_and(|credential| credential_accepts(&credential, token))
+}
+
+fn load_node_credentials(path: &PathBuf) -> Result<NodeCredentials> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("read node credentials {}", path.display()))?;
+    serde_json::from_str(&raw).with_context(|| format!("parse node credentials {}", path.display()))
+}
+
+fn credential_accepts(credential: &NodeCredential, token: &str) -> bool {
+    !credential.revoked
+        && (credential.token == token || credential.previous_tokens.iter().any(|old| old == token))
+}
+
+#[derive(Clone)]
+struct AuthenticatedNode {
+    name: String,
     token: String,
+}
+
+fn node_identity_still_valid(identity: &AuthenticatedNode, state: &HubState) -> bool {
+    if let Some(path) = state.node_tokens_file.as_ref() {
+        return load_node_credentials(path)
+            .ok()
+            .and_then(|credentials| credentials.nodes.get(&identity.name).cloned())
+            .is_some_and(|credential| credential_accepts(&credential, &identity.token));
+    }
+    identity.token == state.token
+}
+
+fn authenticated_node(
+    headers: &HeaderMap,
+    state: &HubState,
+) -> Result<AuthenticatedNode, StatusCode> {
+    let node = headers
+        .get("x-poolsync-node")
+        .and_then(|value| value.to_str().ok())
+        .filter(|node| !node.is_empty())
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    let token = bearer_token(headers).ok_or(StatusCode::UNAUTHORIZED)?;
+
+    if let Some(path) = state.node_tokens_file.as_ref() {
+        let credentials = load_node_credentials(path).map_err(|err| {
+            error!("node credentials unavailable: {err:#}");
+            StatusCode::SERVICE_UNAVAILABLE
+        })?;
+        let credential = credentials
+            .nodes
+            .get(node)
+            .ok_or(StatusCode::UNAUTHORIZED)?;
+        if !credential_accepts(credential, token) {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    } else if token != state.token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    Ok(AuthenticatedNode {
+        name: node.to_string(),
+        token: token.to_string(),
+    })
 }
 
 fn load_topology(path: &PathBuf) -> PoolTopology {
@@ -284,6 +396,11 @@ fn now_ms() -> u64 {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // The workspace also contains a ring-based TLS client. When Cargo builds
+    // the hub and agent together, rustls sees both providers and cannot choose
+    // one implicitly. Pin the process provider before creating any TLS config.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -302,6 +419,8 @@ async fn main() -> Result<()> {
     let (clipboard_events, _) = broadcast::channel(64);
     let state = HubState {
         token: args.token.clone(),
+        node_tokens_file: args.node_tokens_file.clone(),
+        require_e2e: args.require_e2e,
         started_at,
         topology_file: args.topology_file.clone(),
         topology: Arc::new(RwLock::new(topology)),
@@ -326,9 +445,18 @@ async fn main() -> Result<()> {
         .route("/api/clipboard/item", get(api_clipboard_item))
         .route("/api/clipboard/events", get(api_clipboard_events))
         .route("/api/edges/show", axum::routing::post(api_edges_show))
-        .route("/api/clipboard/pick", axum::routing::post(api_clipboard_pick))
-        .route("/api/clipboard/clear", axum::routing::post(api_clipboard_clear))
-        .route("/api/clipboard/delete", axum::routing::post(api_clipboard_delete))
+        .route(
+            "/api/clipboard/pick",
+            axum::routing::post(api_clipboard_pick),
+        )
+        .route(
+            "/api/clipboard/clear",
+            axum::routing::post(api_clipboard_clear),
+        )
+        .route(
+            "/api/clipboard/delete",
+            axum::routing::post(api_clipboard_delete),
+        )
         .route("/ws", get(ws_handler))
         .with_state(state.clone());
 
@@ -347,9 +475,23 @@ async fn main() -> Result<()> {
         }
     }
 
-    info!("poolsync-hub listening on {listen}");
-    let listener = tokio::net::TcpListener::bind(listen).await?;
-    axum::serve(listener, app).await?;
+    match (args.tls_cert.as_ref(), args.tls_key.as_ref()) {
+        (Some(cert), Some(key)) => {
+            let tls = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key)
+                .await
+                .context("load TLS certificate/key")?;
+            info!("poolsync-hub TLS listening on {listen}");
+            axum_server::bind_rustls(listen, tls)
+                .serve(app.into_make_service())
+                .await?;
+        }
+        (None, None) => {
+            info!("poolsync-hub listening on {listen}");
+            let listener = tokio::net::TcpListener::bind(listen).await?;
+            axum::serve(listener, app).await?;
+        }
+        _ => anyhow::bail!("--tls-cert and --tls-key must be provided together"),
+    }
     Ok(())
 }
 
@@ -357,7 +499,13 @@ async fn health() -> impl IntoResponse {
     "ok"
 }
 
-async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
+async fn api_status(
+    headers: HeaderMap,
+    State(state): State<HubState>,
+) -> Result<Json<StatusResponse>, StatusCode> {
+    if !request_authorized(&headers, &state) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
     let nodes_map = state.nodes.read().await;
     let master = state.master.read().await.clone();
     let last_hash = state.last_clipboard_hash.read().await.clone();
@@ -371,12 +519,14 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
         let history = state.clipboard_history.read().await;
         let mut map: HashMap<String, NodeClip> = HashMap::new();
         for entry in history.iter() {
-            let slot = map.entry(entry.source_node.clone()).or_insert_with(|| NodeClip {
-                preview: entry.preview.clone(),
-                mime: entry.mime.clone(),
-                at: entry.at,
-                is_image: entry.mime.starts_with("image/"),
-            });
+            let slot = map
+                .entry(entry.source_node.clone())
+                .or_insert_with(|| NodeClip {
+                    preview: entry.preview.clone(),
+                    mime: entry.mime.clone(),
+                    at: entry.at,
+                    is_image: entry.mime.starts_with("image/"),
+                });
             if entry.at > slot.at {
                 *slot = NodeClip {
                     preview: entry.preview.clone(),
@@ -394,7 +544,7 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
         .map(|(name, info)| NodeStatus {
             name: name.clone(),
             mode: info.mode,
-            screen: info.screen.clone(),
+            screen: info.screen,
             neighbors: info.neighbors.clone(),
             kvm_enabled: info.kvm_enabled,
             connected_at: info.connected_at,
@@ -407,7 +557,7 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
         })
         .collect();
 
-    Json(StatusResponse {
+    Ok(Json(StatusResponse {
         hub: HubInfo {
             version: env!("CARGO_PKG_VERSION"),
             started_at: state.started_at,
@@ -420,11 +570,17 @@ async fn api_status(State(state): State<HubState>) -> Json<StatusResponse> {
             last_at: *last_at,
         },
         nodes,
-    })
+    }))
 }
 
-async fn api_topology_get(State(state): State<HubState>) -> Json<PoolTopology> {
-    Json(state.topology.read().await.clone())
+async fn api_topology_get(
+    headers: HeaderMap,
+    State(state): State<HubState>,
+) -> Result<Json<PoolTopology>, StatusCode> {
+    if !request_authorized(&headers, &state) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    Ok(Json(state.topology.read().await.clone()))
 }
 
 fn clip_preview_hub(mime: &str, data: &str) -> String {
@@ -489,11 +645,13 @@ async fn notify_clipboard_history(state: &HubState) {
 }
 
 async fn api_clipboard_events(
-    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
-) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>>, StatusCode>
-{
-    if query.token != state.token {
+) -> Result<
+    Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>>,
+    StatusCode,
+> {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let initial = *state.clipboard_history_revision.read().await;
@@ -509,15 +667,15 @@ async fn api_clipboard_events(
 
 #[derive(Deserialize)]
 struct HistoryQuery {
-    token: String,
     limit: Option<usize>,
 }
 
 async fn api_clipboard_history(
+    headers: HeaderMap,
     Query(query): Query<HistoryQuery>,
     State(state): State<HubState>,
 ) -> Result<Json<ClipboardHistoryResponse>, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let limit = query.limit.unwrap_or(50).min(CLIPBOARD_HISTORY_MAX);
@@ -540,15 +698,15 @@ async fn api_clipboard_history(
 
 #[derive(Deserialize)]
 struct ItemQuery {
-    token: String,
     hash: String,
 }
 
 async fn api_clipboard_item(
+    headers: HeaderMap,
     Query(query): Query<ItemQuery>,
     State(state): State<HubState>,
 ) -> Result<Json<ClipboardItemResponse>, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let hist = state.clipboard_history.read().await;
@@ -580,11 +738,11 @@ struct EdgesShowBody {
 /// Enregistrer une topologie ne dit pas si elle correspond au terrain : cette
 /// route permet de le vérifier sans promener la souris de bord en bord.
 async fn api_edges_show(
-    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
     Json(body): Json<EdgesShowBody>,
 ) -> Result<StatusCode, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let payload = encode_message(&Message::ShowEdges {
@@ -609,11 +767,11 @@ async fn api_edges_show(
 }
 
 async fn api_clipboard_pick(
-    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
     Json(body): Json<ClipboardPickBody>,
 ) -> Result<StatusCode, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let entry = {
@@ -625,14 +783,7 @@ async fn api_clipboard_pick(
     };
     *state.last_clipboard_hash.write().await = Some(entry.hash.clone());
     *state.last_clipboard_at.write().await = Some(now_secs());
-    push_clipboard_history(
-        &state,
-        "pick",
-        &entry.hash,
-        &entry.mime,
-        &entry.data,
-    )
-    .await;
+    push_clipboard_history(&state, "pick", &entry.hash, &entry.mime, &entry.data).await;
     // Un pick est une nouvelle intention utilisateur : il doit gagner sur tout
     // ce que les agents ont déjà vu, d'où une horloge basée sur l'heure mur.
     let payload = encode_message(&Message::Clipboard {
@@ -654,10 +805,10 @@ async fn api_clipboard_pick(
 }
 
 async fn api_clipboard_clear(
-    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
 ) -> Result<StatusCode, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     state.clipboard_history.write().await.clear();
@@ -669,18 +820,17 @@ async fn api_clipboard_clear(
 }
 
 async fn api_clipboard_delete(
-    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
     Json(body): Json<ClipboardDeleteBody>,
 ) -> Result<StatusCode, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     if body.hashes.is_empty() {
         return Ok(StatusCode::OK);
     }
-    let to_remove: std::collections::HashSet<String> =
-        body.hashes.iter().cloned().collect();
+    let to_remove: std::collections::HashSet<String> = body.hashes.iter().cloned().collect();
     let mut hist = state.clipboard_history.write().await;
     hist.retain(|e| !to_remove.contains(&e.hash));
     let last = state.last_clipboard_hash.read().await.clone();
@@ -695,11 +845,11 @@ async fn api_clipboard_delete(
 }
 
 async fn api_topology_post(
-    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
     Json(body): Json<PoolTopology>,
 ) -> Result<StatusCode, StatusCode> {
-    if query.token != state.token {
+    if !request_authorized(&headers, &state) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     save_topology(&state, body.clone())
@@ -714,24 +864,30 @@ async fn api_topology_post(
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
-    Query(query): Query<WsQuery>,
+    headers: HeaderMap,
     State(state): State<HubState>,
 ) -> impl IntoResponse {
-    if query.token != state.token {
-        return (axum::http::StatusCode::UNAUTHORIZED, "invalid token").into_response();
-    }
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+    let authenticated_node = match authenticated_node(&headers, &state) {
+        Ok(identity) => identity,
+        Err(status) => return (status, "invalid node credentials").into_response(),
+    };
+    ws.on_upgrade(move |socket| handle_socket(socket, state, authenticated_node))
 }
 
-async fn handle_socket(socket: WebSocket, state: HubState) {
-    if let Err(err) = run_session(socket, state).await {
+async fn handle_socket(socket: WebSocket, state: HubState, authenticated_node: AuthenticatedNode) {
+    if let Err(err) = run_session(socket, state, authenticated_node).await {
         error!("session ended: {err:#}");
     }
 }
 
-async fn run_session(mut socket: WebSocket, state: HubState) -> Result<()> {
+async fn run_session(
+    mut socket: WebSocket,
+    state: HubState,
+    authenticated_node: AuthenticatedNode,
+) -> Result<()> {
     let (tx, mut rx) = broadcast::channel::<String>(256);
     let mut node_name: Option<String> = None;
+    let mut credential_check = tokio::time::interval(std::time::Duration::from_secs(5));
 
     loop {
         tokio::select! {
@@ -742,7 +898,13 @@ async fn run_session(mut socket: WebSocket, state: HubState) -> Result<()> {
                         if let Some(name) = node_name.as_deref() {
                             handle_message(&state, name, &text, &tx).await?;
                         } else {
-                            node_name = register_node(&state, &text, tx.clone()).await?;
+                            node_name = register_node(
+                                &state,
+                                &text,
+                                tx.clone(),
+                                &authenticated_node.name,
+                            )
+                            .await?;
                             info!("node registered: {}", node_name.as_deref().unwrap_or("?"));
                         }
                     }
@@ -755,6 +917,12 @@ async fn run_session(mut socket: WebSocket, state: HubState) -> Result<()> {
             }
             Ok(outgoing) = rx.recv() => {
                 socket.send(WsMessage::Text(outgoing.into())).await?;
+            }
+            _ = credential_check.tick() => {
+                if !node_identity_still_valid(&authenticated_node, &state) {
+                    warn!("node credentials revoked or rotated out: {}", authenticated_node.name);
+                    break;
+                }
             }
         }
     }
@@ -797,7 +965,9 @@ async fn apply_hello_geometry(
                 n.desktop_height = kvm_desktop.desktop_height;
                 // Pause locale : garder x/y mosaïque. Clip-only à l'init est déjà à y=100000.
                 if !kvm_enabled && n.y < 50_000 && kvm_changed {
-                    info!("topology {node}: KVM off (pause) — bords recalculés, position conservée");
+                    info!(
+                        "topology {node}: KVM off (pause) — bords recalculés, position conservée"
+                    );
                 }
             }
             None => {
@@ -856,6 +1026,7 @@ async fn register_node(
     state: &HubState,
     text: &str,
     sender: broadcast::Sender<String>,
+    authenticated_node: &str,
 ) -> Result<Option<String>> {
     let msg = decode_message(text)?;
     match msg {
@@ -870,6 +1041,11 @@ async fn register_node(
             local_active,
             monitors,
         } => {
+            if node != authenticated_node {
+                return Err(anyhow!(
+                    "hello node {node:?} does not match authenticated identity {authenticated_node:?}"
+                ));
+            }
             let topology_update =
                 apply_hello_geometry(state, &node, &screen, &kvm_desktop, kvm_enabled).await?;
 
@@ -879,7 +1055,7 @@ async fn register_node(
                     node.clone(),
                     NodeInfo {
                         mode,
-                        screen: screen.clone(),
+                        screen,
                         neighbors,
                         kvm_enabled,
                         connected_at: now_secs(),
@@ -910,8 +1086,7 @@ async fn register_node(
             }
             let revision = *state.clipboard_history_revision.read().await;
             if revision > 0 {
-                let payload =
-                    encode_message(&Message::ClipboardHistoryUpdated { revision })?;
+                let payload = encode_message(&Message::ClipboardHistoryUpdated { revision })?;
                 let _ = sender.send(payload);
             }
             Ok(Some(node))
@@ -949,6 +1124,10 @@ async fn handle_message(
             origin,
             seq,
         } => {
+            if state.require_e2e {
+                warn!("unencrypted clipboard rejected from {from}");
+                return Ok(());
+            }
             let duplicate = {
                 let last = state.last_clipboard_hash.read().await;
                 last.as_deref() == Some(&hash)
@@ -958,7 +1137,7 @@ async fn handle_message(
             }
             *state.last_clipboard_at.write().await = Some(now_secs());
             // Toujours remonter en tête (même hash recopié) ; broadcast seulement si nouveau.
-            push_clipboard_history(&state, from, &hash, &mime, &data).await;
+            push_clipboard_history(state, from, &hash, &mime, &data).await;
             notify_clipboard_history(state).await;
             if duplicate {
                 return Ok(());
@@ -973,6 +1152,12 @@ async fn handle_message(
                 seq,
             })?;
             broadcast_except(state, from, &payload).await;
+        }
+        Message::EncryptedClipboard { msg_id, .. } => {
+            // E2E mode: the hub deliberately cannot inspect hash, MIME, data or
+            // preview. It only relays the authenticated ciphertext unchanged.
+            info!("encrypted clipboard relayed id={msg_id} from={from}");
+            broadcast_except(state, from, text).await;
         }
         Message::MasterClaim { node, ts: _ } => {
             let changed = {
@@ -1095,6 +1280,37 @@ async fn route_to_node(state: &HubState, target: &str, payload: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn status_auth_rejects_missing_or_invalid_credentials() {
+        let headers = HeaderMap::new();
+        assert_eq!(bearer_token(&headers), None);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, "Bearer wrong".parse().unwrap());
+        assert_ne!(bearer_token(&headers), Some("secret"));
+    }
+
+    #[test]
+    fn status_auth_accepts_bearer_credentials() {
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, "Bearer secret".parse().unwrap());
+        assert_eq!(bearer_token(&headers), Some("secret"));
+    }
+
+    #[test]
+    fn node_credentials_support_rotation_and_revocation() {
+        let mut credential = NodeCredential {
+            token: "new".into(),
+            previous_tokens: vec!["old".into()],
+            revoked: false,
+        };
+        assert!(credential_accepts(&credential, "new"));
+        assert!(credential_accepts(&credential, "old"));
+        assert!(!credential_accepts(&credential, "other"));
+        credential.revoked = true;
+        assert!(!credential_accepts(&credential, "new"));
+    }
 
     #[test]
     fn relaying_keeps_the_node_where_the_copy_actually_happened() {

@@ -1,6 +1,5 @@
 use crate::clipboard::{
-    prepare_local_clipboard, read_clipboard_payload_filtered, send_payload_network,
-    write_clipboard,
+    prepare_local_clipboard, read_clipboard_payload_filtered, send_payload_network, write_clipboard,
 };
 use crate::clipboard_history;
 use crate::kvm::{detect_kvm_desktop, detect_screen, inject_input, kvm_poll_loop};
@@ -11,15 +10,22 @@ use crate::rdp_detect::rdp_client_active;
 use crate::state::AgentState;
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
-use poolsync_core::{decode_message, encode_message, Message};
+use poolsync_core::{decode_message, decrypt_clipboard, encode_message, Message};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use tokio::{
     process::Command,
-    sync::mpsc,
+    sync::{broadcast, mpsc},
     time::{interval, sleep, timeout, Duration},
 };
-use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{
+        client::IntoClientRequest,
+        http::{header::AUTHORIZATION, HeaderValue},
+        Message as WsMessage,
+    },
+};
 use tracing::{info, warn};
 
 const WS_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
@@ -27,22 +33,29 @@ const HUB_LINK_CHECK: Duration = Duration::from_secs(10);
 
 pub async fn run_agent(
     state: Arc<AgentState>,
-    peer_tx: Option<mpsc::UnboundedSender<String>>,
+    hub_clip_tx: broadcast::Sender<String>,
 ) -> Result<()> {
     let cfg = &state.config;
-    let hub_url = format!("{}?token={}", cfg.hub_url.trim_end_matches('/'), cfg.token);
+    let mut request = cfg.hub_url.clone().into_client_request()?;
+    request.headers_mut().insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", cfg.authentication_token()))?,
+    );
+    request
+        .headers_mut()
+        .insert("x-poolsync-node", HeaderValue::from_str(&cfg.node)?);
     let (hub_host, hub_port) = hub_tcp_endpoint(&cfg.hub_url)?;
 
     state.set_connected(false);
     wait_for_hub(&hub_host, hub_port).await;
 
-    let (ws, _) = timeout(WS_CONNECT_TIMEOUT, connect_async(&hub_url))
+    let (ws, _) = timeout(WS_CONNECT_TIMEOUT, connect_async(request))
         .await
         .context("délai connexion hub dépassé (VPN/réseau?)")?
         .context("connect hub websocket")?;
     let (mut write, mut read) = ws.split();
 
-    let screen = detect_screen().await.unwrap_or_else(|| cfg.screen.clone());
+    let screen = detect_screen().await.unwrap_or(cfg.screen);
     let kvm_desktop = detect_kvm_desktop().await.unwrap_or_default();
     if screen.width != cfg.screen.width || screen.height != cfg.screen.height {
         info!(
@@ -56,7 +69,7 @@ pub async fn run_agent(
             encode_message(&Message::Hello {
                 node: cfg.node.clone(),
                 mode: cfg.mode,
-                screen: screen.clone(),
+                screen,
                 neighbors: cfg.neighbors.clone(),
                 kvm_enabled: state.kvm_effective(),
                 kvm_desktop,
@@ -75,20 +88,17 @@ pub async fn run_agent(
 
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
     let last_clip_hash = state.last_clip_hash_handle();
-
-    let state_bg = state.clone();
-    let out_tx_bg = out_tx.clone();
-    let last_clip_hash_bg = last_clip_hash.clone();
-    let clip_task = tokio::spawn(async move {
-        clipboard_poll_loop(&state_bg, out_tx_bg, peer_tx, last_clip_hash_bg).await;
-    });
+    // S'abonner seulement une fois le hub connecté. Ainsi, les copies faites
+    // pendant une coupure restent P2P et ne forment pas une file périmée qui
+    // serait rejouée en rafale au retour du hub.
+    let mut hub_clip_rx = hub_clip_tx.subscribe();
 
     let state_in = state.clone();
     let out_tx_in = out_tx.clone();
     let kvm_task = if cfg.kvm_active() {
         tokio::task::spawn_blocking(move || kvm_poll_loop(&state_in, out_tx_in))
     } else {
-        tokio::task::spawn_blocking(|| std::thread::park())
+        tokio::task::spawn_blocking(std::thread::park)
     };
 
     let mut link_check = interval(HUB_LINK_CHECK);
@@ -105,6 +115,15 @@ pub async fn run_agent(
                     write.send(WsMessage::Text(payload.into())).await?;
                 } else {
                     break;
+                }
+            }
+            hub_clip = hub_clip_rx.recv() => {
+                match hub_clip {
+                    Ok(payload) => write.send(WsMessage::Text(payload.into())).await?,
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!("relais hub clipboard en retard: {skipped} message(s) ignoré(s)");
+                    }
+                    Err(broadcast::error::RecvError::Closed) => break,
                 }
             }
             maybe_in = read.next() => {
@@ -137,7 +156,6 @@ pub async fn run_agent(
     }
 
     state.set_connected(false);
-    clip_task.abort();
     if cfg.kvm_active() {
         kvm_task.abort();
     }
@@ -162,7 +180,10 @@ fn node_state_snapshot(state: &AgentState) -> (bool, bool, bool, Vec<poolsync_co
 fn send_hello(state: &AgentState, out_tx: &mpsc::UnboundedSender<String>) {
     let monitors = crate::kvm_x11::described_monitors().unwrap_or_default();
     let screen = crate::kvm_x11::kvm_display()
-        .map(|d| poolsync_core::ScreenInfo { width: d.width, height: d.height })
+        .map(|d| poolsync_core::ScreenInfo {
+            width: d.width,
+            height: d.height,
+        })
         .unwrap_or(state.config.screen);
     let kvm_desktop = crate::kvm_x11::kvm_layout_snapshot().unwrap_or_default();
     match encode_message(&Message::Hello {
@@ -195,7 +216,17 @@ async fn handle_incoming(
     text: &str,
     _last_clip_hash: &Mutex<String>,
 ) -> Result<()> {
-    let msg = decode_message(text)?;
+    let mut msg = decode_message(text)?;
+    if matches!(msg, Message::EncryptedClipboard { .. }) {
+        let key = state
+            .config
+            .e2e_key
+            .as_deref()
+            .context("encrypted clipboard received but e2e_key is not configured")?;
+        msg = decrypt_clipboard(&msg, key)?;
+    } else if state.config.e2e_key.is_some() && matches!(msg, Message::Clipboard { .. }) {
+        anyhow::bail!("unencrypted clipboard rejected while e2e_key is configured");
+    }
     match msg {
         Message::Clipboard {
             hash,
@@ -219,7 +250,7 @@ async fn handle_incoming(
         Message::ShowEdges { duration_ms } => {
             let st = state.clone();
             // Les fenêtres GTK ne se créent que sur la boucle GTK.
-            let _ = glib::MainContext::default().invoke(move || {
+            glib::MainContext::default().invoke(move || {
                 crate::edge_flash::show(&st, Duration::from_millis(duration_ms.clamp(300, 15_000)));
             });
         }
@@ -239,7 +270,10 @@ async fn handle_incoming(
             state.notify_tray_history_changed();
         }
         Message::Input { kind, .. }
-            if state.kvm_enabled() && state.local_poolsync_active() => {
+            if matches!(state.config.mode, poolsync_core::AgentMode::Full)
+                && state.kvm_enabled()
+                && state.local_poolsync_active() =>
+        {
             state.note_kvm_inject(&kind);
             inject_input(&kind).await?;
         }
@@ -369,9 +403,9 @@ fn notify_icon_path() -> String {
     format!("{home}/.local/share/poolsync/poolsync-tray.png")
 }
 
-async fn clipboard_poll_loop(
+pub(crate) async fn clipboard_poll_loop(
     state: &AgentState,
-    hub_tx: mpsc::UnboundedSender<String>,
+    hub_tx: broadcast::Sender<String>,
     peer_tx: Option<mpsc::UnboundedSender<String>>,
     last_clip_hash: Arc<Mutex<String>>,
 ) {
@@ -400,27 +434,37 @@ async fn clipboard_poll_loop(
                 || state.incoming_duplicate_suppress_active()
                 || state.history_clear_suppress_active()
                 || (rdp_active && state.hub_apply_grace_active());
+            // Une application qui se ferme peut confier son contenu au
+            // CLIPBOARD_MANAGER puis disparaître avant le prochain sondage.
+            // Ce contenu est une vraie copie locale et doit être traité même
+            // pendant une courte fenêtre anti-écho.
+            let manager_payload = crate::clipboard::take_clipboard_manager_payload();
             // GTK/X11 transfers clipboard ownership asynchronously.  Reading
             // during this short settle window can still return the previous
             // text; treating it as a local copy creates an old-text echo that
             // overwrites the user's next paste on another node.
-            if skip_echo {
+            if skip_echo && manager_payload.is_none() {
                 sleep(poll).await;
                 continue;
             }
             // Always read images: a local screenshot must enter the queue even
             // on clipboard_only (incoming images still skip X11 write).
-            if let Ok(Some(payload)) =
-                read_clipboard_payload_filtered(true, state.keep_formatting()).await
-            {
+            let payload = match manager_payload {
+                Some(payload) => Some(payload),
+                None => read_clipboard_payload_filtered(true, state.keep_formatting())
+                    .await
+                    .ok()
+                    .flatten(),
+            };
+            if let Some(payload) = payload {
                 if prepare_local_clipboard(&payload, &last_clip_hash) {
-                    // Trace de diagnostic : identifier d'où sort une « copie »
-                    // que l'utilisateur n'a pas faite (cf. tempête du 29/08).
+                    // Ne jamais journaliser le contenu : un presse-papiers peut
+                    // contenir un mot de passe, un jeton ou une clef privée.
                     info!(
-                        "clipboard local: mime={} bytes={} preview={:?}",
+                        "clipboard local: mime={} bytes={} id={}",
                         payload.mime,
                         payload.wire_data.len(),
-                        payload.wire_data.chars().take(40).collect::<String>()
+                        crate::clipboard::trace_id(&payload.hash)
                     );
                     // Horloge logique de cette copie : elle domine tout ce que
                     // ce nœud a déjà vu, donc un message plus ancien encore en
@@ -466,7 +510,8 @@ async fn clipboard_poll_loop(
                             .await;
                         }
                     }
-                    let preview = crate::state::clip_preview_mime(&payload.mime, &payload.wire_data);
+                    let preview =
+                        crate::state::clip_preview_mime(&payload.mime, &payload.wire_data);
                     if state.should_notify(&payload.hash, &preview) {
                         let mime = payload.mime.clone();
                         let wire = payload.wire_data.clone();
@@ -480,6 +525,7 @@ async fn clipboard_poll_loop(
                     let payload_net = payload.clone();
                     let relay_hub = state.config.hub_clipboard;
                     let origin = state.config.node.clone();
+                    let e2e_key = state.config.e2e_key.clone();
                     tokio::spawn(async move {
                         if send_payload_network(
                             &payload_net,
@@ -488,15 +534,14 @@ async fn clipboard_poll_loop(
                             relay_hub,
                             &origin,
                             seq,
-                        ) {
-                            if payload_net.mime.starts_with("image/") {
-                                let approx_bytes =
-                                    payload_net.wire_data.len().saturating_mul(3) / 4;
-                                info!(
-                                    "clipboard image relayed ({}, ~{approx_bytes} bytes)",
-                                    payload_net.mime
-                                );
-                            }
+                            e2e_key.as_deref(),
+                        ) && payload_net.mime.starts_with("image/")
+                        {
+                            let approx_bytes = payload_net.wire_data.len().saturating_mul(3) / 4;
+                            info!(
+                                "clipboard image relayed ({}, ~{approx_bytes} bytes)",
+                                payload_net.mime
+                            );
                         }
                     });
                 }

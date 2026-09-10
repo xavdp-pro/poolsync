@@ -23,3 +23,5 @@ tower-http = { version = "0.6", features = ["fs"] }
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }

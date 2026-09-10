@@ -9,6 +9,10 @@ HUB="${HUB_URL:-http://10.24.42.1:9470}"
 CFG="${HOME}/.config/poolsync/agent.toml"
 BIN="${HOME}/.local/bin/poolsync-agent"
 DURATION="${DEBUG_SECS:-12}"
+TOKEN="${POOLSYNC_TOKEN:-}"
+if [[ -z "$TOKEN" && -f "$CFG" ]]; then
+  TOKEN="$(grep -E '^token\s*=' "$CFG" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+fi
 
 export DISPLAY="${DISPLAY:-:0}"
 export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
@@ -27,11 +31,12 @@ fi
 
 echo ""
 echo "--- 2. Hub /api/status ---"
-STATUS="$(curl -sf --connect-timeout 5 --max-time 8 "${HUB}/api/status" 2>/dev/null || true)"
+STATUS="$(curl -sf --connect-timeout 5 --max-time 8 \
+  -H "Authorization: Bearer ${TOKEN}" "${HUB}/api/status" 2>/dev/null || true)"
 if [[ -n "$STATUS" ]]; then
   echo "$STATUS" | python3 -m json.tool 2>/dev/null || echo "$STATUS"
 else
-  echo "ÉCHEC (timeout — hub peut être en deadlock, redémarrer poolsync-hub)"
+  echo "ÉCHEC (token absent/invalide, timeout ou hub indisponible)"
 fi
 
 echo ""

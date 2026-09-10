@@ -85,10 +85,8 @@ impl LogsWindow {
                 b"textview text { background-color: #1e1e2e; color: #cdd6f4; font-family: 'JetBrains Mono', 'Fira Code', 'Monospace'; font-size: 11pt; }\n\
                   button { border-radius: 6px; font-weight: bold; padding: 4px 10px; }\n"
             );
-            view.style_context().add_provider(
-                &css_provider,
-                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-            );
+            view.style_context()
+                .add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
             scrolled.add(&view);
 

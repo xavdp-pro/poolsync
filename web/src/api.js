@@ -1,19 +1,31 @@
-export async function fetchStatus() {
-  const res = await fetch('/api/status', { cache: 'no-store' })
+function authHeaders(token, headers = {}) {
+  const value = token?.trim()
+  return value ? { ...headers, Authorization: `Bearer ${value}` } : headers
+}
+
+export async function fetchStatus(token) {
+  if (!token?.trim()) throw new Error('Token requis — renseignez-le dans le tableau de bord')
+  const res = await fetch('/api/status', {
+    cache: 'no-store',
+    headers: authHeaders(token),
+  })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
-export async function fetchTopology() {
-  const res = await fetch('/api/topology', { cache: 'no-store' })
+export async function fetchTopology(token) {
+  const res = await fetch('/api/topology', {
+    cache: 'no-store',
+    headers: authHeaders(token),
+  })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function saveTopology(topology, token) {
-  const res = await fetch(`/api/topology?token=${encodeURIComponent(token)}`, {
+  const res = await fetch('/api/topology', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(topology),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -52,9 +64,9 @@ export function shortHash(hash) {
  * `node` absent = tout le pool.
  */
 export async function showEdges(token, node) {
-  const res = await fetch(`/api/edges/show?token=${encodeURIComponent(token)}`, {
+  const res = await fetch('/api/edges/show', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify({ node: node || null, duration_ms: 3000 }),
   })
   if (!res.ok) throw new Error(`Bords : HTTP ${res.status}`)

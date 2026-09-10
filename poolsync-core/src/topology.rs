@@ -10,10 +10,7 @@ pub const MIN_EDGE_OVERLAP_PX: i32 = 80;
 /// Aligne x/y sur une grille (ex. 20 px).
 pub fn snap_position(x: i32, y: i32, grid: i32) -> (i32, i32) {
     let g = grid.max(1);
-    (
-        ((x + g / 2) / g) * g,
-        ((y + g / 2) / g) * g,
-    )
+    (((x + g / 2) / g) * g, ((y + g / 2) / g) * g)
 }
 
 /// Recalcule les voisins left/right/up/down à partir des rectangles (bidirectionnel).
@@ -138,8 +135,14 @@ mod tests {
         nodes.insert("asus".into(), node(0, 0, 1920, 1080));
         nodes.insert("acer".into(), node(1920, 0, 1920, 1080));
         let topo = infer_neighbors(&PoolTopology { nodes }, DEFAULT_EDGE_TOLERANCE_PX);
-        assert_eq!(topo.nodes["asus"].neighbors.get("right"), Some(&"acer".into()));
-        assert_eq!(topo.nodes["acer"].neighbors.get("left"), Some(&"asus".into()));
+        assert_eq!(
+            topo.nodes["asus"].neighbors.get("right"),
+            Some(&"acer".into())
+        );
+        assert_eq!(
+            topo.nodes["acer"].neighbors.get("left"),
+            Some(&"asus".into())
+        );
     }
 
     #[test]
@@ -166,9 +169,15 @@ mod tests {
         p2.kvm_enabled = false;
         nodes.insert("gbs-p2".into(), p2);
         let topo = infer_neighbors(&PoolTopology { nodes }, DEFAULT_EDGE_TOLERANCE_PX);
-        assert_eq!(topo.nodes["asus"].neighbors.get("right"), Some(&"acer".into()));
-        assert_eq!(topo.nodes["acer"].neighbors.get("left"), Some(&"asus".into()));
-        assert!(topo.nodes["acer"].neighbors.get("right").is_none());
+        assert_eq!(
+            topo.nodes["asus"].neighbors.get("right"),
+            Some(&"acer".into())
+        );
+        assert_eq!(
+            topo.nodes["acer"].neighbors.get("left"),
+            Some(&"asus".into())
+        );
+        assert!(!topo.nodes["acer"].neighbors.contains_key("right"));
         assert!(topo.nodes["gbs-p2"].neighbors.is_empty());
     }
 }

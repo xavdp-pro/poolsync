@@ -185,8 +185,6 @@ fn release_stale_grabs(conn: &x11rb::rust_connection::RustConnection) {
 
 /// Masque rapide avant que le grab Barrier soit prêt (warp hors écran).
 /// Préférer InputGrab::begin seul — n'appeler qu'après grab réussi si besoin.
-
-
 fn create_grab_window(
     conn: &x11rb::rust_connection::RustConnection,
     root: Window,

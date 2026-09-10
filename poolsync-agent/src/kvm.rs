@@ -1,5 +1,5 @@
-use crate::kvm_x11::{self, set_cursor_visible_best_effort, KvmDisplay};
 use crate::kvm_input::{GrabEvent, InputGrab};
+use crate::kvm_x11::{self, set_cursor_visible_best_effort, KvmDisplay};
 use crate::state::AgentState;
 use anyhow::Result;
 use poolsync_core::{encode_message, Direction, KvmDesktopInfo, Message, ScreenInfo};
@@ -64,12 +64,26 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
     let mut local_primary = local_screen_from_config(state);
     let mut last_announced: Option<(ScreenInfo, KvmDesktopInfo)> = None;
     let mut last_hello_kvm: Option<bool> = None;
+    let mut capture_unavailable_logged = false;
 
     loop {
         if !state.is_connected() {
             last_announced = None;
             last_hello_kvm = None;
             thread::sleep(poll);
+            continue;
+        }
+
+        if !state.config.kvm_capture_active() || crate::kvm_wayland::active() {
+            if !capture_unavailable_logged {
+                if crate::kvm_wayland::active() {
+                    info!("KVM Wayland: injection ydotool active, capture globale désactivée");
+                } else {
+                    info!("KVM: nœud configuré en injection seule");
+                }
+                capture_unavailable_logged = true;
+            }
+            thread::sleep(poll.max(Duration::from_millis(50)));
             continue;
         }
 
@@ -113,10 +127,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
         // Hotplug HDMI / changement résolution : sonde rapide + annonce hub.
         if last_screen_probe.elapsed() > Duration::from_secs(3) {
-            match (
-                kvm_x11::kvm_layout_snapshot(),
-                kvm_x11::kvm_display(),
-            ) {
+            match (kvm_x11::kvm_layout_snapshot(), kvm_x11::kvm_display()) {
                 (Ok(info), Ok(disp)) => {
                     let primary = ScreenInfo {
                         width: disp.width,
@@ -225,7 +236,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             if relay_motion.0 != 0 || relay_motion.1 != 0 {
                 let focus_primary = target_screen(state, &focus);
                 let focus_layout = kvm_layout_for(state, &focus, &local_kvm_info);
-                let focus_desktop = focus_layout.desktop_bounds(focus_primary.clone());
+                let focus_desktop = focus_layout.desktop_bounds(focus_primary);
                 let focus_pool = focus_layout.primary_bounds(focus_primary);
 
                 remote_x += relay_motion.0;
@@ -248,17 +259,12 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 }
 
                 if last_switch.elapsed() >= Duration::from_millis(SWITCH_COOLDOWN_MS) {
-                    if on_primary
-                        && plx <= edge
-                        && !is_blocked(&blocked_edges, BlockedEdge::Left)
-                    {
+                    if on_primary && plx <= edge && !is_blocked(&blocked_edges, BlockedEdge::Left) {
                         if let Some(back) = neighbor_of(&focus, Direction::Left, state) {
                             let bs = target_screen(state, &back);
                             let ty = map_coord(ply, focus_pool.height, bs.height);
-                            let entry_x =
-                                entry_inset_from_right(bs.width as i32, edge);
-                            let (rx, ry) =
-                                pool_to_root(state, &back, entry_x, ty, &local_kvm_info);
+                            let entry_x = entry_inset_from_right(bs.width as i32, edge);
+                            let (rx, ry) = pool_to_root(state, &back, entry_x, ty, &local_kvm_info);
                             do_switch(
                                 &local,
                                 &back,
@@ -357,40 +363,39 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 Some(kvm_x11::PhysicalInput::Button) if !state.inject_blocks_button_claim() => {
                     Some(PhysicalClaimReason::Button)
                 }
-                _ if state.motion_claim_allowed(&local, px, py) => Some(PhysicalClaimReason::Motion),
+                _ if state.motion_claim_allowed(&local, px, py) => {
+                    Some(PhysicalClaimReason::Motion)
+                }
                 _ => None,
             };
             if let Some(reason) = reason {
                 if try_physical_claim(
-                px,
-                py,
-                last_phys,
-                last_switch,
-                reason,
-                &local,
-                state,
-                &local_kvm_info,
-                &mut blocked_edges,
-                &out_tx,
-                &mut focus,
-                &mut remote_x,
-                &mut remote_y,
-                &mut input_grab,
+                    px,
+                    py,
+                    last_phys,
+                    last_switch,
+                    reason,
+                    &local,
+                    state,
+                    &local_kvm_info,
+                    &mut blocked_edges,
+                    &out_tx,
+                    &mut focus,
+                    &mut remote_x,
+                    &mut remote_y,
+                    &mut input_grab,
                 ) {
-                last_switch = Instant::now();
-                last_phys = (px, py);
-                thread::sleep(poll);
-                continue;
+                    last_switch = Instant::now();
+                    last_phys = (px, py);
+                    thread::sleep(poll);
+                    continue;
                 }
             }
             // Bords pool sur machine esclave (asus pilote ailleurs) : souris physique locale.
             // Au bord d'écran, autoriser le switch même pendant pilotage distant (retour acer→asus).
             let at_pool_edge = pool.contains(px, py) && {
                 let (lx, ly) = pool.to_local(px, py);
-                lx < edge
-                    || lx >= pool_w - edge
-                    || ly < edge
-                    || ly >= pool_h - edge
+                lx < edge || lx >= pool_w - edge || ly < edge || ly >= pool_h - edge
             };
             if focus == local
                 && (!state.remote_drive_active() || at_pool_edge)
@@ -482,6 +487,7 @@ fn ensure_remote_grab(pool: &KvmDisplay, input_grab: &mut Option<InputGrab>) -> 
 }
 
 /// Détection bords pool (moniteur primaire). `claim_master` = reprendre l'input si esclave.
+#[allow(clippy::too_many_arguments)]
 fn try_pool_edge_switch(
     px: i32,
     py: i32,
@@ -705,6 +711,7 @@ fn send_key(target: &str, keycode: u8, pressed: bool, out_tx: &mpsc::UnboundedSe
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn do_switch(
     input: &str,
     target: &str,
@@ -755,6 +762,7 @@ fn block_entry_edge(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn try_physical_claim(
     px: i32,
     py: i32,
@@ -823,6 +831,7 @@ fn try_physical_claim(
 }
 
 /// Ctrl+Alt+Shift+M : cette machine reprend clavier/souris (master + focus local).
+#[allow(clippy::too_many_arguments)]
 fn apply_hotkey_master_claim(
     local: &str,
     state: &AgentState,
@@ -872,11 +881,7 @@ fn local_kvm_info_from_config(state: &AgentState) -> KvmDesktopInfo {
         .unwrap_or_default()
 }
 
-fn kvm_layout_for(
-    state: &AgentState,
-    node: &str,
-    local_info: &KvmDesktopInfo,
-) -> KvmDesktopInfo {
+fn kvm_layout_for(state: &AgentState, node: &str, local_info: &KvmDesktopInfo) -> KvmDesktopInfo {
     if node == state.config.node {
         return *local_info;
     }
@@ -912,7 +917,7 @@ fn pool_to_root(
 ) -> (i32, i32) {
     let primary = target_screen(state, node);
     let layout = kvm_layout_for(state, node, local_info);
-    let pool = layout.primary_bounds(primary.clone());
+    let pool = layout.primary_bounds(primary);
     pool.to_root(
         lx.clamp(0, primary.width as i32 - 1),
         ly.clamp(0, primary.height as i32 - 1),
@@ -925,7 +930,7 @@ fn local_screen_from_config(state: &AgentState) -> ScreenInfo {
             width: n.width,
             height: n.height,
         })
-        .unwrap_or_else(|| state.config.screen.clone())
+        .unwrap_or(state.config.screen)
 }
 
 pub async fn detect_kvm_desktop() -> Option<KvmDesktopInfo> {
@@ -943,6 +948,9 @@ pub async fn detect_screen() -> Option<ScreenInfo> {
 }
 
 fn warp_mouse(x: i32, y: i32) -> Result<()> {
+    if crate::kvm_wayland::active() {
+        return crate::kvm_wayland::warp_mouse(x, y);
+    }
     kvm_x11::warp_mouse(x, y)
 }
 
@@ -953,7 +961,7 @@ fn target_screen(state: &AgentState, node: &str) -> ScreenInfo {
             width: n.width,
             height: n.height,
         })
-        .unwrap_or_else(|| state.config.screen.clone())
+        .unwrap_or(state.config.screen)
 }
 
 fn neighbor(state: &AgentState, dir: Direction) -> Option<String> {
@@ -1005,7 +1013,7 @@ fn announce_screen_to_hub(
     let payload = match encode_message(&Message::Hello {
         node: state.config.node.clone(),
         mode: state.config.mode,
-        screen: screen.clone(),
+        screen: *screen,
         neighbors: state.config.neighbors.clone(),
         kvm_enabled: state.kvm_effective(),
         kvm_desktop: *kvm_desktop,
@@ -1070,6 +1078,9 @@ fn inject_input_sync(kind: &poolsync_core::InputKind) -> Result<()> {
 }
 
 fn inject_input_sync_inner(kind: &poolsync_core::InputKind) -> Result<()> {
+    if crate::kvm_wayland::active() {
+        return crate::kvm_wayland::inject(kind);
+    }
     let desktop = kvm_x11::kvm_desktop()
         .ok()
         .or_else(|| kvm_x11::kvm_display().ok());

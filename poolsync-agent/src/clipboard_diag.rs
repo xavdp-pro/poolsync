@@ -14,10 +14,7 @@ static LAST_SNAPSHOT: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_OWNERS: Mutex<Option<(u32, u32)>> = Mutex::new(None);
 static LAST_OWNER_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
 
-fn selection_owner(
-    conn: &x11rb::rust_connection::RustConnection,
-    name: &[u8],
-) -> Option<u32> {
+fn selection_owner(conn: &x11rb::rust_connection::RustConnection, name: &[u8]) -> Option<u32> {
     let atom = conn.intern_atom(false, name).ok()?.reply().ok()?.atom;
     Some(conn.get_selection_owner(atom).ok()?.reply().ok()?.owner)
 }
@@ -27,14 +24,7 @@ fn owner_description(conn: &x11rb::rust_connection::RustConnection, owner: u32) 
         return "none".into();
     }
     let class = conn
-        .get_property(
-            false,
-            owner,
-            AtomEnum::WM_CLASS,
-            AtomEnum::STRING,
-            0,
-            256,
-        )
+        .get_property(false, owner, AtomEnum::WM_CLASS, AtomEnum::STRING, 0, 256)
         .ok()
         .and_then(|cookie| cookie.reply().ok())
         .map(|reply| {
@@ -179,9 +169,7 @@ pub async fn log_post_write(mime: &str, context: &str, ok: bool) {
             .iter()
             .any(|t| t.to_ascii_lowercase().contains("utf8_string") || t.contains("text/plain"));
         if !has_text {
-            warn!(
-                "clipboard write OK but no text on CLIPBOARD context={context} clip={summary}"
-            );
+            warn!("clipboard write OK but no text on CLIPBOARD context={context} clip={summary}");
         } else {
             info!("clipboard write OK context={context} mime={mime} clip={summary}");
         }

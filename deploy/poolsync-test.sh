@@ -67,7 +67,7 @@ xfce_env() {
 
 node_online() {
   local n="$1"
-  curl -sf "${HUB_HTTP}/api/status" | python3 -c \
+  curl -sf -H "Authorization: Bearer ${TOKEN}" "${HUB_HTTP}/api/status" | python3 -c \
     "import sys,json; d=json.load(sys.stdin); sys.exit(0 if any(x.get('name')=='$n' for x in d.get('nodes',[])) else 1)" 2>/dev/null
 }
 
@@ -154,7 +154,8 @@ hub_wait_preview() {
   local i
   for i in $(seq 1 "$tries"); do
     sleep 0.5
-    if curl -sf "${HUB_HTTP}/api/clipboard/history?token=${TOKEN}&limit=30" \
+    if curl -sf -H "Authorization: Bearer ${TOKEN}" \
+      "${HUB_HTTP}/api/clipboard/history?limit=30" \
       | PREVIEW="$preview" SRC="$src" python3 -c "
 import json, os, sys
 src = os.environ['SRC']
@@ -174,7 +175,8 @@ node_image_bytes() {
 }
 
 hub_history_count() {
-  curl -sf "${HUB_HTTP}/api/clipboard/history?token=${TOKEN}&limit=50" \
+  curl -sf -H "Authorization: Bearer ${TOKEN}" \
+    "${HUB_HTTP}/api/clipboard/history?limit=50" \
     | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('items',[])))"
 }
 
@@ -287,7 +289,7 @@ else
   exit 1
 fi
 
-ONLINE_JSON="$(curl -sf "${HUB_HTTP}/api/status")"
+ONLINE_JSON="$(curl -sf -H "Authorization: Bearer ${TOKEN}" "${HUB_HTTP}/api/status")"
 for n in "${NODES[@]}"; do
   if echo "$ONLINE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if any(x['name']=='$n' for x in d.get('nodes',[])) else 1)"; then
     ok "hub: $n en ligne"
@@ -403,7 +405,8 @@ before_cache="$(count_json_cache)"
 if [[ -x "${HOME}/.local/bin/poolsync-ctl" ]]; then
   "${HOME}/.local/bin/poolsync-ctl" clear-history >/dev/null 2>&1 || true
 else
-  curl -sf -X POST "${HUB_HTTP}/api/clipboard/clear?token=${TOKEN}" >/dev/null
+  curl -sf -X POST -H "Authorization: Bearer ${TOKEN}" \
+    "${HUB_HTTP}/api/clipboard/clear" >/dev/null
   rm -rf "${HOME}/.cache/poolsync/clipboard"
 fi
 sleep 3

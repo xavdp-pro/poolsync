@@ -4,14 +4,23 @@ use crate::clipboard_incoming::apply_incoming_clipboard;
 use crate::state::AgentState;
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
-use poolsync_core::{decode_message, Message};
+use poolsync_core::{decode_message, decrypt_clipboard, AgentConfig, Message, Neighbor};
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::BufReader;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout, Duration};
+use tokio_rustls::{rustls::ServerConfig, TlsAcceptor};
 use tokio_tungstenite::{
-    connect_async, tungstenite::Message as WsMessage, WebSocketStream,
+    connect_async,
+    tungstenite::{
+        client::IntoClientRequest,
+        http::{header::AUTHORIZATION, HeaderValue},
+        Message as WsMessage,
+    },
+    WebSocketStream,
 };
 use tracing::{debug, info, warn};
 
@@ -126,6 +135,7 @@ const MAX_SEEN_MESSAGES: usize = 4096;
 fn clipboard_message_id(payload: &str) -> Option<String> {
     match decode_message(payload).ok()? {
         Message::Clipboard { msg_id, .. } if !msg_id.is_empty() => Some(msg_id),
+        Message::EncryptedClipboard { msg_id, .. } if !msg_id.is_empty() => Some(msg_id),
         _ => None,
     }
 }
@@ -151,59 +161,93 @@ async fn run_listener(
     let listener = TcpListener::bind(&addr)
         .await
         .with_context(|| format!("bind peer listen {addr}"))?;
-    info!("peer mesh écoute sur {addr}");
+    let tls = peer_tls_acceptor(&state.config)?;
+    info!(
+        "peer mesh écoute sur {addr} ({})",
+        if tls.is_some() { "wss" } else { "ws" }
+    );
 
     loop {
         let (stream, peer_addr) = listener.accept().await.context("peer accept")?;
         let state_in = state.clone();
         let reg_in = reg.clone();
         let incoming_in = incoming.clone();
+        let tls_in = tls.clone();
         tokio::spawn(async move {
-            if let Err(err) = handle_inbound(
-                state_in,
-                stream,
-                peer_addr.to_string(),
-                reg_in,
-                incoming_in,
-            )
-            .await {
+            let result = if let Some(acceptor) = tls_in {
+                match acceptor.accept(stream).await {
+                    Ok(stream) => {
+                        handle_inbound_stream(
+                            state_in,
+                            stream,
+                            peer_addr.to_string(),
+                            reg_in,
+                            incoming_in,
+                        )
+                        .await
+                    }
+                    Err(err) => Err(anyhow::anyhow!("peer TLS accept: {err}")),
+                }
+            } else {
+                handle_inbound_stream(state_in, stream, peer_addr.to_string(), reg_in, incoming_in)
+                    .await
+            };
+            if let Err(err) = result {
                 debug!("peer inbound {peer_addr}: {err:#}");
             }
         });
     }
 }
 
-async fn handle_inbound(
+fn peer_tls_acceptor(config: &AgentConfig) -> Result<Option<TlsAcceptor>> {
+    let (cert_path, key_path) = match (&config.peer_tls_cert, &config.peer_tls_key) {
+        (None, None) => return Ok(None),
+        (Some(cert), Some(key)) => (cert, key),
+        _ => anyhow::bail!("peer_tls_cert and peer_tls_key must be configured together"),
+    };
+    let mut cert_reader = BufReader::new(
+        File::open(cert_path).with_context(|| format!("open peer TLS cert {cert_path}"))?,
+    );
+    let certs = rustls_pemfile::certs(&mut cert_reader)
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .context("read peer TLS certificates")?;
+    let mut key_reader = BufReader::new(
+        File::open(key_path).with_context(|| format!("open peer TLS key {key_path}"))?,
+    );
+    let key = rustls_pemfile::private_key(&mut key_reader)
+        .context("read peer TLS private key")?
+        .context("peer TLS private key missing")?;
+    let server = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+        .context("build peer TLS configuration")?;
+    Ok(Some(TlsAcceptor::from(Arc::new(server))))
+}
+
+#[allow(clippy::result_large_err)]
+async fn handle_inbound_stream<S>(
     state: Arc<AgentState>,
-    stream: TcpStream,
+    stream: S,
     peer_addr: String,
     reg: mpsc::UnboundedSender<PeerLink>,
     incoming: mpsc::UnboundedSender<PeerInbound>,
-) -> Result<()> {
+) -> Result<()>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let mut remote_node: Option<String> = None;
-    let expected_token = state.config.token.clone();
-    let mut token_valid = true;
+    let config = state.config.clone();
     let ws = tokio_tungstenite::accept_hdr_async(
         stream,
         |req: &tokio_tungstenite::tungstenite::handshake::server::Request,
          res: tokio_tungstenite::tungstenite::handshake::server::Response| {
-            if let Some(query) = req.uri().query() {
-                for part in query.split('&') {
-                    if let Some((k, v)) = part.split_once('=') {
-                        if k == "node" && !v.is_empty() {
-                            remote_node = Some(v.to_string());
-                        } else if k == "token" && v != expected_token {
-                            token_valid = false;
-                        }
-                    }
-                }
-            }
-            if !token_valid {
+            let Some(node) = peer_request_identity(req, &config) else {
                 let err_res = tokio_tungstenite::tungstenite::handshake::server::ErrorResponse::new(
-                    Some("Invalid Token".to_string()),
+                    Some("Invalid peer credentials".to_string()),
                 );
                 return Err(err_res);
-            }
+            };
+            remote_node = Some(node);
             Ok(res)
         },
     )
@@ -211,6 +255,41 @@ async fn handle_inbound(
     .context("peer ws accept")?;
     let label = remote_node.clone().unwrap_or(peer_addr);
     serve_peer_session(state, ws, remote_node, label, reg, incoming).await
+}
+
+fn neighbor_accepts_token(neighbor: &Neighbor, token: &str, shared_token: &str) -> bool {
+    let current = neighbor.auth_token.as_deref().unwrap_or(shared_token);
+    token == current || neighbor.previous_auth_token.as_deref() == Some(token)
+}
+
+fn config_accepts_peer_token(config: &AgentConfig, neighbor: &Neighbor, token: &str) -> bool {
+    if let Some(expected) = config.peer_tokens.get(&neighbor.node) {
+        return token == expected
+            || config
+                .previous_peer_tokens
+                .get(&neighbor.node)
+                .is_some_and(|old| old == token);
+    }
+    neighbor_accepts_token(neighbor, token, &config.token)
+}
+
+fn peer_request_identity(
+    req: &tokio_tungstenite::tungstenite::handshake::server::Request,
+    config: &AgentConfig,
+) -> Option<String> {
+    let node = req
+        .headers()
+        .get("x-poolsync-node")?
+        .to_str()
+        .ok()?
+        .to_string();
+    let authorization = req.headers().get(AUTHORIZATION)?.to_str().ok()?;
+    let (scheme, token) = authorization.split_once(' ')?;
+    if !scheme.eq_ignore_ascii_case("bearer") || node == config.node {
+        return None;
+    }
+    let neighbor = config.neighbors.iter().find(|peer| peer.node == node)?;
+    config_accepts_peer_token(config, neighbor, token).then_some(node)
 }
 
 async fn peer_outbound_loop(
@@ -224,8 +303,9 @@ async fn peer_outbound_loop(
     loop {
         let mut session_ended = false;
         for url in &urls {
-            let full = peer_ws_url(url, &state.config.token, &state.config.node);
-            match timeout_connect(&full).await {
+            match timeout_connect(url, state.config.authentication_token(), &state.config.node)
+                .await
+            {
                 Ok(ws) => {
                     info!("peer mesh → {neighbor} via {url}");
                     if serve_peer_session(
@@ -236,8 +316,8 @@ async fn peer_outbound_loop(
                         reg.clone(),
                         incoming.clone(),
                     )
-                        .await
-                        .is_ok()
+                    .await
+                    .is_ok()
                     {
                         // A clean WebSocket close still means the session is gone.  Without
                         // this pause the outer loop reconnects immediately, creating thousands
@@ -261,21 +341,22 @@ async fn peer_outbound_loop(
 
 async fn timeout_connect(
     url: &str,
+    token: &str,
+    node: &str,
 ) -> Result<WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>> {
-    let (ws, _) = timeout(PEER_CONNECT_TIMEOUT, connect_async(url))
+    let mut request = url.into_client_request()?;
+    request.headers_mut().insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {token}"))?,
+    );
+    request
+        .headers_mut()
+        .insert("x-poolsync-node", HeaderValue::from_str(node)?);
+    let (ws, _) = timeout(PEER_CONNECT_TIMEOUT, connect_async(request))
         .await
         .context("peer connect timeout")?
         .with_context(|| format!("peer connect {url}"))?;
     Ok(ws)
-}
-
-fn peer_ws_url(base: &str, token: &str, node: &str) -> String {
-    let base = base.trim_end_matches('/');
-    if base.contains('?') {
-        format!("{base}&token={token}&node={node}")
-    } else {
-        format!("{base}?token={token}&node={node}")
-    }
 }
 
 async fn serve_peer_session<S>(
@@ -316,9 +397,20 @@ where
             maybe = peer_rx.recv() => {
                 match maybe {
                     Some(payload) => {
-                        if let Ok(Message::Clipboard { hash, ref mime, ref data, .. }) =
-                            decode_message(&payload)
-                        {
+                        let decoded = decode_message(&payload).ok().and_then(|message| {
+                            if matches!(message, Message::EncryptedClipboard { .. }) {
+                                state
+                                    .config
+                                    .e2e_key
+                                    .as_deref()
+                                    .and_then(|key| decrypt_clipboard(&message, key).ok())
+                            } else if state.config.e2e_key.is_none() {
+                                Some(message)
+                            } else {
+                                None
+                            }
+                        });
+                        if let Some(Message::Clipboard { hash, ref mime, ref data, .. }) = decoded {
                             if mime.starts_with("image/") {
                                 info!(
                                     "image-trace PEER-SEND id={} to={} mime={} wire_bytes={}",
@@ -339,9 +431,23 @@ where
             msg = read.next() => {
                 match msg {
                     Some(Ok(WsMessage::Text(text))) => {
-                        if let Ok(Message::Clipboard {
+                        let wire = decode_message(&text);
+                        let decoded = wire.as_ref().ok().and_then(|message| {
+                            if matches!(message, Message::EncryptedClipboard { .. }) {
+                                state_read
+                                    .config
+                                    .e2e_key
+                                    .as_deref()
+                                    .and_then(|key| decrypt_clipboard(message, key).ok())
+                            } else if state_read.config.e2e_key.is_none() {
+                                Some(message.clone())
+                            } else {
+                                None
+                            }
+                        });
+                        if let Some(Message::Clipboard {
                             hash, data, mime, origin, seq, ..
-                        }) = decode_message(&text) {
+                        }) = decoded {
                             let source = remote.as_deref().unwrap_or("peer");
                             // Toujours relayer : `(origin, seq)` voyage avec le
                             // message, donc chaque nœud tranche lui-même. Filtrer
@@ -356,6 +462,8 @@ where
                                 source: node_name.clone(),
                                 payload: text.to_string(),
                             });
+                        } else if matches!(wire, Ok(Message::EncryptedClipboard { .. })) {
+                            warn!("peer clipboard chiffré rejeté depuis {node_name}: clef absente ou invalide");
                         }
                     }
                     Some(Ok(WsMessage::Ping(payload))) => {
@@ -392,11 +500,18 @@ mod tests {
     }
 
     #[test]
-    fn websocket_url_preserves_existing_query() {
-        assert_eq!(
-            peer_ws_url("ws://p2:9472/ws?lan=1", "tok", "asus"),
-            "ws://p2:9472/ws?lan=1&token=tok&node=asus"
-        );
+    fn peer_credentials_support_individual_rotation() {
+        let neighbor = Neighbor {
+            direction: poolsync_core::Direction::Left,
+            node: "desk-b".into(),
+            peer_url: None,
+            peer_url_vpn: None,
+            auth_token: Some("new".into()),
+            previous_auth_token: Some("old".into()),
+        };
+        assert!(neighbor_accepts_token(&neighbor, "new", "shared"));
+        assert!(neighbor_accepts_token(&neighbor, "old", "shared"));
+        assert!(!neighbor_accepts_token(&neighbor, "shared", "shared"));
     }
 
     #[test]

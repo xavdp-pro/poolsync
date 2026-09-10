@@ -100,12 +100,23 @@ cmd_clear_history() {
     echo "Config introuvable: $cfg" >&2
     exit 1
   fi
-  local token hub_url
-  token="$(grep -E '^token\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
-  hub_url="$(grep -E '^hub_url\s*=' "$cfg" | head -1 | sed -E 's/.*"(ws|http)([^"]+)".*/http\2/')"
+  local token hub_url hub_ws node
+  node="$(grep -E '^node\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  token="$(grep -E '^node_token\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+  if [[ -z "$token" ]]; then
+    token="$(grep -E '^token\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  fi
+  hub_ws="$(grep -E '^hub_url\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  case "$hub_ws" in
+    wss://*) hub_url="https://${hub_ws#wss://}" ;;
+    ws://*) hub_url="http://${hub_ws#ws://}" ;;
+    *) echo "hub_url invalide: $hub_ws" >&2; exit 1 ;;
+  esac
   hub_url="${hub_url%/ws}"
   echo "Vidage historique hub ($hub_url)…"
-  curl -sf -X POST "${hub_url}/api/clipboard/clear?token=${token}" >/dev/null \
+  curl -sf -X POST -H "Authorization: Bearer ${token}" \
+    -H "X-PoolSync-Node: ${node}" \
+    "${hub_url}/api/clipboard/clear" >/dev/null \
     || { echo "Échec vidage hub" >&2; exit 1; }
   rm -rf "${HOME}/.cache/poolsync/clipboard"
   echo "Historique vidé (hub + cache local)."

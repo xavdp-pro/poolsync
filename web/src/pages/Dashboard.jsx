@@ -188,7 +188,7 @@ function TopologyBar({ nodes, master }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ token, onTokenChange }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -196,7 +196,7 @@ export default function Dashboard() {
 
   const refresh = useCallback(async () => {
     try {
-      const json = await fetchStatus()
+      const json = await fetchStatus(token)
       setData(json)
       setError(null)
       setLastRefresh(new Date())
@@ -205,7 +205,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     refresh()
@@ -226,6 +226,17 @@ export default function Dashboard() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
+          <span className="font-semibold text-slate-600">Token hub</span>
+          <input
+            type="password"
+            value={token}
+            onChange={(event) => onTokenChange(event.target.value)}
+            className="w-36 bg-transparent font-mono text-sm outline-none"
+            placeholder="POOLSYNC_TOKEN"
+            autoComplete="current-password"
+          />
+        </label>
         <button
           type="button"
           onClick={refresh}

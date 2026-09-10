@@ -68,15 +68,6 @@ pub struct KvmDisplay {
 }
 
 impl KvmDisplay {
-    pub fn from_screen_at_origin(screen: ScreenInfo) -> Self {
-        Self {
-            x: 0,
-            y: 0,
-            width: screen.width,
-            height: screen.height,
-        }
-    }
-
     pub fn screen_info(&self) -> ScreenInfo {
         ScreenInfo {
             width: self.width,
@@ -91,19 +82,12 @@ impl KvmDisplay {
             && py < self.y + self.height as i32
     }
 
-    pub fn to_local(&self, px: i32, py: i32) -> (i32, i32) {
+    pub fn to_local(self, px: i32, py: i32) -> (i32, i32) {
         (px - self.x, py - self.y)
     }
 
-    pub fn to_root(&self, lx: i32, ly: i32) -> (i32, i32) {
+    pub fn to_root(self, lx: i32, ly: i32) -> (i32, i32) {
         (lx + self.x, ly + self.y)
-    }
-
-    pub fn clamp_local(&self, lx: i32, ly: i32) -> (i32, i32) {
-        (
-            lx.clamp(0, self.width as i32 - 1),
-            ly.clamp(0, self.height as i32 - 1),
-        )
     }
 
     /// Pixel at the geometric center of this monitor (root coordinates).
@@ -426,7 +410,6 @@ pub fn kvm_desktop() -> Result<KvmDisplay> {
         })
     })
 }
-
 
 /// Repousse le curseur a l'interieur du moniteur pool apres un SwitchTo (evite rebond immediat).
 pub fn nudge_kvm_enter(x: i32, y: i32, edge: i32) -> Result<(i32, i32)> {

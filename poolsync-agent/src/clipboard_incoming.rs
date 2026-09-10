@@ -16,6 +16,7 @@ fn applied_text_hash(data: &str) -> String {
 /// `origin` / `seq` = horodatage logique de la copie d'origine (cf.
 /// `clip_order`). Ils remplacent les anciennes fenêtres de grâce : l'ordre est
 /// total, donc identique sur tous les nœuds quelle que soit la latence.
+#[allow(clippy::too_many_arguments)]
 pub async fn apply_incoming_clipboard(
     state: &AgentState,
     hash: &str,
@@ -170,7 +171,10 @@ pub async fn apply_incoming_clipboard(
     clip_cache::store_received(hash, mime, data, &preview, source_node);
 
     let via = if from_hub { "hub" } else { "peer" };
-    info!("clipboard synced via {via} ({mime}, {} bytes wire)", data.len());
+    info!(
+        "clipboard synced via {via} ({mime}, {} bytes wire)",
+        data.len()
+    );
 
     if state.should_notify(hash, &preview) {
         let preview = preview.clone();
@@ -193,7 +197,13 @@ mod tests {
         let (written, mime) = local_write_text(wire_html, "text/html", false);
         assert_eq!(mime, "text/plain");
         assert_eq!(written, "Hello PoolSync");
-        assert_eq!(applied_text_hash(&written), poolsync_core::hash_text("Hello PoolSync"));
-        assert_ne!(applied_text_hash(&written), poolsync_core::hash_text(wire_html));
+        assert_eq!(
+            applied_text_hash(&written),
+            poolsync_core::hash_text("Hello PoolSync")
+        );
+        assert_ne!(
+            applied_text_hash(&written),
+            poolsync_core::hash_text(wire_html)
+        );
     }
 }

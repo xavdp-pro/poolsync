@@ -2,13 +2,13 @@ use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use image::codecs::png::PngEncoder;
 use image::{ExtendedColorType, GenericImageView, ImageEncoder, ImageReader};
-use poolsync_core::{encode_message, hash_bytes, hash_text, Message};
+use poolsync_core::{encode_message, encrypt_clipboard, hash_bytes, hash_text, Message};
 use std::io::Cursor;
 use std::process::Stdio;
 use std::sync::Mutex;
 use std::time::Instant;
 use tokio::process::Command;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{broadcast, mpsc::UnboundedSender};
 use tokio::time::{timeout, Duration};
 
 #[allow(dead_code)]
@@ -37,7 +37,6 @@ const CLIPBOARD_PY_TIMEOUT: Duration = Duration::from_secs(3);
 /// Ne pas relancer le secours GTK à chaque poll (évite python3 à 100 % CPU).
 const GTK_READ_COOLDOWN: Duration = Duration::from_secs(3);
 /// Après envoi d'une image, ignorer le texte résiduel sur le presse-papiers X11.
-
 static LAST_IMAGE_SENT_AT: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_GTK_READ_AT: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_SELECTION_TS: Mutex<Option<String>> = Mutex::new(None);
@@ -152,10 +151,10 @@ pub async fn maintain_xrdp_clipboard_fixup() {
             return;
         }
         let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
-        if !targets_have_pasteable_image(&clip_targets) {
-            if crate::clipboard_gtk::reoffer_last_image() {
-                tracing::info!("clipboard keepalive: chansrv stripped PNG — reoffer");
-            }
+        if !targets_have_pasteable_image(&clip_targets)
+            && crate::clipboard_gtk::reoffer_last_image()
+        {
+            tracing::info!("clipboard keepalive: chansrv stripped PNG — reoffer");
         }
         return;
     }
@@ -329,18 +328,8 @@ fn wm_class_is_chromium_based(
 /// donc des deux éditeurs qui gelaient au collage. Comparaison jeton par jeton,
 /// pour ne pas confondre « code » avec un « barcode-scanner ».
 const CHROMIUM_BASED_CLASSES: &[&str] = &[
-    "code",
-    "code-oss",
-    "codium",
-    "vscodium",
-    "cursor",
-    "windsurf",
-    "slack",
-    "discord",
-    "signal",
-    "obsidian",
-    "postman",
-    "spotify",
+    "code", "code-oss", "codium", "vscodium", "cursor", "windsurf", "slack", "discord", "signal",
+    "obsidian", "postman", "spotify",
 ];
 
 fn chromium_based_identity(raw: &[u8]) -> bool {
@@ -361,13 +350,11 @@ fn chromium_based_identity(raw: &[u8]) -> bool {
 fn mirror_text_to_selections(text: &str) -> bool {
     // CLIPBOARD only — never PRIMARY. Rewriting PRIMARY while Chrome has a
     // selection freezes the page ("Page ne répond pas").
-    if xrdp_session_active() {
-        if write_selection_text_sync("clipboard", text).is_ok() {
-            if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
-                *g = Some(text.to_string());
-            }
-            return true;
+    if xrdp_session_active() && write_selection_text_sync("clipboard", text).is_ok() {
+        if let Ok(mut g) = LAST_MIRROR_TEXT.lock() {
+            *g = Some(text.to_string());
         }
+        return true;
     }
     if crate::clipboard_gtk::try_offer(crate::clipboard_gtk::ClipboardOffer::Text {
         text: text.to_string(),
@@ -392,13 +379,14 @@ pub async fn mirror_primary_to_clipboard_if_needed() {
             None => return,
         }
     } else {
-        let raw_pri = match read_selection_bytes_timeout("primary", "UTF8_STRING", XCLIP_TEXT_TIMEOUT)
-            .await
-            .ok()
-        {
-            Some(b) => b,
-            None => return,
-        };
+        let raw_pri =
+            match read_selection_bytes_timeout("primary", "UTF8_STRING", XCLIP_TEXT_TIMEOUT)
+                .await
+                .ok()
+            {
+                Some(b) => b,
+                None => return,
+            };
         if looks_like_image_bytes(&raw_pri) {
             return;
         }
@@ -493,7 +481,7 @@ async fn mirror_primary_image_if_needed() {
         return;
     }
     for mime in ["image/png", "image/jpeg", "image/jpg"] {
-        if let Some(bytes) = read_selection_bytes("primary", mime).await.ok() {
+        if let Ok(bytes) = read_selection_bytes("primary", mime).await {
             if bytes.len() >= 8 {
                 let hash = hash_bytes(&bytes);
                 let mime_used = if mime == "image/jpg" {
@@ -708,6 +696,107 @@ pub struct ClipboardPayload {
     pub hash: String,
 }
 
+/// GTK/X11 remains the default on the existing fleet. On a native Wayland
+/// session, wl-clipboard provides a compositor-neutral data-control backend.
+fn wayland_session() -> bool {
+    std::env::var("XDG_SESSION_TYPE").is_ok_and(|value| value.eq_ignore_ascii_case("wayland"))
+        && std::env::var_os("WAYLAND_DISPLAY").is_some()
+}
+
+async fn wl_paste(args: &[&str], limit: Duration) -> Result<std::process::Output> {
+    let mut command = Command::new("wl-paste");
+    command.args(args).kill_on_drop(true);
+    timeout(limit, command.output())
+        .await
+        .context("wl-paste timeout")?
+        .context("spawn wl-paste")
+}
+
+async fn read_wayland_clipboard(
+    allow_images: bool,
+    keep_formatting: bool,
+) -> Result<Option<ClipboardPayload>> {
+    let types = wl_paste(&["--list-types"], XCLIP_TARGETS_TIMEOUT).await?;
+    if !types.status.success() {
+        return Ok(None);
+    }
+    let types_text = String::from_utf8_lossy(&types.stdout);
+    let types: Vec<&str> = types_text.lines().map(str::trim).collect();
+
+    let plain_type = ["text/plain;charset=utf-8", "text/plain", "UTF8_STRING"]
+        .into_iter()
+        .find(|mime| types.contains(mime));
+    if keep_formatting && types.contains(&"text/html") {
+        let output = wl_paste(&["--no-newline", "--type", "text/html"], XCLIP_READ_TIMEOUT).await?;
+        if output.status.success()
+            && !output.stdout.is_empty()
+            && output.stdout.len() <= MAX_HTML_BYTES
+        {
+            let html = String::from_utf8_lossy(&output.stdout).into_owned();
+            if looks_like_markup(&html) {
+                return Ok(Some(ClipboardPayload {
+                    hash: hash_text(&html),
+                    mime: "text/html".into(),
+                    wire_data: html,
+                }));
+            }
+        }
+    }
+    if let Some(mime) = plain_type {
+        let output = wl_paste(&["--no-newline", "--type", mime], XCLIP_READ_TIMEOUT).await?;
+        if output.status.success() && output.stdout.len() <= MAX_TEXT_BYTES {
+            let text = sanitize_copied_text(&String::from_utf8_lossy(&output.stdout));
+            if is_syncable_text(&text) {
+                return Ok(Some(ClipboardPayload {
+                    hash: hash_text(&text),
+                    mime: "text/plain".into(),
+                    wire_data: text,
+                }));
+            }
+        }
+    }
+    if allow_images {
+        if let Some(mime) = ["image/png", "image/jpeg", "image/bmp"]
+            .into_iter()
+            .find(|mime| types.contains(mime))
+        {
+            let output = wl_paste(&["--type", mime], XCLIP_IMAGE_READ_TIMEOUT).await?;
+            if output.status.success() && !output.stdout.is_empty() {
+                return image_payload_from_bytes(&output.stdout).map(Some);
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn write_wayland_clipboard_sync(data: &str, mime: &str) -> Result<()> {
+    let bytes = if mime.starts_with("image/") {
+        B64.decode(data)
+            .with_context(|| format!("decode base64 image ({mime})"))?
+    } else if mime == "text/html" || mime == "text/plain" {
+        data.as_bytes().to_vec()
+    } else {
+        anyhow::bail!("unsupported Wayland clipboard mime: {mime}");
+    };
+    let mut child = std::process::Command::new("wl-copy")
+        .args(["--type", mime])
+        .stdin(Stdio::piped())
+        .spawn()
+        .context("spawn wl-copy")?;
+    use std::io::Write as _;
+    child
+        .stdin
+        .take()
+        .context("wl-copy stdin")?
+        .write_all(&bytes)
+        .context("write wl-copy stdin")?;
+    let status = child.wait().context("wait wl-copy")?;
+    if !status.success() {
+        anyhow::bail!("wl-copy failed with {status}");
+    }
+    Ok(())
+}
+
 impl Clone for ClipboardPayload {
     fn clone(&self) -> Self {
         Self {
@@ -833,6 +922,9 @@ pub async fn read_clipboard_payload_filtered(
     allow_images: bool,
     keep_formatting: bool,
 ) -> Result<Option<ClipboardPayload>> {
+    if wayland_session() {
+        return read_wayland_clipboard(allow_images, keep_formatting).await;
+    }
     let ts = clipboard_timestamp().await;
     if let Some(ref ts) = ts {
         if let Some(cached) = payload_cache_hit(ts) {
@@ -907,7 +999,9 @@ async fn read_plain_text_timeout(limit: Duration) -> Option<String> {
         Ok(b) => b,
         Err(_) => match read_text_selection_bytes("clipboard", "STRING", limit).await {
             Ok(b) => b,
-            Err(_) => read_text_selection_bytes("clipboard", "TEXT", limit).await.ok()?,
+            Err(_) => read_text_selection_bytes("clipboard", "TEXT", limit)
+                .await
+                .ok()?,
         },
     };
     if looks_like_image_bytes(&raw) {
@@ -1013,6 +1107,10 @@ pub fn local_write_text(data: &str, mime: &str, keep_formatting: bool) -> (Strin
 /// copié. Garder une copie ici permet de la resservir quand le propriétaire
 /// disparaît, sans jamais avoir à lui voler la sélection de son vivant.
 static LAST_KNOWN_PAYLOAD: Mutex<Option<ClipboardPayload>> = Mutex::new(None);
+/// Copie confiée explicitement par une application au `CLIPBOARD_MANAGER`.
+/// Elle doit entrer dans le chemin réseau même si l'application disparaît
+/// avant le prochain sondage (cas reproductible avec XFCE Screenshooter).
+static MANAGER_PENDING_PAYLOAD: Mutex<Option<ClipboardPayload>> = Mutex::new(None);
 /// Le sondage du propriétaire ouvre une connexion X11 : ne pas le faire à
 /// chaque tour de boucle (jusqu'à 20 fois par seconde sur certains nœuds).
 static LAST_ORPHAN_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
@@ -1029,6 +1127,44 @@ pub fn remember_clipboard_content(mime: &str, wire_data: &str, hash: &str) {
     }
 }
 
+fn remember_clipboard_manager_payload(payload: ClipboardPayload) {
+    remember_clipboard_content(&payload.mime, &payload.wire_data, &payload.hash);
+    if let Ok(mut pending) = MANAGER_PENDING_PAYLOAD.lock() {
+        *pending = Some(payload);
+    }
+}
+
+/// Sauvegarde une image remise par une application qui va se fermer.
+pub(crate) fn remember_clipboard_manager_image(bytes: &[u8]) -> Result<(&'static str, String)> {
+    let payload = image_payload_from_bytes(bytes)?;
+    let mime = if payload.mime == "image/jpeg" {
+        "image/jpeg"
+    } else {
+        "image/png"
+    };
+    let hash = payload.hash.clone();
+    remember_clipboard_manager_payload(payload);
+    Ok((mime, hash))
+}
+
+/// Sauvegarde un texte remis par une application qui va se fermer.
+pub(crate) fn remember_clipboard_manager_text(text: String) {
+    let payload = ClipboardPayload {
+        hash: hash_text(&text),
+        mime: "text/plain".into(),
+        wire_data: text,
+    };
+    remember_clipboard_manager_payload(payload);
+}
+
+/// Retire la copie confiée au gestionnaire pour qu'elle soit diffusée une fois.
+pub(crate) fn take_clipboard_manager_payload() -> Option<ClipboardPayload> {
+    MANAGER_PENDING_PAYLOAD
+        .lock()
+        .ok()
+        .and_then(|mut pending| pending.take())
+}
+
 /// Reprend la sélection quand son propriétaire a disparu.
 ///
 /// C'est le rôle d'un gestionnaire de presse-papiers : l'application qui a
@@ -1036,6 +1172,11 @@ pub fn remember_clipboard_content(mime: &str, wire_data: &str, hash: &str) {
 /// aucune course avec un collage en cours — et on ne prend le relais qu'au
 /// moment où elle s'en va, avec le contenu qu'on avait mis de côté.
 pub async fn reclaim_orphaned_selection() -> bool {
+    // Wayland compositors persist the selection independently; X11 ownership
+    // probes would falsely report an orphan and rewrite it on every poll.
+    if wayland_session() {
+        return false;
+    }
     {
         let Ok(mut last) = LAST_ORPHAN_CHECK.lock() else {
             return false;
@@ -1209,8 +1350,8 @@ async fn read_clipboard_payload_uncached(
 
     // Screenshot / « copy image » : PNG + texte reliquat (email, chemin, URL).
     // Copie Chrome d'un champ : text/html + vrai texte → garder le texte.
-    let prefer_image = image_payload.is_some()
-        && !is_chrome_style_text_copy(&targets, plain.as_deref());
+    let prefer_image =
+        image_payload.is_some() && !is_chrome_style_text_copy(&targets, plain.as_deref());
 
     if image_payload.is_some() && !prefer_image {
         tracing::warn!(
@@ -1337,7 +1478,8 @@ async fn read_unadvertised_image_payload() -> Option<ClipboardPayload> {
         *at = Some(Instant::now());
     }
     for mime in ["image/png", "image/jpeg", "image/jpg"] {
-        let Ok(bytes) = read_selection_bytes_timeout("clipboard", mime, XCLIP_TEXT_TIMEOUT).await else {
+        let Ok(bytes) = read_selection_bytes_timeout("clipboard", mime, XCLIP_TEXT_TIMEOUT).await
+        else {
             continue;
         };
         if let Ok(payload) = image_payload_from_bytes(&bytes) {
@@ -1558,10 +1700,7 @@ pub async fn seed_local_baseline(last_clip_hash: &Mutex<String>, keep_formatting
 }
 
 /// Détection locale : met à jour le hash, enregistre le cache, retourne true si nouveau contenu.
-pub fn prepare_local_clipboard(
-    payload: &ClipboardPayload,
-    last_clip_hash: &Mutex<String>,
-) -> bool {
+pub fn prepare_local_clipboard(payload: &ClipboardPayload, last_clip_hash: &Mutex<String>) -> bool {
     if payload.mime == "text/plain" && !is_syncable_text(&payload.wire_data) {
         return false;
     }
@@ -1589,20 +1728,32 @@ pub fn prepare_local_clipboard(
 /// Envoi réseau (hub optionnel + peer) — après cache local, ne bloque pas l'usage local.
 pub fn send_payload_network(
     payload: &ClipboardPayload,
-    hub_tx: &UnboundedSender<String>,
+    hub_tx: &broadcast::Sender<String>,
     peer_tx: &Option<UnboundedSender<String>>,
     relay_hub: bool,
     origin: &str,
     seq: u64,
+    e2e_key: Option<&str>,
 ) -> bool {
-    if let Ok(encoded) = encode_message(&Message::Clipboard {
+    let plain = Message::Clipboard {
         msg_id: uuid::Uuid::new_v4().to_string(),
         hash: payload.hash.clone(),
         mime: payload.mime.clone(),
         data: payload.wire_data.clone(),
         origin: origin.to_string(),
         seq,
-    }) {
+    };
+    let message = match e2e_key {
+        Some(key) => match encrypt_clipboard(&plain, key) {
+            Ok(message) => message,
+            Err(err) => {
+                tracing::error!("clipboard E2E encryption failed: {err:#}");
+                return false;
+            }
+        },
+        None => plain,
+    };
+    if let Ok(encoded) = encode_message(&message) {
         let mut sent = false;
         if relay_hub {
             sent |= hub_tx.send(encoded.clone()).is_ok();
@@ -1631,10 +1782,17 @@ pub fn send_payload_network(
 pub async fn write_clipboard(data: &str, mime: &str) -> Result<()> {
     defer_write_while_paste_in_flight(mime).await;
     invalidate_payload_cache();
+    if wayland_session() {
+        let data = data.to_string();
+        let mime = mime.to_string();
+        return tokio::task::spawn_blocking(move || write_wayland_clipboard_sync(&data, &mime))
+            .await
+            .context("Wayland clipboard task")?;
+    }
     if mime == "text/plain" || mime == "text/html" {
         offer_text_payload(data, mime)?;
         ensure_text_is_actually_served(data, mime).await;
-        return Ok(());
+        Ok(())
     } else if mime.starts_with("image/") {
         let bytes = B64
             .decode(data)
@@ -1797,6 +1955,9 @@ async fn ensure_text_is_actually_served(data: &str, mime: &str) {
 
 /// Écriture presse-papiers depuis le thread GTK (systray / historique).
 pub fn write_clipboard_sync(data: &str, mime: &str) -> Result<()> {
+    if wayland_session() {
+        return write_wayland_clipboard_sync(data, mime);
+    }
     invalidate_payload_cache();
     if mime == "text/plain" || mime == "text/html" {
         offer_text_payload(data, mime)
@@ -1825,9 +1986,7 @@ fn write_selection_text_sync(selection: &str, text: &str) -> Result<()> {
         .spawn()
         .with_context(|| format!("xclip -selection {selection} UTF8_STRING"))?;
     if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(text.as_bytes())
-            .context("xclip stdin")?;
+        stdin.write_all(text.as_bytes()).context("xclip stdin")?;
     }
     // stdin fermé : xclip possède la sélection. On le laisse vivre pour la servir
     // aux collages suivants — cf. detach_selection_owner_sync.
@@ -1933,9 +2092,7 @@ async fn read_image_via_gtk() -> Result<Vec<u8>> {
 
 fn clipboard_py_script(name: &str) -> Option<std::path::PathBuf> {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    let path = std::path::PathBuf::from(home)
-        .join(".local/bin")
-        .join(name);
+    let path = std::path::PathBuf::from(home).join(".local/bin").join(name);
     if path.is_file() {
         Some(path)
     } else {
@@ -1949,10 +2106,7 @@ fn run_clipboard_py_script_output(name: &str, stdin_bytes: &[u8]) -> Result<std:
     use std::process::{Command, Stdio};
 
     let mut child = Command::new("timeout")
-        .args([
-            &CLIPBOARD_PY_TIMEOUT.as_secs().to_string(),
-            "python3",
-        ])
+        .args([&CLIPBOARD_PY_TIMEOUT.as_secs().to_string(), "python3"])
         .arg(&script)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -2017,7 +2171,7 @@ fn is_syncable_text(text: &str) -> bool {
     if b.len() >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF {
         return false;
     }
-    if b.iter().any(|&c| c == 0) {
+    if b.contains(&0) {
         return false;
     }
     // Trop de non-texte → probablement binaire.
@@ -2096,7 +2250,10 @@ async fn read_text_selection_bytes(
     target: &str,
     limit: Duration,
 ) -> Result<Vec<u8>> {
-    if !X11_TEXT_TARGETS.iter().any(|t| t.eq_ignore_ascii_case(target)) {
+    if !X11_TEXT_TARGETS
+        .iter()
+        .any(|t| t.eq_ignore_ascii_case(target))
+    {
         anyhow::bail!("refus de lire {target} comme du texte");
     }
     read_selection_bytes_timeout(selection, target, limit).await
@@ -2107,11 +2264,7 @@ async fn read_selection_bytes_timeout(
     mime: &str,
     limit: Duration,
 ) -> Result<Vec<u8>> {
-    let output = xclip_read_timeout(
-        &["-selection", selection, "-t", mime, "-o"],
-        limit,
-    )
-    .await?;
+    let output = xclip_read_timeout(&["-selection", selection, "-t", mime, "-o"], limit).await?;
     if !output.status.success() {
         anyhow::bail!("xclip read {selection} {mime} failed");
     }
@@ -2147,7 +2300,7 @@ mod tests {
     /// copie : sans `origin`/`seq` sur le fil, tout retombe en mode legacy.
     #[test]
     fn a_sent_payload_carries_its_origin_and_clock_to_the_hub_and_the_peers() {
-        let (hub_tx, mut hub_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (hub_tx, mut hub_rx) = tokio::sync::broadcast::channel(8);
         let (peer_tx, mut peer_rx) = tokio::sync::mpsc::unbounded_channel();
 
         assert!(send_payload_network(
@@ -2157,6 +2310,7 @@ mod tests {
             true,
             "asus",
             4_242,
+            None,
         ));
 
         for raw in [hub_rx.try_recv().unwrap(), peer_rx.try_recv().unwrap()] {
@@ -2171,7 +2325,7 @@ mod tests {
     /// désactiver le lien direct entre voisins.
     #[test]
     fn with_the_hub_relay_off_the_payload_still_reaches_the_peers() {
-        let (hub_tx, mut hub_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (hub_tx, mut hub_rx) = tokio::sync::broadcast::channel(8);
         let (peer_tx, mut peer_rx) = tokio::sync::mpsc::unbounded_channel();
 
         assert!(send_payload_network(
@@ -2181,15 +2335,40 @@ mod tests {
             false,
             "asus",
             7,
+            None,
         ));
 
         assert!(hub_rx.try_recv().is_err());
         assert_eq!(sent_clipboard(&peer_rx.try_recv().unwrap()).1, 7);
     }
 
+    /// Une session hub absente ne doit jamais neutraliser le transport pair.
+    #[test]
+    fn with_no_hub_session_the_payload_still_reaches_the_peers() {
+        let (hub_tx, hub_rx) = tokio::sync::broadcast::channel(8);
+        drop(hub_rx);
+        let (peer_tx, mut peer_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        assert!(send_payload_network(
+            &text_payload("hors hub"),
+            &hub_tx,
+            &Some(peer_tx),
+            true,
+            "asus",
+            8,
+            None,
+        ));
+
+        let (origin, seq, data) = sent_clipboard(&peer_rx.try_recv().unwrap());
+        assert_eq!(
+            (origin.as_str(), seq, data.as_str()),
+            ("asus", 8, "hors hub")
+        );
+    }
+
     #[test]
     fn sending_fails_when_no_transport_is_left() {
-        let (hub_tx, hub_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (hub_tx, hub_rx) = tokio::sync::broadcast::channel(8);
         drop(hub_rx);
         assert!(!send_payload_network(
             &text_payload("bonjour"),
@@ -2198,6 +2377,7 @@ mod tests {
             true,
             "asus",
             7,
+            None,
         ));
     }
 
@@ -2208,18 +2388,18 @@ mod tests {
     #[test]
     fn the_selection_timestamp_is_never_synced_as_text() {
         assert!(is_server_clock_echo("text/plain", "452550525", 452550525));
-        assert!(is_server_clock_echo("text/plain", " 452550525\n", 452550525));
+        assert!(is_server_clock_echo(
+            "text/plain",
+            " 452550525\n",
+            452550525
+        ));
     }
 
     /// Cas réel du 29/08 : l'horloge avait avancé de 1,3 s entre la lecture de
     /// TIMESTAMP et celle du texte. L'égalité stricte laissait tout passer.
     #[test]
     fn the_clock_moving_between_the_two_xclip_calls_is_still_caught() {
-        assert!(is_server_clock_echo(
-            "text/plain",
-            "455772428",
-            455_771_100
-        ));
+        assert!(is_server_clock_echo("text/plain", "455772428", 455_771_100));
         assert!(is_server_clock_echo("text/plain", "455772428", 455802428));
     }
 
@@ -2229,14 +2409,23 @@ mod tests {
     #[test]
     fn the_agent_keeps_its_own_copy_of_the_clipboard() {
         remember_clipboard_content("text/plain", "contenu à conserver", "h1");
-        let kept = LAST_KNOWN_PAYLOAD.lock().unwrap().clone().expect("mémorisé");
+        let kept = LAST_KNOWN_PAYLOAD
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("mémorisé");
         assert_eq!(kept.wire_data, "contenu à conserver");
         assert_eq!(kept.mime, "text/plain");
 
         // Une copie plus récente remplace la précédente.
         remember_clipboard_content("text/plain", "plus récent", "h2");
         assert_eq!(
-            LAST_KNOWN_PAYLOAD.lock().unwrap().clone().unwrap().wire_data,
+            LAST_KNOWN_PAYLOAD
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap()
+                .wire_data,
             "plus récent"
         );
     }
@@ -2367,10 +2556,14 @@ mod tests {
     /// sans être Chromium ne doit pas être pris pour un éditeur.
     #[test]
     fn a_class_merely_containing_a_short_name_is_not_matched() {
-        assert!(!chromium_based_identity(b"barcode-scanner\0Barcode-scanner\0"));
+        assert!(!chromium_based_identity(
+            b"barcode-scanner\0Barcode-scanner\0"
+        ));
         assert!(!chromium_based_identity(b"xterm\0XTerm\0"));
         assert!(!chromium_based_identity(b"Thunar\0Thunar\0"));
-        assert!(!chromium_based_identity(b"poolsync-agent\0Poolsync-agent\0"));
+        assert!(!chromium_based_identity(
+            b"poolsync-agent\0Poolsync-agent\0"
+        ));
         assert!(!chromium_based_identity(b""));
     }
 
@@ -2395,7 +2588,10 @@ mod tests {
         *last.lock().unwrap() = payload.hash.clone();
         assert!(!prepare_local_clipboard(&payload, &last));
         // Une vraie copie ultérieure passe toujours.
-        assert!(prepare_local_clipboard(&text_payload("nouvelle copie"), &last));
+        assert!(prepare_local_clipboard(
+            &text_payload("nouvelle copie"),
+            &last
+        ));
     }
 
     /// Le cas qui a laissé la tempête continuer : sur une sélection dégradée,
@@ -2406,7 +2602,10 @@ mod tests {
         note_server_clock("700000000");
         let estimated = estimated_server_clock().expect("ancre posée");
         assert!(estimated >= 700_000_000);
-        assert!(estimated < 700_060_000, "extrapolation aberrante: {estimated}");
+        assert!(
+            estimated < 700_060_000,
+            "extrapolation aberrante: {estimated}"
+        );
         assert!(is_server_clock_echo("text/plain", "700000000", estimated));
     }
 
@@ -2415,8 +2614,16 @@ mod tests {
     fn a_number_far_from_the_selection_clock_is_synced_normally() {
         assert!(!is_server_clock_echo("text/plain", "455772428", 455900000));
         assert!(!is_server_clock_echo("text/plain", "12345", 12345678));
-        assert!(!is_server_clock_echo("text/plain", "4557724281234", 455772428));
-        assert!(!is_server_clock_echo("text/plain", "455772428abc", 455772428));
+        assert!(!is_server_clock_echo(
+            "text/plain",
+            "4557724281234",
+            455772428
+        ));
+        assert!(!is_server_clock_echo(
+            "text/plain",
+            "455772428abc",
+            455772428
+        ));
     }
 
     /// Un vrai nombre copié par l'utilisateur ne doit pas être confondu : il
@@ -2463,11 +2670,15 @@ mod tests {
     #[test]
     fn only_text_targets_may_be_read_as_content() {
         for good in ["UTF8_STRING", "STRING", "TEXT", "text/plain"] {
-            assert!(X11_TEXT_TARGETS.iter().any(|t| t.eq_ignore_ascii_case(good)));
+            assert!(X11_TEXT_TARGETS
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case(good)));
         }
         // Les deux sondes qui ont inondé le pool ne sont pas des cibles texte.
         for probe in ["TIMESTAMP", "TARGETS"] {
-            assert!(!X11_TEXT_TARGETS.iter().any(|t| t.eq_ignore_ascii_case(probe)));
+            assert!(!X11_TEXT_TARGETS
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case(probe)));
         }
     }
 
@@ -2491,14 +2702,21 @@ mod tests {
     fn primary_only_image_is_collected_for_the_buffer() {
         assert!(should_read_primary_image(true, &targets(&["UTF8_STRING"])));
         assert!(!should_read_primary_image(true, &targets(&["image/png"])));
-        assert!(!should_read_primary_image(false, &targets(&["UTF8_STRING"])));
+        assert!(!should_read_primary_image(
+            false,
+            &targets(&["UTF8_STRING"])
+        ));
     }
 
     #[test]
     fn incomplete_gimp_targets_trigger_a_safe_image_probe() {
         assert!(should_probe_unadvertised_image(true, false, None));
         assert!(!should_probe_unadvertised_image(true, true, None));
-        assert!(!should_probe_unadvertised_image(true, false, Some("real text")));
+        assert!(!should_probe_unadvertised_image(
+            true,
+            false,
+            Some("real text")
+        ));
         assert!(!should_probe_unadvertised_image(false, false, None));
     }
 
@@ -2575,8 +2793,14 @@ mod tests {
     #[test]
     fn chrome_text_copy_is_distinguished_from_copy_image() {
         let chrome = targets(&["UTF8_STRING", "text/html", "image/png"]);
-        assert!(is_chrome_style_text_copy(&chrome, Some("adresse@example.test")));
-        assert!(!is_chrome_style_text_copy(&chrome, Some("https://example.test/a.png")));
+        assert!(is_chrome_style_text_copy(
+            &chrome,
+            Some("adresse@example.test")
+        ));
+        assert!(!is_chrome_style_text_copy(
+            &chrome,
+            Some("https://example.test/a.png")
+        ));
     }
 
     #[test]

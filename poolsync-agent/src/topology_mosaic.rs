@@ -186,14 +186,22 @@ impl TopologyMosaic {
             cr.stroke().ok();
 
             cr.set_source_rgb(0.13, 0.14, 0.18);
-            cr.select_font_face("Sans", gtk::cairo::FontSlant::Normal, gtk::cairo::FontWeight::Bold);
+            cr.select_font_face(
+                "Sans",
+                gtk::cairo::FontSlant::Normal,
+                gtk::cairo::FontWeight::Bold,
+            );
             cr.set_font_size(13.0);
             let te = cr.text_extents(&label).ok();
             if let Some(te) = te {
                 cr.move_to((w - te.width()) / 2.0, h / 2.0 - 2.0);
                 cr.show_text(&label).ok();
             }
-            cr.select_font_face("Sans", gtk::cairo::FontSlant::Normal, gtk::cairo::FontWeight::Normal);
+            cr.select_font_face(
+                "Sans",
+                gtk::cairo::FontSlant::Normal,
+                gtk::cairo::FontWeight::Normal,
+            );
             cr.set_font_size(10.0);
             cr.set_source_rgba(0.13, 0.14, 0.18, 0.65);
             if let Ok(te) = cr.text_extents(&dims) {
@@ -306,8 +314,7 @@ impl TopologyMosaic {
                 n.x = sx;
                 n.y = sy;
             }
-            let inferred =
-                infer_neighbors(&PoolTopology { nodes }, DEFAULT_EDGE_TOLERANCE_PX);
+            let inferred = infer_neighbors(&PoolTopology { nodes }, DEFAULT_EDGE_TOLERANCE_PX);
             on_layout2(inferred);
             gtk::glib::Propagation::Stop
         });
@@ -363,7 +370,7 @@ fn connection_lines(topo: &PoolTopology, scale: f64) -> Vec<(f64, f64, f64, f64)
 
     for (id, n) in &topo.nodes {
         for (dir, other) in &n.neighbors {
-            if topo.nodes.get(other).is_none() {
+            if !topo.nodes.contains_key(other) {
                 continue;
             }
             let mut pair = [id.as_str(), other.as_str()];

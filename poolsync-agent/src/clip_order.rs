@@ -19,6 +19,11 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
+/// Une horloge Lamport distante peut être légèrement en avance sur l'heure
+/// locale, mais jamais de plusieurs heures dans ce petit pool synchronisé.
+/// Cette borne empêche un pair compromis de bloquer durablement les copies.
+const MAX_FUTURE_SKEW_MS: u64 = 5 * 60 * 1_000;
+
 fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -60,6 +65,9 @@ impl ClipOrder {
         if seq == 0 || origin.is_empty() {
             return true;
         }
+        if seq > now_ms().saturating_add(MAX_FUTURE_SKEW_MS) {
+            return false;
+        }
         // Lamport : notre horloge dépasse tout ce que l'on a observé, donc la
         // prochaine copie locale gagnera contre ce message.
         self.bump(seq);
@@ -79,7 +87,7 @@ impl ClipOrder {
     fn bump(&self, observed: u64) -> u64 {
         let mut current = self.clock.load(Ordering::SeqCst);
         loop {
-            let next = current.max(observed) + 1;
+            let next = current.max(observed).saturating_add(1);
             match self.clock.compare_exchange_weak(
                 current,
                 next,
@@ -135,8 +143,19 @@ mod tests {
     #[test]
     fn observing_a_peer_clock_lifts_our_own_so_the_next_local_copy_wins() {
         let order = ClipOrder::new("asus");
-        order.accept_incoming("gbs-p2", 9_000_000_000_000);
-        assert!(order.next_local_seq() > 9_000_000_000_000);
+        let remote = now_ms().saturating_add(1_000);
+        order.accept_incoming("gbs-p2", remote);
+        assert!(order.next_local_seq() > remote);
+    }
+
+    #[test]
+    fn an_extreme_remote_clock_is_rejected_without_poisoning_local_copies() {
+        let order = ClipOrder::new("asus");
+        let before = order.next_local_seq();
+        assert!(!order.accept_incoming("hostile", u64::MAX));
+        let after = order.next_local_seq();
+        assert!(after > before);
+        assert_ne!(after, u64::MAX);
     }
 
     #[test]

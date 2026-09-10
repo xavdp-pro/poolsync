@@ -15,6 +15,7 @@ tmp/
 .env
 deploy/*.local.toml
 deploy/secrets/
+poolsync-secrets/
 
 # Web dashboard
 web/node_modules/

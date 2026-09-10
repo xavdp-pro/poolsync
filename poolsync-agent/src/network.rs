@@ -25,6 +25,23 @@ pub fn hub_tcp_endpoint(hub_url: &str) -> Result<(String, u16)> {
     Ok((host_port.to_string(), 9470))
 }
 
+/// Convertit l'URL WebSocket du hub vers sa base HTTP sans perdre TLS.
+pub fn hub_http_base(hub_url: &str) -> Result<String> {
+    let url = hub_url.trim();
+    let base = if let Some(rest) = url.strip_prefix("wss://") {
+        format!("https://{rest}")
+    } else if let Some(rest) = url.strip_prefix("ws://") {
+        format!("http://{rest}")
+    } else {
+        anyhow::bail!("hub_url invalide: {url}");
+    };
+    Ok(base
+        .strip_suffix("/ws")
+        .unwrap_or(&base)
+        .trim_end_matches('/')
+        .to_string())
+}
+
 pub async fn hub_tcp_reachable(host: &str, port: u16) -> bool {
     let addr = format!("{host}:{port}");
     tokio::time::timeout(TCP_PROBE_TIMEOUT, TcpStream::connect(&addr))

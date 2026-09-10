@@ -3,6 +3,10 @@
 Interface web servie par le hub (`poolsync-hub --web-dir <dossier>`) : état du
 pool, historique du presse-papiers, et éditeur de topologie (mosaïque des écrans).
 
+Le tableau de bord demande le token du hub, le conserve dans le stockage local
+du navigateur et l'envoie dans l'en-tête `Authorization: Bearer`. Le token
+n'apparaît donc plus dans les URL des requêtes Web.
+
 ## Construire
 
 ```bash

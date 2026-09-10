@@ -34,12 +34,10 @@ fn notifyd_process_alive() -> bool {
     if !output.status.success() {
         return false;
     }
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .any(|stat| {
-            let s = stat.trim();
-            !s.is_empty() && !s.starts_with('Z')
-        })
+    String::from_utf8_lossy(&output.stdout).lines().any(|stat| {
+        let s = stat.trim();
+        !s.is_empty() && !s.starts_with('Z')
+    })
 }
 
 /// True if org.freedesktop.Notifications answers on the session bus.
@@ -109,13 +107,10 @@ pub fn ensure_notify_daemon() {
         // Detach via bash so notifyd is not our child (avoids zombie under agent).
         let mut cmd = Command::new("bash");
         session_env(&mut cmd);
-        cmd.args([
-            "-c",
-            &format!("nohup {path} >/dev/null 2>&1 </dev/null &"),
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        cmd.args(["-c", &format!("nohup {path} >/dev/null 2>&1 </dev/null &")])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
         match cmd.status() {
             Ok(s) if s.success() => {
                 std::thread::sleep(Duration::from_millis(500));
@@ -234,7 +229,7 @@ fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool 
     } else {
         "dialog-information".into()
     };
-    let timeout_secs = ((timeout_ms + 999) / 1000).max(1).to_string();
+    let timeout_secs = timeout_ms.div_ceil(1000).max(1).to_string();
     let mut cmd = Command::new("timeout");
     session_env(&mut cmd);
     cmd.args([
@@ -258,11 +253,7 @@ fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool 
         Ok(out) if out.status.success() => true,
         Ok(out) => {
             let err = String::from_utf8_lossy(&out.stderr);
-            warn!(
-                "notify-send exit {:?} — {}",
-                out.status.code(),
-                err.trim()
-            );
+            warn!("notify-send exit {:?} — {}", out.status.code(), err.trim());
             false
         }
         Err(err) => {
@@ -275,10 +266,20 @@ fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool 
 fn notify_zenity_fallback(title: &str, body: &str) {
     let mut cmd = Command::new("zenity");
     session_env(&mut cmd);
-    cmd.args(["--info", "--title", title, "--text", body, "--width", "420", "--timeout", "8"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    cmd.args([
+        "--info",
+        "--title",
+        title,
+        "--text",
+        body,
+        "--width",
+        "420",
+        "--timeout",
+        "8",
+    ])
+    .stdin(Stdio::null())
+    .stdout(Stdio::null())
+    .stderr(Stdio::null());
     if cmd.spawn().is_err() {
         warn!("zenity indisponible — notification toggle non affichée");
     }

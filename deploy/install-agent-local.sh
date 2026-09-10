@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NODE="${1:?nom noeud (ex: asus)}"
 USER_NAME="${AGENT_USER:-zaza}"
 TOKEN="${POOLSYNC_TOKEN:?POOLSYNC_TOKEN requis}"
+SECURITY_DIR="${POOLSYNC_SECURITY_DIR:-}"
+AGENT_BIN="${POOLSYNC_AGENT_BINARY:-$ROOT/target/release/poolsync-agent}"
 
 CONFIG_SRC="$ROOT/deploy/config/agent.${NODE}.toml"
 if [[ ! -f "$CONFIG_SRC" ]]; then
@@ -14,15 +16,20 @@ if [[ ! -f "$CONFIG_SRC" ]]; then
   exit 1
 fi
 
-echo "==> Build release (agent)"
-source "${HOME}/.cargo/env" 2>/dev/null || true
-(cd "$ROOT" && cargo build --release -p poolsync-agent)
+if [[ -z "${POOLSYNC_AGENT_BINARY:-}" ]]; then
+  echo "==> Build release (agent)"
+  source "${HOME}/.cargo/env" 2>/dev/null || true
+  (cd "$ROOT" && cargo build --release -p poolsync-agent)
+else
+  echo "==> Réutilise le binaire agent fourni"
+fi
+[[ -x "$AGENT_BIN" ]] || { echo "binaire agent absent : $AGENT_BIN" >&2; exit 1; }
 
 echo "==> Dépendances X11/GTK locales"
 if command -v apt-get >/dev/null; then
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    xclip xdotool libnotify-bin python3-gi gir1.2-gtk-3.0 libgtk-3-dev libayatana-appindicator3-dev libnotify-dev libxdo-dev 2>/dev/null || \
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xclip xdotool libnotify-bin python3-gi gir1.2-gtk-3.0
+    xclip xdotool wl-clipboard libnotify-bin python3-gi gir1.2-gtk-3.0 libgtk-3-dev libayatana-appindicator3-dev libnotify-dev libxdo-dev 2>/dev/null || \
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xclip xdotool wl-clipboard libnotify-bin python3-gi gir1.2-gtk-3.0
 fi
 
 BIN_DIR="/home/$USER_NAME/.local/bin"
@@ -32,9 +39,11 @@ APP_DIR="/home/$USER_NAME/.local/share/applications"
 SVC_DIR="/home/$USER_NAME/.config/systemd/user"
 AUTO_DIR="/home/$USER_NAME/.config/autostart"
 
-mkdir -p "$BIN_DIR" "$CFG_DIR" "$ICON_DIR" "$APP_DIR" "$SVC_DIR" "$AUTO_DIR"
+mkdir -p "$BIN_DIR" "$CFG_DIR" "$CFG_DIR/tls" "$ICON_DIR" "$APP_DIR" "$SVC_DIR" "$AUTO_DIR"
+systemctl --user stop poolsync-watchdog.timer poolsync-watchdog.service poolsync-agent.service 2>/dev/null || true
+pkill -u "$USER_NAME" -x poolsync-agent 2>/dev/null || true
 install -m 644 "$ROOT/deploy/autostart/poolsync-agent.desktop" "$AUTO_DIR/poolsync-agent.desktop"
-install -m 755 "$ROOT/target/release/poolsync-agent" "$BIN_DIR/poolsync-agent"
+install -m 755 "$AGENT_BIN" "$BIN_DIR/poolsync-agent"
 install -m 755 "$ROOT/deploy/poolsync-agent-launch.sh" "$BIN_DIR/poolsync-agent-launch.sh"
 install -m 755 "$ROOT/deploy/poolsync-pick-session.sh" "$BIN_DIR/poolsync-pick-session.sh"
 install -m 755 "$ROOT/deploy/poolsync-logs.sh" "$BIN_DIR/poolsync-logs"
@@ -48,7 +57,34 @@ install -m 755 "$ROOT/deploy/poolsync-watchdog.sh" "$BIN_DIR/poolsync-watchdog.s
 install -m 755 "$ROOT/deploy/write-image-clipboard.py" "$BIN_DIR/write-image-clipboard.py"
 install -m 644 "$ROOT/poolsync-agent/icons/poolsync-tray.png" "$ICON_DIR/poolsync-tray.png"
 install -m 644 "$ROOT/deploy/com.xavdp.poolsync.desktop" "$APP_DIR/com.xavdp.poolsync.desktop"
-sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$CONFIG_SRC" > "$CFG_DIR/agent.toml"
+TMP_CFG="$(mktemp)"
+TMP_BASE="${TMP_CFG}.base"
+trap 'rm -f "$TMP_CFG" "$TMP_BASE"' EXIT
+sed "s/POOLSYNC_TOKEN_PLACEHOLDER/$TOKEN/" "$CONFIG_SRC" > "$TMP_BASE"
+if [[ -n "$SECURITY_DIR" ]]; then
+  for file in "$SECURITY_DIR/ca.crt" "$SECURITY_DIR/nodes/$NODE.crt" "$SECURITY_DIR/nodes/$NODE.key" "$SECURITY_DIR/nodes/$NODE.toml"; do
+    [[ -s "$file" ]] || { echo "fichier sécurité absent: $file" >&2; exit 1; }
+  done
+  {
+    sed '/^\[screen\]/,$d' "$TMP_BASE" \
+      | sed -e 's#hub_url = "ws://#hub_url = "wss://#' \
+        -e 's#peer_url = "ws://#peer_url = "wss://#' \
+        -e 's#peer_url_vpn = "ws://#peer_url_vpn = "wss://#' \
+        -e 's/^token = .*/token = "MIGRATION_DISABLED"/'
+    sed "s#POOLSYNC_TLS_DIR#$CFG_DIR/tls#g" "$SECURITY_DIR/nodes/$NODE.toml"
+    sed -n '/^\[screen\]/,$p' "$TMP_BASE" \
+      | sed -e 's#peer_url = "ws://#peer_url = "wss://#' \
+        -e 's#peer_url_vpn = "ws://#peer_url_vpn = "wss://#'
+  } > "$TMP_CFG"
+  install -m 644 "$SECURITY_DIR/ca.crt" "$CFG_DIR/tls/ca.crt"
+  install -m 644 "$SECURITY_DIR/nodes/$NODE.crt" "$CFG_DIR/tls/$NODE.crt"
+  install -m 600 "$SECURITY_DIR/nodes/$NODE.key" "$CFG_DIR/tls/$NODE.key"
+  sudo install -m 644 "$SECURITY_DIR/ca.crt" /usr/local/share/ca-certificates/poolsync-ca.crt
+  sudo update-ca-certificates >/dev/null
+else
+  mv "$TMP_BASE" "$TMP_CFG"
+fi
+install -m 600 "$TMP_CFG" "$CFG_DIR/agent.toml"
 cp "$ROOT/deploy/systemd/poolsync-agent.service" "$SVC_DIR/poolsync-agent.service"
 cp "$ROOT/deploy/systemd/poolsync-watchdog.service" "$SVC_DIR/poolsync-watchdog.service"
 cp "$ROOT/deploy/systemd/poolsync-watchdog.timer" "$SVC_DIR/poolsync-watchdog.timer"

@@ -20,9 +20,26 @@ mkdir -p "$CACHE_DIR"
 
 NODE="$(grep -E '^node\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
 HUB_URL="$(grep -E '^hub_url\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
-HUB_HOST="$(echo "$HUB_URL" | sed -E 's|^wss?://([^/:]+).*|\1|')"
-HUB_PORT="$(echo "$HUB_URL" | sed -E 's|^wss?://[^/:]+:([0-9]+).*|\1|')"
-HUB_PORT="${HUB_PORT:-9470}"
+TOKEN="$(grep -E '^node_token\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/' || true)"
+if [[ -z "$TOKEN" ]]; then
+  TOKEN="$(grep -E '^token\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
+fi
+if [[ ! "$HUB_URL" =~ ^wss?://([^/:]+)(:([0-9]+))?(/|$) ]]; then
+  log "hub_url invalide dans $CFG — surveillance ignorée"
+  exit 0
+fi
+HUB_HOST="${BASH_REMATCH[1]}"
+HUB_PORT="${BASH_REMATCH[3]:-9470}"
+if [[ "$HUB_URL" == wss://* ]]; then
+  HUB_HTTP_SCHEME="https"
+else
+  HUB_HTTP_SCHEME="http"
+fi
+
+if [[ -z "$NODE" || -z "$TOKEN" ]]; then
+  log "node ou token manquant dans $CFG — surveillance ignorée"
+  exit 0
+fi
 
 hub_tcp_up() {
   timeout 2 bash -c "exec 3<>/dev/tcp/${HUB_HOST}/${HUB_PORT}" 2>/dev/null
@@ -33,8 +50,10 @@ wg_bs1_up() {
 }
 
 node_online() {
-  curl -sf --max-time 3 "http://${HUB_HOST}:${HUB_PORT}/api/status" 2>/dev/null \
-    | python3 -c "import json,sys; d=json.load(sys.stdin); m=[x for x in d.get('nodes',[]) if x.get('name')=='${NODE}']; sys.exit(0 if m and m[0].get('online') else 1)" 2>/dev/null
+  curl -sf --max-time 3 -H "Authorization: Bearer ${TOKEN}" \
+    -H "X-PoolSync-Node: ${NODE}" \
+    "${HUB_HTTP_SCHEME}://${HUB_HOST}:${HUB_PORT}/api/status" 2>/dev/null \
+    | POOLSYNC_NODE="$NODE" python3 -c "import json,os,sys; d=json.load(sys.stdin); n=os.environ['POOLSYNC_NODE']; m=[x for x in d.get('nodes',[]) if x.get('name')==n]; sys.exit(0 if m and m[0].get('online') else 1)" 2>/dev/null
 }
 
 read_prev() {
