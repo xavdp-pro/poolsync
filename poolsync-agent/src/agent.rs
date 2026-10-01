@@ -95,11 +95,9 @@ pub async fn run_agent(
 
     let state_in = state.clone();
     let out_tx_in = out_tx.clone();
-    let kvm_task = if cfg.kvm_active() {
-        tokio::task::spawn_blocking(move || kvm_poll_loop(&state_in, out_tx_in))
-    } else {
-        tokio::task::spawn_blocking(std::thread::park)
-    };
+    let kvm_task = cfg
+        .kvm_active()
+        .then(|| tokio::task::spawn_blocking(move || kvm_poll_loop(&state_in, out_tx_in)));
 
     let mut link_check = interval(HUB_LINK_CHECK);
     // Le hub doit refléter l'état réel du nœud (synchro coupée, pause locale,
@@ -108,58 +106,65 @@ pub async fn run_agent(
     let mut state_check = interval(Duration::from_secs(3));
     let mut last_state = node_state_snapshot(&state);
 
-    loop {
-        tokio::select! {
-            maybe_out = out_rx.recv() => {
-                if let Some(payload) = maybe_out {
-                    write.send(WsMessage::Text(payload.into())).await?;
-                } else {
-                    break;
-                }
-            }
-            hub_clip = hub_clip_rx.recv() => {
-                match hub_clip {
-                    Ok(payload) => write.send(WsMessage::Text(payload.into())).await?,
-                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("relais hub clipboard en retard: {skipped} message(s) ignoré(s)");
+    let result: Result<()> = async {
+        loop {
+            tokio::select! {
+                maybe_out = out_rx.recv() => {
+                    if let Some(payload) = maybe_out {
+                        write.send(WsMessage::Text(payload.into())).await?;
+                    } else {
+                        break;
                     }
-                    Err(broadcast::error::RecvError::Closed) => break,
                 }
-            }
-            maybe_in = read.next() => {
-                match maybe_in {
-                    Some(Ok(WsMessage::Text(text))) => {
-                        handle_incoming(&state, &text, &last_clip_hash).await?;
+                hub_clip = hub_clip_rx.recv() => {
+                    match hub_clip {
+                        Ok(payload) => write.send(WsMessage::Text(payload.into())).await?,
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            warn!("relais hub clipboard en retard: {skipped} message(s) ignoré(s)");
+                        }
+                        Err(broadcast::error::RecvError::Closed) => break,
                     }
-                    Some(Ok(WsMessage::Ping(payload))) => {
-                        write.send(WsMessage::Pong(payload)).await?;
+                }
+                maybe_in = read.next() => {
+                    match maybe_in {
+                        Some(Ok(WsMessage::Text(text))) => {
+                            handle_incoming(&state, &text, &last_clip_hash).await?;
+                        }
+                        Some(Ok(WsMessage::Ping(payload))) => {
+                            write.send(WsMessage::Pong(payload)).await?;
+                        }
+                        Some(Ok(WsMessage::Close(_))) | None => break,
+                        Some(Err(err)) => return Err(err.into()),
+                        _ => {}
                     }
-                    Some(Ok(WsMessage::Close(_))) | None => break,
-                    Some(Err(err)) => return Err(err.into()),
-                    _ => {}
                 }
-            }
-            _ = link_check.tick() => {
-                if !hub_tcp_reachable(&hub_host, hub_port).await {
-                    warn!("liaison hub perdue ({hub_host}:{hub_port}) — reconnexion");
-                    break;
+                _ = link_check.tick() => {
+                    if !hub_tcp_reachable(&hub_host, hub_port).await {
+                        warn!("liaison hub perdue ({hub_host}:{hub_port}) — reconnexion");
+                        break;
+                    }
                 }
-            }
-            _ = state_check.tick() => {
-                let now = node_state_snapshot(&state);
-                if now != last_state {
-                    last_state = now;
-                    send_hello(&state, &out_tx);
+                _ = state_check.tick() => {
+                    let now = node_state_snapshot(&state);
+                    if now != last_state {
+                        last_state = now;
+                        send_hello(&state, &out_tx);
+                    }
                 }
             }
         }
+
+        Ok(())
     }
+    .await;
 
     state.set_connected(false);
-    if cfg.kvm_active() {
-        kvm_task.abort();
+    state.set_kvm_focus(&cfg.node);
+    state.set_kvm_input_node(&cfg.node);
+    if let Some(task) = kvm_task {
+        task.abort();
     }
-    Ok(())
+    result
 }
 
 /// Ce que le hub doit savoir de l'état du nœud, pour détecter un changement.
@@ -217,6 +222,14 @@ async fn handle_incoming(
     _last_clip_hash: &Mutex<String>,
 ) -> Result<()> {
     let mut msg = decode_message(text)?;
+    if state.pool_away()
+        && matches!(
+            msg,
+            Message::Clipboard { .. } | Message::EncryptedClipboard { .. }
+        )
+    {
+        return Ok(());
+    }
     if matches!(msg, Message::EncryptedClipboard { .. }) {
         let key = state
             .config
@@ -415,25 +428,43 @@ pub(crate) async fn clipboard_poll_loop(
     // lui donnerait une horloge fraîche, donc prioritaire, et il écraserait sur
     // tout le pool une copie réellement plus récente (observé sur gbs-p3 après
     // un redémarrage). On l'adopte comme référence, sans rien émettre.
-    crate::clipboard::seed_local_baseline(&last_clip_hash, state.keep_formatting()).await;
+    if !state.pool_away() {
+        crate::clipboard::seed_local_baseline(&last_clip_hash, state.keep_formatting()).await;
+    }
 
+    let mut participation_probe = std::time::Instant::now();
     loop {
+        if participation_probe.elapsed() >= Duration::from_secs(1) {
+            let away = crate::participation::is_away(&state.config_path);
+            if away != state.pool_away() {
+                if let Err(error) = state.set_pool_away(away) {
+                    warn!("cannot update local pool absence: {error}");
+                }
+            }
+            participation_probe = std::time::Instant::now();
+        }
+        // Returning a laptop must not promote a private copy made while away.
+        if state.take_clipboard_baseline_reset() {
+            crate::clipboard::seed_local_baseline(&last_clip_hash, state.keep_formatting()).await;
+        }
         if crate::clipboard::xrdp_session_active_sync() {
             crate::clipboard_diag::log_owner_transition();
         }
         // Hands off X11 when PoolSync clipboard is OFF — otherwise we steal
         // CLIPBOARD from the apps and native Ctrl+V dies (xrdp session).
-        if state.clipboard_sync_enabled() && state.local_poolsync_active() {
+        // The RDP server agent distributes local copies to the pool. Reading
+        // them again on its client would create a second clipboard transport,
+        // promote RDP echoes to new copies, and overwrite newer screenshots.
+        let rdp_paused = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
+        if state.clipboard_sync_enabled() && state.local_poolsync_active() && !rdp_paused {
             crate::clipboard::maintain_xrdp_clipboard_fixup().await;
             // Une application fermée emporte avec elle ce qu'elle avait copié :
             // reprendre alors la sélection avec le contenu gardé en mémoire.
             crate::clipboard::reclaim_orphaned_selection().await;
-            let rdp_active = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
 
             let skip_echo = state.incoming_poll_suppress_active()
                 || state.incoming_duplicate_suppress_active()
-                || state.history_clear_suppress_active()
-                || (rdp_active && state.hub_apply_grace_active());
+                || state.history_clear_suppress_active();
             // Une application qui se ferme peut confier son contenu au
             // CLIPBOARD_MANAGER puis disparaître avant le prochain sondage.
             // Ce contenu est une vraie copie locale et doit être traité même
@@ -547,6 +578,12 @@ pub(crate) async fn clipboard_poll_loop(
                 }
             }
         }
-        sleep(poll).await;
+        let idle = !state.local_poolsync_active() || !state.clipboard_sync_enabled() || rdp_paused;
+        sleep(if idle {
+            poll.max(Duration::from_millis(250))
+        } else {
+            poll
+        })
+        .await;
     }
 }

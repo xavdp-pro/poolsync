@@ -67,10 +67,16 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
     let mut capture_unavailable_logged = false;
 
     loop {
+        // abort() cannot stop spawn_blocking; dropping the session receiver can.
+        if out_tx.is_closed() {
+            return;
+        }
         if !state.is_connected() {
             last_announced = None;
             last_hello_kvm = None;
-            thread::sleep(poll);
+            input_grab = None;
+            state.set_kvm_focus(&local);
+            thread::sleep(poll.max(Duration::from_millis(100)));
             continue;
         }
 
@@ -121,7 +127,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
             focus = local.clone();
             input_grab = None;
             blocked_edges.clear();
-            thread::sleep(poll);
+            thread::sleep(poll.max(Duration::from_millis(100)));
             continue;
         }
 
@@ -350,7 +356,9 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
         // Primary dynamique : clic / touche sur esclave → master immédiat.
         // Mouvement souris seulement si pas de pilotage KVM distant (sinon = inject).
-        if !state.is_input_owner() {
+        // A locally focused device may still name itself as input owner after
+        // another device claimed master. Its next physical action must win.
+        if !state.is_input_owner() || state.master_node() != local {
             if input_grab.is_some() {
                 input_grab = None;
                 set_cursor_visible_best_effort(true);

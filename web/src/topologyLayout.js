@@ -8,8 +8,8 @@ export const CANVAS_PAD = 24
 export function snapPosition(x, y, grid = SNAP_GRID_PX) {
   const g = Math.max(1, grid)
   return [
-    Math.round(x / g) * g,
-    Math.round(y / g) * g,
+    Math.sign(x) * Math.round(Math.abs(x) / g) * g,
+    Math.sign(y) * Math.round(Math.abs(y) / g) * g,
   ]
 }
 
@@ -28,6 +28,8 @@ export function inferNeighbors(topology, tolerancePx = EDGE_TOLERANCE_PX) {
   const ids = Object.keys(topology?.nodes || {}).filter(
     (id) => topology.nodes[id]?.kvm_enabled !== false,
   )
+  ids.sort()
+  const candidates = []
   const nodes = {}
   for (const id of Object.keys(topology?.nodes || {})) {
     nodes[id] = { ...topology.nodes[id], neighbors: {} }
@@ -47,21 +49,26 @@ export function inferNeighbors(topology, tolerancePx = EDGE_TOLERANCE_PX) {
       const hOverlap = overlapLen(a.x, aRight, b.x, bRight)
 
       if (Math.abs(b.x - aRight) <= tol && vOverlap >= MIN_EDGE_OVERLAP_PX) {
-        setNeighbor(nodes, aId, 'right', bId)
-        setNeighbor(nodes, bId, 'left', aId)
+        candidates.push({ a: aId, b: bId, dir: 'right', reverse: 'left', gap: Math.abs(b.x - aRight), overlap: vOverlap })
       }
       if (Math.abs(a.x - bRight) <= tol && vOverlap >= MIN_EDGE_OVERLAP_PX) {
-        setNeighbor(nodes, aId, 'left', bId)
-        setNeighbor(nodes, bId, 'right', aId)
+        candidates.push({ a: aId, b: bId, dir: 'left', reverse: 'right', gap: Math.abs(a.x - bRight), overlap: vOverlap })
       }
       if (Math.abs(b.y - aBottom) <= tol && hOverlap >= MIN_EDGE_OVERLAP_PX) {
-        setNeighbor(nodes, aId, 'down', bId)
-        setNeighbor(nodes, bId, 'up', aId)
+        candidates.push({ a: aId, b: bId, dir: 'down', reverse: 'up', gap: Math.abs(b.y - aBottom), overlap: hOverlap })
       }
       if (Math.abs(a.y - bBottom) <= tol && hOverlap >= MIN_EDGE_OVERLAP_PX) {
-        setNeighbor(nodes, aId, 'up', bId)
-        setNeighbor(nodes, bId, 'down', aId)
+        candidates.push({ a: aId, b: bId, dir: 'up', reverse: 'down', gap: Math.abs(a.y - bBottom), overlap: hOverlap })
       }
+    }
+  }
+  candidates.sort((a, b) => a.gap - b.gap || b.overlap - a.overlap ||
+    (a.a < b.a ? -1 : a.a > b.a ? 1 : 0) || (a.b < b.b ? -1 : a.b > b.b ? 1 : 0) ||
+    (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0))
+  for (const c of candidates) {
+    if (!nodes[c.a].neighbors[c.dir] && !nodes[c.b].neighbors[c.reverse]) {
+      setNeighbor(nodes, c.a, c.dir, c.b)
+      setNeighbor(nodes, c.b, c.reverse, c.a)
     }
   }
   return { nodes }
@@ -120,24 +127,29 @@ export function scaleLayout(nodes, maxW = 720, maxH = 420) {
   if (!entries.length) {
     return { scale: 0.2, width: 400, height: 200, maxX: 0, maxY: 0 }
   }
-  let maxX = 0
-  let maxY = 0
+  const minX = Math.min(...entries.map(([, n]) => n.x))
+  const minY = Math.min(...entries.map(([, n]) => n.y))
+  let maxX = minX
+  let maxY = minY
   for (const [, n] of entries) {
     maxX = Math.max(maxX, n.x + n.width)
     maxY = Math.max(maxY, n.y + n.height)
   }
-  const scale = Math.min(maxW / Math.max(maxX, 1), maxH / Math.max(maxY, 1), 0.4)
+  const scale = Math.min(maxW / Math.max(maxX - minX, 1), maxH / Math.max(maxY - minY, 1), 0.4)
   return {
     scale,
-    width: maxX * scale + CANVAS_PAD * 2,
-    height: maxY * scale + CANVAS_PAD * 2,
+    width: (maxX - minX) * scale + CANVAS_PAD * 2,
+    height: (maxY - minY) * scale + CANVAS_PAD * 2,
     maxX,
     maxY,
+    minX,
+    minY,
   }
 }
 
 /** Segments SVG entre écrans voisins (centre des bords partagés). */
-export function connectionLines(nodes, scale) {
+export function connectionLines(nodes, scale, origin = {}) {
+  nodes = Object.fromEntries(Object.entries(nodes || {}).map(([id, n]) => [id, { ...n, x: n.x - (origin.minX || 0), y: n.y - (origin.minY || 0) }]))
   const lines = []
   const seen = new Set()
   const pad = CANVAS_PAD
@@ -175,10 +187,10 @@ export function connectionLines(nodes, scale) {
   return lines
 }
 
-export function nodeRect(n, scale) {
+export function nodeRect(n, scale, origin = {}) {
   return {
-    left: CANVAS_PAD + n.x * scale,
-    top: CANVAS_PAD + n.y * scale,
+    left: CANVAS_PAD + (n.x - (origin.minX || 0)) * scale,
+    top: CANVAS_PAD + (n.y - (origin.minY || 0)) * scale,
     width: n.width * scale,
     height: n.height * scale,
   }

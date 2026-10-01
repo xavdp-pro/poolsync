@@ -20,6 +20,7 @@ mod logs_viewer;
 mod network;
 mod notify_thumb;
 mod notify_util;
+mod participation;
 mod peer_mesh;
 mod rdp_detect;
 mod single;
@@ -51,6 +52,10 @@ const RECONNECT_MAX: Duration = Duration::from_secs(30);
 struct Args {
     #[arg(long, default_value = "/etc/poolsync/agent.toml")]
     config: PathBuf,
+
+    /// Temporarily leave (true) or rejoin (false) the pool, then exit.
+    #[arg(long, value_name = "BOOL", action = clap::ArgAction::Set)]
+    away: Option<bool>,
 
     #[arg(long)]
     no_tray: bool,
@@ -93,6 +98,12 @@ fn main() -> Result<()> {
 
     // Diagnostic : ouvre la fenêtre à onglets sans systray ni verrou d'instance,
     // pour pouvoir la tester pendant que l'agent principal tourne.
+    if let Some(away) = args.away {
+        anyhow::ensure!(args.config.is_file(), "agent configuration does not exist");
+        participation::set_away(&args.config, away)?;
+        println!("Local pool absence saved: {away}");
+        return Ok(());
+    }
     if args.open_window {
         let raw = std::fs::read_to_string(&args.config)
             .with_context(|| format!("read config {}", args.config.display()))?;

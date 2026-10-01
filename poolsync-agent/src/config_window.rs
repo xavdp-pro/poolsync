@@ -14,8 +14,8 @@ use crate::topology_mosaic::TopologyMosaic;
 use anyhow::{anyhow, Result};
 use gtk::prelude::*;
 use gtk::{
-    Align, Box as GtkBox, Button, CheckButton, ComboBoxText, Entry, Frame, Grid, Label, Notebook,
-    Orientation, ScrolledWindow, SpinButton, TextView, Window,
+    Align, Box as GtkBox, Button, CheckButton, ComboBoxText, Entry, Expander, Grid, Label,
+    Notebook, Orientation, ScrolledWindow, SpinButton, TextView, Window,
 };
 use poolsync_core::{
     infer_neighbors, AgentConfig, AgentMode, Direction, PoolTopology, TopologyNode,
@@ -58,7 +58,7 @@ struct NodeRow {
     kvm: CheckButton,
     width: SpinButton,
     height: SpinButton,
-    neighbors: Vec<(String, ComboBoxText)>,
+    neighbors: Vec<(String, Label)>,
 }
 
 /// Formulaire d'édition de l'agent.toml local.
@@ -88,6 +88,7 @@ struct ConfigWindow {
     nodes_box: GtkBox,
     status: Label,
     rows: RefCell<Vec<NodeRow>>,
+    loaded_topology: RefCell<Option<PoolTopology>>,
     agent_form: AgentForm,
     logs_view: TextView,
 }
@@ -132,6 +133,7 @@ impl ConfigWindow {
                 nodes_box,
                 status,
                 rows: RefCell::new(Vec::new()),
+                loaded_topology: RefCell::new(None),
                 agent_form,
                 logs_view,
             }
@@ -157,6 +159,7 @@ impl ConfigWindow {
                 return;
             }
         };
+        *self.loaded_topology.borrow_mut() = Some(topo.clone());
 
         if topo.nodes.is_empty() {
             let empty = Label::new(Some(
@@ -179,7 +182,7 @@ impl ConfigWindow {
 
         for id in &ids {
             let node = &topo.nodes[id];
-            let row = self.build_node_frame(id, node, &ids);
+            let row = self.build_node_frame(id, node);
             self.rows.borrow_mut().push(row);
         }
         self.nodes_box.show_all();
@@ -199,30 +202,24 @@ impl ConfigWindow {
                 if let Some(n) = topo.nodes.get(&row.id) {
                     row.x = n.x;
                     row.y = n.y;
-                    for (dir, combo) in &row.neighbors {
+                    for (dir, label) in &row.neighbors {
                         let active = n.neighbors.get(dir).map(|s| s.as_str()).unwrap_or("");
-                        combo.set_active_id(Some(active));
+                        label.set_text(if active.is_empty() { "—" } else { active });
                     }
                 }
             }
         }
+        *self.loaded_topology.borrow_mut() = Some(topo.clone());
         self.mosaic.rebuild(&topo);
         self.set_status("Mosaïque — voisins recalculés depuis les positions", false);
     }
 
     fn collect_topology_from_rows(&self) -> PoolTopology {
-        let existing = self.state.topology();
+        // The editor's saved geometry includes offline devices and monitor
+        // offsets. The agent's runtime graph may exclude them or be empty.
+        let existing = self.loaded_topology.borrow();
         let mut nodes = HashMap::new();
         for row in self.rows.borrow().iter() {
-            let mut neighbors = HashMap::new();
-            for (dir, combo) in &row.neighbors {
-                if let Some(id) = combo.active_id() {
-                    let id = id.to_string();
-                    if !id.is_empty() {
-                        neighbors.insert(dir.clone(), id);
-                    }
-                }
-            }
             let prev = existing.as_ref().and_then(|t| t.nodes.get(&row.id));
             nodes.insert(
                 row.id.clone(),
@@ -232,7 +229,7 @@ impl ConfigWindow {
                     width: row.width.value_as_int() as u32,
                     height: row.height.value_as_int() as u32,
                     kvm_enabled: row.kvm.is_active(),
-                    neighbors,
+                    neighbors: prev.map(|n| n.neighbors.clone()).unwrap_or_default(),
                     monitor_x: prev.map(|n| n.monitor_x).unwrap_or(0),
                     monitor_y: prev.map(|n| n.monitor_y).unwrap_or(0),
                     desktop_x: prev.map(|n| n.desktop_x).unwrap_or(0),
@@ -254,8 +251,10 @@ impl ConfigWindow {
     }
 
     /// Construit le cadre d'un nœud et renvoie les widgets pour lecture au save.
-    fn build_node_frame(&self, id: &str, node: &TopologyNode, all_ids: &[String]) -> NodeRow {
-        let frame = Frame::new(Some(id));
+    fn build_node_frame(&self, id: &str, node: &TopologyNode) -> NodeRow {
+        // Keep the map and every device visible; expand only the settings
+        // currently needed instead of stacking every machine's form.
+        let frame = Expander::new(Some(id));
         let grid = Grid::new();
         grid.set_row_spacing(6);
         grid.set_column_spacing(10);
@@ -271,9 +270,9 @@ impl ConfigWindow {
         let screen_label = Label::new(Some("Écran"));
         screen_label.set_halign(Align::Start);
         grid.attach(&screen_label, 0, 1, 1, 1);
-        let width = SpinButton::with_range(320.0, 16000.0, 1.0);
+        let width = SpinButton::with_range(1.0, 32768.0, 1.0);
         width.set_value(node.width as f64);
-        let height = SpinButton::with_range(240.0, 16000.0, 1.0);
+        let height = SpinButton::with_range(1.0, 32768.0, 1.0);
         height.set_value(node.height as f64);
         grid.attach(&width, 1, 1, 1, 1);
         grid.attach(&Label::new(Some("×")), 2, 1, 1, 1);
@@ -285,17 +284,14 @@ impl ConfigWindow {
             dir_label.set_halign(Align::Start);
             grid.attach(&dir_label, 0, 2 + i as i32, 1, 1);
 
-            let combo = ComboBoxText::new();
-            combo.append(Some(""), "—");
-            for other in all_ids {
-                if other != id {
-                    combo.append(Some(other), other);
-                }
-            }
             let current = node.neighbors.get(*dir).map(String::as_str).unwrap_or("");
-            combo.set_active_id(Some(current));
-            grid.attach(&combo, 1, 2 + i as i32, 3, 1);
-            neighbors.push((dir.to_string(), combo));
+            let label = Label::new(Some(if current.is_empty() { "—" } else { current }));
+            label.set_halign(Align::Start);
+            label.set_tooltip_text(Some(
+                "Voisin calculé depuis la position des écrans dans la mosaïque.",
+            ));
+            grid.attach(&label, 1, 2 + i as i32, 3, 1);
+            neighbors.push((dir.to_string(), label));
         }
 
         frame.add(&grid);

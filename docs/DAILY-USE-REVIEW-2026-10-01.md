@@ -1,0 +1,158 @@
+# Daily-use robustness review — 2026-10-01
+
+## Scope and decision
+
+This candidate starts at the deployed v2.0.3 baseline (`2713acb`). It does not
+merge the separate, unfinished discovery/enrollment/mTLS worktree. It includes
+the RDP clipboard fix already qualified on real desktop screenshots.
+
+The product is viable for the existing X11 desktop pool, but **is not fully
+serverless**: clipboard data can travel directly between peers; KVM sessions,
+master coordination and topology still use the hub. Stopping a hub must return
+input locally, rather than promise KVM availability that the implementation
+cannot provide.
+
+## What works and what changed
+
+| Area | Existing capability | Improvement in this candidate |
+|---|---|---|
+| Clipboard | Direct peer mesh, encrypted payloads, local history, image handling | Native RDP clients no longer turn old clipboard callbacks into new pool copies; incoming history remains available during native RDP ownership |
+| Temporary absence | A session-only pause and a separate clipboard toggle | Persistent local absence from the systray or CLI; no automatic sharing, new history retention or relay while absent; positions and credentials stay intact |
+| Rejoining | Devices reconnect | A private copy made while absent becomes a baseline, rather than being replayed as a new copy on return |
+| Master | Local input and a master hotkey | Physical activity also claims master when a locally focused device still names itself as input owner after another device's claim |
+| Departure | Hub removes normally closed sessions | Error/abrupt session termination also unregisters the device, releases master and removes unavailable KVM routes |
+| Reconnection | Agent retries the hub | Old blocking KVM loops exit when their session channel closes; clipboard-only sessions no longer create permanently parked threads; all session exits return focus/input locally |
+| Hotplug | Agents announce live RandR geometry and monitor lists | Screen-size changes and new devices recalculate edges; simultaneous joins cannot overwrite another device's saved geometry |
+| Mixed resolutions | Coordinate mapping and per-screen dimensions | Deterministic route selection for ambiguous edges; negative coordinates and correct bounding-box scaling in native and web mosaics |
+| Web editing | Dragging, keyboard movement, undo/redo | Pointer capture avoids double drag offsets; undo restores the pre-drag position; selected-device settings and explicit unsaved state; read-only computed neighbors replace controls discarded on save |
+| Native editing | Map plus every machine's full form | Collapsible device settings, computed neighbors, and saved monitor offsets retained independently of the agent's runtime graph |
+| Live interface | Status polling | Geometry updates while not editing; stale-status feedback; hidden browser pages stop polling and refresh on return |
+| New installation TLS | Locally generated CA and server certificates | Explicit CA/leaf BasicConstraints and KeyUsage pass strict X.509 server/hostname checks; existing pool keys/certificates are retained |
+| Idle overhead | Active polling | Paused/disconnected KVM and inactive/RDP clipboard polling use slower cadences; active input cadence is retained |
+
+## Taking a laptop away
+
+On that laptop, right-click the PoolSync tray icon and enable
+**Machine temporairement à l’écart du pool**. Disable it when returning.
+Unlike the existing short pause, absence survives process/session restarts and
+stops retaining new office copies. Existing history is preserved. This is a
+local operational state, not identity revocation.
+
+An agent/human operator can perform the same action without any new password:
+
+```sh
+poolsync-agent --config "$HOME/.config/poolsync/agent.toml" --away true
+poolsync-agent --config "$HOME/.config/poolsync/agent.toml" --away false
+```
+
+The installed agent observes changes within roughly one second, followed by its
+normal state announcement. The sibling `agent.away` marker contains only `away`.
+No tokens, keys, pool membership or machine positions are rewritten.
+
+## Qualification
+
+Code, automated tests, installed runtime and human acceptance are separate.
+
+- Rust workspace: 110 tests pass; release build, formatting and Clippy with
+  warnings denied pass.
+- Web: three geometry tests and production build pass. A real browser checks
+  mixed resolutions, negative positions, keyboard movement, drag undo,
+  undo/redo, save, a narrow viewport and absence of JavaScript runtime errors.
+- Hub protocol: a disposable real hub checks alternating master claims,
+  clipboard-only exclusion, geometry/monitor announcements, pause, abrupt
+  disconnect and position-preserving rejoin. The abrupt-disconnect test exposed
+  the error-path cleanup bug; the corrected candidate passes it.
+- Dedicated desktop containers: 12 checks pass, including native X11 clipboard,
+  alternating input takeover, persistent absence across a restart, private-copy
+  suppression on return, real RandR resolution/monitor add/remove events and
+  direct clipboard with the disposable hub stopped. Input is generated with
+  X11 tools, not a human-operated physical mouse.
+- Native GTK editor: visual inspection and drag/save against an isolated mock
+  API pass; negative geometry, clipboard-only entries and nonzero monitor/desktop
+  offsets survive the save. All device settings are collapsed initially.
+- Reconnection endurance sample: three abrupt hub terminations/restarts with
+  both full and clipboard-only native agents retain 13 threads per process in
+  all four samples. Original test hub and desktop agents are restored afterward.
+- Idle sample: an absent virtual-desktop agent used 0.2% of one CPU core over
+  five seconds and 34.9 MiB RSS. This is a short sample, not a power measurement
+  or a full-day endurance qualification.
+- Existing RDP fix: two different real Flameshot captures survive delayed native
+  RDP callbacks, and both reach all four active histories. A repeat run uses
+  unique output paths so Flameshot does not leave an older reference file in place.
+
+Reproduce unit/build checks with `cargo test --workspace`,
+`cargo clippy --workspace --all-targets -- -D warnings`, and `npm ci && npm test &&
+npm run build` in `web` (Node 20+).
+
+Run `deploy/tests/daily-use-hub-test.py` against a **disposable** hub, setting
+`POOLSYNC_TEST_TOKEN`; it creates test devices and exercises their departure.
+For browser tests, serve the built web bundle and run `web/tests/ui-smoke.cjs`
+with Playwright installed. `POOLSYNC_TEST_URL`, `POOLSYNC_CHROME`,
+`POOLSYNC_PLAYWRIGHT_MODULE` and `POOLSYNC_UI_ARTIFACTS` select the local tools and
+output directory. Its API fixtures do not access a production pool.
+
+## Installed runtime qualification
+
+Installed on the current desktop, Asus, Acer and P3 with binary/config backups;
+the hub and web bundle on P3 are updated with a rollback backup. P2's agent was
+not active and is not started by this change. Node tokens, clipboard E2E key,
+peer credentials, TLS material, systemd configuration and saved desk positions
+are preserved. Real fresh full/region screenshots are stable after 0.2, 3 and
+7 seconds and reach the four active desktop histories.
+
+- Agent binary SHA-256: `6f7663458a9b150af9ead0805c5359b4ca8c6c65ae89087daf0942a4a372e63c`.
+- Hub binary SHA-256: `43c34c71f11a82e1753bdebbd1e543b1bcc920f276543170b0d0b0a3ac59fae8`.
+- Installed servers/current desktop are clipboard-only; the physical Asus/Acer
+  agents remain full mode. Native RDP clipboard ownership is respected.
+
+The existing CA lacks KeyUsage and is rejected by strict X.509 clients. The
+first deployment verification rolled back safely; the final check retains
+chain/hostname validation using the existing clients' compatibility policy.
+New PKI generation now passes strict validation. Renewing and distributing the
+installed CA/certificates is a separate migration, not performed here.
+
+Physical-device and full-day acceptance are still outstanding.
+
+## Remaining product limits and next gates
+
+1. **Complete serverless control first.** Direct authenticated KVM transport,
+   peer presence/expiry, bounded master claims and shared topology must work
+   without the hub. Next gate: stop the hub, use either desktop's physical
+   keyboard/mouse, cross an edge, remove the current master, then reboot peers in
+   a different order. Clipboard survival alone does not satisfy this gate.
+2. **Multi-monitor routing is still primary-monitor routing.** Extra monitors
+   are announced and stay locally usable; they are not independently draggable
+   pool surfaces. Add per-monitor edge segments before claiming arbitrary
+   monitor-wall support. One target per direction cannot represent all layouts;
+   this candidate chooses one deterministically. After a primary resolution
+   change, a saved physical layout may need realignment; stale edges are removed
+   instead of silently moving other machines.
+3. **Qualify physical devices and mixed scaling.** Virtual RandR changes and
+   numeric mapping do not prove HDMI docks, fractional DPI, suspend/resume,
+   physical input takeover or days of usage. Include local plus remote RDP,
+   LAN/VPN transitions, unexpected unplugging and native Wayland portal capture.
+4. **Simplify setup for public users.** Show connection and RDP ownership clearly;
+   move advanced credentials behind setup; keep identity enrollment distinct from
+   temporary absence. Adding/removing a revoked member needs the separate
+   security migration, not a temporary pause.
+
+## Flutter/Dart and mobile
+
+Recommendation: retain the Rust daemon/protocol and consider a **Flutter UI
+written in Dart**. Flutter supports desktop platforms and native platform
+integration; UI replacement does not by itself supply low-level clipboard,
+input capture or serverless control. Keep the daemon running independently of
+an open window and use a small local IPC/platform interface.
+[Flutter desktop](https://docs.flutter.dev/platform-integration/desktop),
+[platform channels](https://docs.flutter.dev/platform-integration/platform-channels).
+
+A mobile clipboard-only companion is realistic. Start with explicit actions:
+**share clipboard**, **receive/copy**, history and system share-sheet integration.
+On Android 10+, ordinary background apps cannot read clipboard contents without
+being the focused app or default IME. iOS provides intentional paste controls
+and restricts programmatic cross-app reads. Avoid promising continuous silent
+mobile clipboard synchronization.
+[Android clipboard access](https://developer.android.com/about/versions/10/privacy/changes#clipboard-data),
+[Apple UIPasteControl](https://developer.apple.com/documentation/uikit/uipastecontrol).
+
+No Flutter rewrite or mobile application is implemented by this candidate.

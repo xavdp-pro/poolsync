@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, v1.2, clipboard-total-order]
+    branches: [main, v1.2, clipboard-total-order, "codex/**"]
   pull_request:
 
 env:
@@ -61,4 +61,5 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build

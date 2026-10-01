@@ -195,6 +195,7 @@ export default function Dashboard({ token, onTokenChange }) {
   const [lastRefresh, setLastRefresh] = useState(null)
 
   const refresh = useCallback(async () => {
+    if (document.hidden) return
     try {
       const json = await fetchStatus(token)
       setData(json)
@@ -210,7 +211,8 @@ export default function Dashboard({ token, onTokenChange }) {
   useEffect(() => {
     refresh()
     const id = setInterval(refresh, 3000)
-    return () => clearInterval(id)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', refresh) }
   }, [refresh])
 
   const nodes = [...(data?.nodes || [])].sort((a, b) => a.name.localeCompare(b.name))

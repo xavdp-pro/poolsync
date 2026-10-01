@@ -83,7 +83,7 @@ pub struct AgentConfig {
     pub clipboard_poll_ms: u64,
     #[serde(default = "default_input_poll_ms")]
     pub input_poll_ms: u64,
-    /// Avec RDP actif : court délai après collage hub (cohabitation cliprdr RDP).
+    /// Let native RDP own the client clipboard while its session is active.
     #[serde(default = "default_true")]
     pub pause_clipboard_when_rdp: bool,
     /// Display X11 (ex. ":10" pour session xrdp). Vide = auto via poolsync-agent-launch.sh

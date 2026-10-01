@@ -20,3 +20,7 @@ poolsync-secrets/
 # Web dashboard
 web/node_modules/
 web/dist/
+
+web/.preview/
+
+__pycache__/

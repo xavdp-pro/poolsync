@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import {
   LayoutGrid,
   Link2,
@@ -28,7 +27,6 @@ import {
   isParked,
   nodeRect,
   scaleLayout,
-  snapPosition,
   snapToNeighbors,
   SNAP_GRID_PX,
 } from '../topologyLayout'
@@ -41,6 +39,8 @@ export default function Config({ token, onTokenChange }) {
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [dragId, setDragId] = useState(null)
+  const [dirty, setDirty] = useState(false)
+  const [statusError, setStatusError] = useState(null)
   // État vivant des nœuds (en ligne, synchro, pause, maître, dernière copie).
   // Rafraîchi en continu : la mosaïque doit refléter le pool tel qu'il est,
   // pas seulement la géométrie enregistrée.
@@ -49,12 +49,15 @@ export default function Config({ token, onTokenChange }) {
   const [selected, setSelected] = useState(null)
   const [myNode, setMyNode] = useState(() => localStorage.getItem('poolsync_my_node') || '')
   const dragStart = useRef({})
-  const canvasRef = useRef(null)
+  const editing = useRef(false)
+  editing.current = dirty || !!dragId
 
   const load = useCallback(async () => {
     try {
       const json = await fetchTopology(token)
       setTopology(json)
+      setSelected((id) => json.nodes[id] ? id : Object.keys(json.nodes).sort()[0])
+      setPast([]); setFuture([]); setDirty(false)
       setError(null)
     } catch (err) {
       setError(err.message || 'Erreur chargement')
@@ -68,28 +71,38 @@ export default function Config({ token, onTokenChange }) {
   useEffect(() => {
     let alive = true
     const refresh = async () => {
+      if (document.hidden) return
       try {
         const json = await fetchStatus(token)
         if (!alive) return
         const byNode = {}
         for (const n of json.nodes || []) byNode[n.name] = n
         setStatusByNode(byNode)
+        setStatusError(null)
+        if (!editing.current) {
+          const latest = await fetchTopology(token)
+          if (alive && !editing.current) setTopology((previous) =>
+            JSON.stringify(previous) === JSON.stringify(latest) ? previous : latest)
+        }
       } catch {
+        if (alive) setStatusError('État du pool indisponible — dernières informations conservées')
         // Le hub peut être momentanément injoignable : on garde le dernier
         // état connu plutôt que de faire clignoter toute la mosaïque.
       }
     }
+    document.addEventListener('visibilitychange', refresh)
     refresh()
     const timer = setInterval(refresh, 3000)
     return () => {
       alive = false
       clearInterval(timer)
+      document.removeEventListener('visibilitychange', refresh)
     }
   }, [token])
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
+      if (e.target.closest('input, select, textarea, button, [contenteditable=true]')) return
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault()
@@ -113,11 +126,12 @@ export default function Config({ token, onTokenChange }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const layout = useMemo(() => scaleLayout(topology?.nodes), [topology])
+  const computedLayout = useMemo(() => scaleLayout(topology?.nodes), [topology])
+  const layout = dragId ? dragStart.current[dragId]?.layout || computedLayout : computedLayout
 
   const lines = useMemo(
-    () => connectionLines(topology?.nodes, layout.scale),
-    [topology, layout.scale],
+    () => connectionLines(topology?.nodes, layout.scale, layout),
+    [topology, layout],
   )
 
   const allIds = useMemo(
@@ -142,6 +156,7 @@ export default function Config({ token, onTokenChange }) {
   const applyTopology = (nodes) => {
     setTopology((prev) => ({ ...prev, nodes }))
     setSaved(false)
+    setDirty(true)
   }
 
   // Annuler / refaire : un glisser raté se corrigeait à l'œil, en re-glissant.
@@ -158,6 +173,7 @@ export default function Config({ token, onTokenChange }) {
       setFuture((f) => [topology.nodes, ...f])
       setTopology((t) => ({ ...t, nodes: previous }))
       setSaved(false)
+      setDirty(true)
       return p.slice(0, -1)
     })
   }
@@ -168,26 +184,22 @@ export default function Config({ token, onTokenChange }) {
       setPast((p) => [...p, topology.nodes])
       setTopology((t) => ({ ...t, nodes: next }))
       setSaved(false)
+      setDirty(true)
       return rest
     })
   }
 
   const updateNode = (id, patch) => {
-    applyTopology({
+    pushHistory()
+    const nodes = {
       ...topology.nodes,
       [id]: { ...topology.nodes[id], ...patch },
-    })
-  }
-
-  const setNeighbor = (id, dir, value) => {
-    const node = topology.nodes[id]
-    const neighbors = { ...node.neighbors }
-    if (value) neighbors[dir] = value
-    else delete neighbors[dir]
-    updateNode(id, { neighbors })
+    }
+    applyTopology(inferNeighbors({ nodes }).nodes)
   }
 
   const recalcNeighbors = () => {
+    pushHistory()
     const next = inferNeighbors(topology)
     applyTopology(next.nodes)
   }
@@ -201,7 +213,7 @@ export default function Config({ token, onTokenChange }) {
       start.x + info.offset.x / layout.scale,
       start.y + info.offset.y / layout.scale,
     )
-    return { x: Math.max(0, sx), y: Math.max(0, sy) }
+    return { x: sx, y: sy }
   }
 
   // Pendant le glisser, on recalcule les voisins en direct : les liaisons
@@ -221,7 +233,6 @@ export default function Config({ token, onTokenChange }) {
       ...topology.nodes,
       [id]: { ...topology.nodes[id], ...draggedPosition(id, info) },
     }
-    pushHistory()
     applyTopology(inferNeighbors({ nodes: patched }).nodes)
   }
 
@@ -231,7 +242,7 @@ export default function Config({ token, onTokenChange }) {
     const n = topology.nodes[id]
     const patched = {
       ...topology.nodes,
-      [id]: { ...n, x: Math.max(0, n.x + dx * step), y: Math.max(0, n.y + dy * step) },
+      [id]: { ...n, x: n.x + dx * step, y: n.y + dy * step },
     }
     pushHistory()
     applyTopology(inferNeighbors({ nodes: patched }).nodes)
@@ -243,11 +254,16 @@ export default function Config({ token, onTokenChange }) {
       return
     }
     onTokenChange(token.trim())
+    if (Object.values(topology.nodes).some((n) => !Number.isInteger(n.width) || !Number.isInteger(n.height) || n.width < 1 || n.height < 1 || n.width > 32768 || n.height > 32768)) {
+      setError('Chaque écran doit avoir une résolution entre 1 et 32768 pixels')
+      return
+    }
     const toSave = inferNeighbors(topology)
     try {
       await saveTopology(toSave, token.trim())
       setTopology(toSave)
       setSaved(true)
+      setDirty(false)
       setError(null)
     } catch (err) {
       setError(err.message || 'Échec enregistrement')
@@ -285,7 +301,7 @@ export default function Config({ token, onTokenChange }) {
         <button
           type="button"
           onClick={undo}
-          disabled={!past.length}
+          disabled={!past.length || !!dragId}
           title="Annuler le dernier déplacement (Ctrl+Z)"
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -295,7 +311,7 @@ export default function Config({ token, onTokenChange }) {
         <button
           type="button"
           onClick={redo}
-          disabled={!future.length}
+          disabled={!future.length || !!dragId}
           title="Refaire (Ctrl+Maj+Z)"
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -350,15 +366,19 @@ export default function Config({ token, onTokenChange }) {
         <button
           type="button"
           onClick={handleSave}
+          disabled={!dirty || !!dragId}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
         >
           <Save size={16} />
           Enregistrer
         </button>
+        {dirty && <span role="status" className="text-sm text-amber-700">Modifications non enregistrées</span>}
         {saved && <span className="text-sm text-emerald-600">Topologie envoyée aux agents</span>}
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
 
+      {statusError && <p role="alert" className="mb-3 text-sm text-amber-700">{statusError}</p>}
+      <p className="mb-4 text-sm text-slate-600">Pour emporter un ordinateur : clic droit sur son icône PoolSync → « Machine temporairement à l’écart du pool ». Décochez au retour ; sa position est conservée. Le maître suit le clavier ou la souris que vous utilisez.</p>
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -370,7 +390,6 @@ export default function Config({ token, onTokenChange }) {
           </span>
         </div>
         <div
-          ref={canvasRef}
           className="relative overflow-auto rounded-lg border border-dashed border-slate-300 bg-[repeating-linear-gradient(0deg,transparent,transparent_19px,#e2e8f0_19px,#e2e8f0_20px),repeating-linear-gradient(90deg,transparent,transparent_19px,#e2e8f0_19px,#e2e8f0_20px)] bg-slate-50"
           style={{ minHeight: layout.height + 20 }}
         >
@@ -398,25 +417,40 @@ export default function Config({ token, onTokenChange }) {
 
             {nodeIds.map((id) => {
               const n = topology.nodes[id]
-              const rect = nodeRect(n, layout.scale)
+              const rect = nodeRect(n, layout.scale, layout)
               const active = dragId === id
               const status = statusByNode[id]
               const offline = !status || !status.online
               const deaf = status?.online && !status.clipboard_sync
               return (
-                <motion.div
+                <div
                   key={id}
-                  drag
-                  dragMomentum={false}
-                  dragElastic={0}
-                  onDragStart={() => {
-                    setDragId(id)
-                    setSelected(id)
-                    dragStart.current[id] = { x: n.x, y: n.y }
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Déplacer ${nodeLabel(id)}`}
+                  aria-pressed={selected === id}
+                  onFocus={() => setSelected(id)}
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return
+                    event.preventDefault()
+                    event.currentTarget.focus()
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    pushHistory()
+                    setDragId(id); setSelected(id)
+                    dragStart.current[id] = { x: n.x, y: n.y, clientX: event.clientX, clientY: event.clientY, layout }
                   }}
-                  onDrag={(e, info) => onDrag(id, e, info)}
-                  onDragEnd={(e, info) => onDragEnd(id, e, info)}
-                  onPointerDown={() => setSelected(id)}
+                  onPointerMove={(event) => {
+                    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+                    const start = dragStart.current[id]
+                    onDrag(id, event, { offset: { x: event.clientX - start.clientX, y: event.clientY - start.clientY } })
+                  }}
+                  onPointerUp={(event) => {
+                    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                    const start = dragStart.current[id]
+                    onDragEnd(id, event, { offset: { x: event.clientX - start.clientX, y: event.clientY - start.clientY } })
+                  }}
+                  onPointerCancel={() => setDragId(null)}
                   className={`absolute flex cursor-grab flex-col items-center justify-center overflow-hidden rounded-md border-2 text-center shadow-lg active:cursor-grabbing ${
                     offline
                       ? 'border-slate-300 border-dashed bg-slate-100/70 text-slate-400'
@@ -429,6 +463,7 @@ export default function Config({ token, onTokenChange }) {
                     myNode === id ? 'outline outline-2 outline-offset-2 outline-emerald-500' : ''
                   }`}
                   style={{
+                    touchAction: 'none',
                     left: rect.left,
                     top: rect.top,
                     width: Math.max(rect.width, 72),
@@ -455,7 +490,7 @@ export default function Config({ token, onTokenChange }) {
                       clip only
                     </span>
                   )}
-                </motion.div>
+                </div>
               )
             })}
           </div>
@@ -510,7 +545,7 @@ export default function Config({ token, onTokenChange }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {nodeIds.map((id) => {
+        {nodeIds.filter((id) => id === selected).map((id) => {
           const n = topology.nodes[id]
           return (
             <div key={id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -530,6 +565,8 @@ export default function Config({ token, onTokenChange }) {
                   Largeur
                   <input
                     type="number"
+                    min={1}
+                    max={32768}
                     value={n.width}
                     onChange={(e) => updateNode(id, { width: Number(e.target.value) })}
                     className="rounded border border-slate-200 px-2 py-1"
@@ -539,33 +576,16 @@ export default function Config({ token, onTokenChange }) {
                   Hauteur
                   <input
                     type="number"
+                    min={1}
+                    max={32768}
                     value={n.height}
                     onChange={(e) => updateNode(id, { height: Number(e.target.value) })}
                     className="rounded border border-slate-200 px-2 py-1"
                   />
                 </label>
               </div>
-              <div className="space-y-2">
-                {DIRS.map((dir) => (
-                  <div key={dir} className="flex items-center gap-2 text-sm">
-                    <span className="w-6 text-center font-mono text-slate-400">{DIR_LABEL[dir]}</span>
-                    <select
-                      value={n.neighbors?.[dir] || ''}
-                      onChange={(e) => setNeighbor(id, dir, e.target.value || null)}
-                      className="flex-1 rounded border border-slate-200 px-2 py-1"
-                    >
-                      <option value="">—</option>
-                      {nodeIds
-                        .filter((other) => other !== id)
-                        .map((other) => (
-                          <option key={other} value={other}>
-                            {nodeLabel(other)}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
+              <p className="text-sm text-slate-600">Voisins calculés : {DIRS.map((dir) => `${DIR_LABEL[dir]} ${n.neighbors?.[dir] || '—'}`).join(' · ')}</p>
+              <p className="mt-2 text-xs text-slate-500">Choisissez une vignette pour régler cette machine. Les coordonnées sont en pixels, même si les écrans ont des résolutions différentes. Les moniteurs supplémentaires restent accessibles localement ; le passage entre machines utilise le moniteur principal.</p>
             </div>
           )
         })}

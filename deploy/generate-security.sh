@@ -22,7 +22,9 @@ CA_CERT="$OUT_DIR/ca.crt"
 
 openssl genpkey -algorithm ED25519 -out "$CA_KEY"
 openssl req -x509 -new -key "$CA_KEY" -out "$CA_CERT" -days 3650 \
-  -subj "/CN=PoolSync local CA"
+  -subj "/CN=PoolSync local CA" \
+  -addext "basicConstraints=critical,CA:TRUE" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign"
 
 openssl genpkey -algorithm ED25519 -out "$OUT_DIR/hub.key"
 SAN="DNS:${HUB_NAME},DNS:localhost,IP:127.0.0.1"
@@ -31,7 +33,7 @@ if [[ "$HUB_NAME" =~ ^[0-9a-fA-F:.]+$ ]]; then
 fi
 openssl req -new -key "$OUT_DIR/hub.key" -out "$OUT_DIR/hub.csr" \
   -subj "/CN=${HUB_NAME}" -addext "subjectAltName=${SAN}"
-printf 'subjectAltName=%s\nextendedKeyUsage=serverAuth\n' "$SAN" > "$OUT_DIR/hub.ext"
+printf 'subjectAltName=%s\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n' "$SAN" > "$OUT_DIR/hub.ext"
 openssl x509 -req -in "$OUT_DIR/hub.csr" -CA "$CA_CERT" -CAkey "$CA_KEY" \
   -CAcreateserial -out "$OUT_DIR/hub.crt" -days 825 -extfile "$OUT_DIR/hub.ext"
 rm -f "$OUT_DIR/hub.csr" "$OUT_DIR/hub.ext" "$OUT_DIR/ca.srl"
@@ -91,7 +93,7 @@ PY
   openssl genpkey -algorithm ED25519 -out "$OUT_DIR/nodes/$node.key"
   openssl req -new -key "$OUT_DIR/nodes/$node.key" -out "$OUT_DIR/nodes/$node.csr" \
     -subj "/CN=${node}" -addext "subjectAltName=${NODE_SAN}"
-  printf 'subjectAltName=%s\nextendedKeyUsage=serverAuth\n' "$NODE_SAN" > "$OUT_DIR/nodes/$node.ext"
+  printf 'subjectAltName=%s\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n' "$NODE_SAN" > "$OUT_DIR/nodes/$node.ext"
   openssl x509 -req -in "$OUT_DIR/nodes/$node.csr" -CA "$CA_CERT" -CAkey "$CA_KEY" \
     -CAcreateserial -out "$OUT_DIR/nodes/$node.crt" -days 825 \
     -extfile "$OUT_DIR/nodes/$node.ext"

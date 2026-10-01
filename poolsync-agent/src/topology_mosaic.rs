@@ -18,6 +18,7 @@ pub struct TopologyMosaic {
     root: gtk::Box,
     canvas: Fixed,
     scale: RefCell<f64>,
+    origin: RefCell<(i32, i32)>,
     canvas_pos: RefCell<HashMap<String, (i32, i32)>>,
     on_layout: Rc<dyn Fn(PoolTopology)>,
     /// Écran en cours de déplacement, pour le mettre en évidence au dessin.
@@ -52,6 +53,7 @@ impl TopologyMosaic {
             root,
             canvas,
             scale: RefCell::new(0.2),
+            origin: RefCell::new((0, 0)),
             canvas_pos: RefCell::new(HashMap::new()),
             on_layout,
             dragging: Rc::new(RefCell::new(None)),
@@ -91,6 +93,11 @@ impl TopologyMosaic {
             return;
         }
 
+        let origin = (
+            topo.nodes.values().map(|n| n.x).min().unwrap_or(0),
+            topo.nodes.values().map(|n| n.y).min().unwrap_or(0),
+        );
+        *self.origin.borrow_mut() = origin;
         let scale = layout_scale(&topo.nodes, MAX_CANVAS_W, MAX_CANVAS_H);
         *self.scale.borrow_mut() = scale;
 
@@ -100,11 +107,16 @@ impl TopologyMosaic {
             max_x = max_x.max(n.x + n.width as i32);
             max_y = max_y.max(n.y + n.height as i32);
         }
-        let cw = (max_x as f64 * scale) as i32 + PAD * 2;
-        let ch = (max_y as f64 * scale) as i32 + PAD * 2;
+        let cw = ((max_x - origin.0) as f64 * scale) as i32 + PAD * 2;
+        let ch = ((max_y - origin.1) as f64 * scale) as i32 + PAD * 2;
         self.canvas.set_size_request(cw.max(320), ch.max(160));
 
-        let lines = connection_lines(topo, scale);
+        let mut rendered = topo.clone();
+        for node in rendered.nodes.values_mut() {
+            node.x -= origin.0;
+            node.y -= origin.1;
+        }
+        let lines = connection_lines(&rendered, scale);
         if !lines.is_empty() {
             let area = DrawingArea::new();
             area.set_size_request(cw, ch);
@@ -136,7 +148,7 @@ impl TopologyMosaic {
 
         for id in ids {
             let node = topo.nodes.get(&id).expect("node");
-            self.add_screen(&id, node, topo.clone());
+            self.add_screen(&id, node, full_topo.clone());
         }
         self.canvas.show_all();
     }
@@ -145,8 +157,9 @@ impl TopologyMosaic {
         let scale = *self.scale.borrow();
         let w = (node.width as f64 * scale).max(64.0) as i32;
         let h = (node.height as f64 * scale).max(40.0) as i32;
-        let px = PAD + (node.x as f64 * scale) as i32;
-        let py = PAD + (node.y as f64 * scale) as i32;
+        let origin = *self.origin.borrow();
+        let px = PAD + ((node.x - origin.0) as f64 * scale) as i32;
+        let py = PAD + ((node.y - origin.1) as f64 * scale) as i32;
 
         self.canvas_pos
             .borrow_mut()
@@ -290,6 +303,7 @@ impl TopologyMosaic {
         let pos2 = positions.clone();
         let on_layout2 = on_layout.clone();
         let scale2 = scale;
+        let origin = *self.origin.borrow();
         let topo2 = topo.clone();
         widget.connect_button_release_event(move |w, event| {
             if event.button() != 1 {
@@ -307,7 +321,7 @@ impl TopologyMosaic {
             let (alloc_x, alloc_y) = pos2.borrow().get(&id2).copied().unwrap_or((0, 0));
             let tx = ((alloc_x - PAD) as f64 / scale2).round() as i32;
             let ty = ((alloc_y - PAD) as f64 / scale2).round() as i32;
-            let (sx, sy) = snap_position(tx.max(0), ty.max(0), DEFAULT_SNAP_GRID_PX);
+            let (sx, sy) = snap_position(tx + origin.0, ty + origin.1, DEFAULT_SNAP_GRID_PX);
 
             let mut nodes = topo2.nodes.clone();
             if let Some(n) = nodes.get_mut(&id2) {

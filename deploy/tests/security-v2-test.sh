@@ -43,8 +43,10 @@ assert data["peer_tokens"]["desk-b"]
 PY
 [[ "$(stat -c %a "$TMP_DIR/security/hub.key")" == 600 ]]
 [[ "$(stat -c %a "$TMP_DIR/security/node-tokens.json")" == 600 ]]
-openssl verify -CAfile "$TMP_DIR/security/ca.crt" "$TMP_DIR/security/hub.crt" >/dev/null
-openssl verify -CAfile "$TMP_DIR/security/ca.crt" "$TMP_DIR/security/nodes/desk-a.crt" >/dev/null
+openssl verify -x509_strict -purpose sslserver -verify_ip 127.0.0.1 \
+  -CAfile "$TMP_DIR/security/ca.crt" "$TMP_DIR/security/hub.crt" >/dev/null
+openssl verify -x509_strict -purpose sslserver -verify_hostname desk-a \
+  -CAfile "$TMP_DIR/security/ca.crt" "$TMP_DIR/security/nodes/desk-a.crt" >/dev/null
 
 # Les URL pair-à-pair sont souvent des IP. Le certificat du nœud cible doit
 # être reproductible avec ces IP dans ses SAN, sinon WSS échoue au hostname.

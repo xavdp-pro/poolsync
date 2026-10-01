@@ -159,7 +159,7 @@ fn on_toggle(state: &AgentState) {
 
 fn on_master_claim(state: &AgentState) {
     let node = state.config.node.clone();
-    if !state.kvm_enabled() {
+    if !state.kvm_enabled() || state.pool_away() {
         info!("master claim ignoré ({node}) : KVM inactif");
         glib::MainContext::default().invoke(move || {
             notify_util::notify_master_claim(&node, false);

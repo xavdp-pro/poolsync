@@ -86,6 +86,18 @@ Full detail: **[docs/keyboard-shortcuts.md](docs/keyboard-shortcuts.md)**
 
 macOS: **Ctrl+Option+Shift+P / M / C / L**. Systray: **Devenir maître KVM** is the same as M.
 
+## Daily use
+
+Right-click the tray icon and choose **Machine temporairement à l’écart du pool**
+to take a laptop away; uncheck it on return. This persists across restarts,
+preserves its layout/identity and prevents replay of copies made while away.
+Operators can use `poolsync-agent --config PATH --away true` / `--away false`.
+
+See [daily-use review and qualification](docs/DAILY-USE-REVIEW-2026-10-01.md).
+The clipboard mesh works independently of hub availability; KVM/topology still
+require the hub. Additional monitors are detected, while cross-machine KVM uses
+the primary monitor.
+
 ## Security model
 
 - All HTTP and WebSocket credentials use `Authorization: Bearer`; PoolSync no longer accepts or emits secrets in URL query parameters.

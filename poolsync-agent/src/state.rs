@@ -19,6 +19,8 @@ pub struct AgentState {
     kvm_enabled: Arc<AtomicBool>,
     /// Pause locale (raccourci clavier) — n'affecte que cette machine.
     local_active: Arc<AtomicBool>,
+    pool_away: Arc<AtomicBool>,
+    clipboard_baseline_reset: Arc<AtomicBool>,
     /// Ctrl+Alt+Shift+M : la boucle KVM doit reprendre le master sur ce nœud.
     master_claim_requested: Arc<AtomicBool>,
     master_node: Arc<RwLock<String>>,
@@ -132,6 +134,7 @@ pub fn hub_dashboard_url(hub_ws_url: &str) -> String {
 
 impl AgentState {
     pub fn new(config: AgentConfig, config_path: PathBuf) -> Self {
+        let away = crate::participation::is_away(&config_path);
         let kvm_default = config.kvm_active();
         let local_node = config.node.clone();
         let order_node = local_node.clone();
@@ -148,6 +151,8 @@ impl AgentState {
             notify_master: Arc::new(AtomicBool::new(false)),
             kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
             local_active: Arc::new(AtomicBool::new(true)),
+            pool_away: Arc::new(AtomicBool::new(away)),
+            clipboard_baseline_reset: Arc::new(AtomicBool::new(false)),
             master_claim_requested: Arc::new(AtomicBool::new(false)),
             master_node: Arc::new(RwLock::new(String::from("—"))),
             kvm_focus: Arc::new(RwLock::new(local_node.clone())),
@@ -310,7 +315,9 @@ impl AgentState {
         if self.remote_drive_active() {
             return false;
         }
-        if self.kvm_focus() != local {
+        // A different device's focus does not suppress this device's physical
+        // mouse. Only our own active remote-grab session blocks a local claim.
+        if self.kvm_focus() != local && self.is_input_owner() {
             return false;
         }
         if self.switch_enter_grace_active() {
@@ -402,11 +409,6 @@ impl AgentState {
                 std::time::Duration::from_millis(1200)
             }
         })
-    }
-
-    /// Court délai après un collage hub : laisse cliprdr RDP digérer le clipboard X11.
-    pub fn hub_apply_grace_active(&self) -> bool {
-        self.incoming_poll_suppress_active()
     }
 
     pub fn set_connected(&self, value: bool) {
@@ -504,7 +506,25 @@ impl AgentState {
     }
 
     pub fn local_poolsync_active(&self) -> bool {
-        self.local_active.load(Ordering::SeqCst)
+        self.local_active.load(Ordering::SeqCst) && !self.pool_away()
+    }
+
+    pub fn pool_away(&self) -> bool {
+        self.pool_away.load(Ordering::SeqCst)
+    }
+
+    pub fn set_pool_away(&self, away: bool) -> std::io::Result<()> {
+        crate::participation::set_away(&self.config_path, away)?;
+        if !away && self.pool_away() {
+            self.clipboard_baseline_reset.store(true, Ordering::SeqCst);
+        }
+        self.pool_away.store(away, Ordering::SeqCst);
+        self.set_local_poolsync_active(!away);
+        Ok(())
+    }
+
+    pub fn take_clipboard_baseline_reset(&self) -> bool {
+        self.clipboard_baseline_reset.swap(false, Ordering::SeqCst)
     }
 
     pub fn set_local_poolsync_active(&self, value: bool) {
@@ -549,6 +569,16 @@ impl AgentState {
     }
 
     pub fn set_topology(&self, topology: PoolTopology) {
+        let focus = self.kvm_focus();
+        if focus != self.config.node
+            && !topology
+                .nodes
+                .get(&focus)
+                .is_some_and(|node| node.kvm_enabled)
+        {
+            self.set_kvm_focus(&self.config.node);
+            self.set_kvm_input_node(&self.config.node);
+        }
         if let Ok(mut t) = self.topology.write() {
             *t = Some(topology);
         }
@@ -764,6 +794,16 @@ height = 100
         )
         .unwrap();
         AgentState::new(config, PathBuf::from("/tmp/poolsync-test-agent.toml"))
+    }
+
+    #[test]
+    fn another_devices_focus_does_not_disable_physical_takeover() {
+        let state = test_state();
+        state.set_kvm_focus("other");
+        state.set_kvm_input_node("other");
+        assert!(state.motion_claim_allowed("asus", 400, 300));
+        state.set_kvm_input_node("asus");
+        assert!(!state.motion_claim_allowed("asus", 400, 300));
     }
 
     #[test]

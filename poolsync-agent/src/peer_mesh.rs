@@ -92,6 +92,7 @@ pub fn spawn(state: Arc<AgentState>) -> Option<mpsc::UnboundedSender<String>> {
                     }
                 }
                 Some(incoming) = peer_in_rx.recv() => {
+                    if state.pool_away() { continue; }
                     let Some(id) = clipboard_message_id(&incoming.payload) else {
                         continue;
                     };
@@ -397,6 +398,7 @@ where
             maybe = peer_rx.recv() => {
                 match maybe {
                     Some(payload) => {
+                        if state_read.pool_away() { continue; }
                         let decoded = decode_message(&payload).ok().and_then(|message| {
                             if matches!(message, Message::EncryptedClipboard { .. }) {
                                 state

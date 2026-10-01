@@ -79,6 +79,19 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
 
     menu.append(&gtk::SeparatorMenuItem::new());
 
+    // Local absence survives restarts and preserves layout and credentials.
+    let away_item = gtk::CheckMenuItem::with_label("Machine temporairement à l’écart du pool");
+    away_item.set_active(state.pool_away());
+    away_item.set_tooltip_text(Some("À emporter : aucun partage automatique ni nouvelles copies du pool. Décochez au retour ; vos positions sont conservées."));
+    let state_away = state.clone();
+    away_item.connect_toggled(move |item| {
+        if let Err(error) = state_away.set_pool_away(item.is_active()) {
+            tracing::warn!("cannot persist local absence: {error}");
+            item.set_active(state_away.pool_away());
+        }
+    });
+    menu.append(&away_item);
+
     // ── 2. Bascules & Actions Principales ────────────────────────────────
     let clip_item =
         gtk::CheckMenuItem::with_label(&clip_sync_label(state.clipboard_sync_enabled()));
@@ -119,7 +132,7 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
         ));
         let state_claim = state.clone();
         claim_item.connect_activate(move |_| {
-            if !state_claim.kvm_enabled() {
+            if !state_claim.kvm_enabled() || state_claim.pool_away() {
                 return;
             }
             if !state_claim.local_poolsync_active() {
@@ -325,6 +338,9 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
     let mut last_status_revision = state.tray_status_revision();
 
     glib::timeout_add_local(std::time::Duration::from_millis(2500), move || {
+        if away_item.is_active() != state_tick.pool_away() {
+            away_item.set_active(state_tick.pool_away());
+        }
         let revision = state_tick.tray_history_revision();
         if revision != last_revision {
             last_revision = revision;

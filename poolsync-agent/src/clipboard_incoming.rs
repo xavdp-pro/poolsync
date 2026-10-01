@@ -27,6 +27,10 @@ pub async fn apply_incoming_clipboard(
     origin: &str,
     seq: u64,
 ) -> anyhow::Result<()> {
+    // An absent laptop must not accumulate office clipboard contents.
+    if state.pool_away() {
+        return Ok(());
+    }
     if mime.starts_with("image/") {
         let via = if from_hub { "hub" } else { "peer" };
         info!(
@@ -42,7 +46,12 @@ pub async fn apply_incoming_clipboard(
     // c'est le copier-coller natif de la session qui fait foi. Mais « coupé »
     // ne veut pas dire « sourd » : ce que le pool partage est quand même gardé
     // dans le tampon et l'historique, donc récupérable à la demande.
-    let touch_selection = state.clipboard_sync_enabled() && state.local_poolsync_active();
+    // The native RDP channel owns the client's clipboard during a session.
+    // Keep receiving and relaying pool history without competing for X11 ownership.
+    let rdp_paused =
+        state.config.pause_clipboard_when_rdp && crate::rdp_detect::rdp_client_active().await;
+    let touch_selection =
+        state.clipboard_sync_enabled() && state.local_poolsync_active() && !rdp_paused;
     // Un pair encore sur l'ancien binaire peut diffuser la sortie de ses propres
     // sondes X11 (liste de cibles) comme si c'était une copie. Ne jamais
     // l'appliquer : sinon un nœud corrigé se fait re-polluer par le pool.

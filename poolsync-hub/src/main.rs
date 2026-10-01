@@ -357,13 +357,21 @@ fn load_topology(path: &PathBuf) -> PoolTopology {
     }
 }
 
-async fn save_topology(state: &HubState, topology: PoolTopology) -> Result<()> {
-    let json = serde_json::to_string_pretty(&topology)?;
+fn write_topology_file(state: &HubState, topology: &PoolTopology) -> Result<()> {
+    let json = serde_json::to_string_pretty(topology)?;
     if let Some(parent) = state.topology_file.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&state.topology_file, &json)?;
-    *state.topology.write().await = topology;
+    let pending = state.topology_file.with_extension("pending");
+    std::fs::write(&pending, &json)?;
+    std::fs::rename(pending, &state.topology_file)?;
+    Ok(())
+}
+
+async fn save_topology(state: &HubState, topology: PoolTopology) -> Result<()> {
+    let mut current = state.topology.write().await;
+    write_topology_file(state, &topology)?;
+    *current = topology;
     Ok(())
 }
 
@@ -855,9 +863,9 @@ async fn api_topology_post(
     save_topology(&state, body.clone())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let payload = encode_message(&Message::TopologyUpdate { topology: body })
+    broadcast_runtime_topology(&state)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    broadcast_all(&state, &payload).await;
     info!("topology saved and broadcast");
     Ok(StatusCode::OK)
 }
@@ -889,6 +897,7 @@ async fn run_session(
     let mut node_name: Option<String> = None;
     let mut credential_check = tokio::time::interval(std::time::Duration::from_secs(5));
 
+    let result: Result<()> = async {
     loop {
         tokio::select! {
             maybe_in = socket.recv() => {
@@ -927,11 +936,14 @@ async fn run_session(
         }
     }
 
+        Ok(())
+    }.await;
+
     if let Some(name) = node_name {
         unregister_node(&state, &name).await;
         info!("node disconnected: {name}");
     }
-    Ok(())
+    result
 }
 
 /// Applique géométrie écran / bureau (connexion initiale ou hotplug HDMI).
@@ -944,10 +956,12 @@ async fn apply_hello_geometry(
 ) -> Result<PoolTopology> {
     let topology_update = {
         let mut topo = state.topology.write().await;
-        let mut kvm_changed = false;
+        let mut geometry_changed = true;
         match topo.nodes.get_mut(node) {
             Some(n) => {
-                kvm_changed = n.kvm_enabled != kvm_enabled;
+                geometry_changed = n.kvm_enabled != kvm_enabled
+                    || n.width != screen.width
+                    || n.height != screen.height;
                 if n.width != screen.width || n.height != screen.height {
                     info!(
                         "topology {node}: {}x{} → {}x{}",
@@ -964,7 +978,7 @@ async fn apply_hello_geometry(
                 n.desktop_width = kvm_desktop.desktop_width;
                 n.desktop_height = kvm_desktop.desktop_height;
                 // Pause locale : garder x/y mosaïque. Clip-only à l'init est déjà à y=100000.
-                if !kvm_enabled && n.y < 50_000 && kvm_changed {
+                if !kvm_enabled && n.y < 50_000 && geometry_changed {
                     info!(
                         "topology {node}: KVM off (pause) — bords recalculés, position conservée"
                     );
@@ -1007,18 +1021,16 @@ async fn apply_hello_geometry(
                 );
             }
         }
-        if kvm_changed {
+        if geometry_changed {
             *topo = infer_neighbors(&topo, DEFAULT_EDGE_TOLERANCE_PX);
+        }
+        // Keep mutation and persistence under one lock: concurrent logins must
+        // never replace each other's device with a stale cloned snapshot.
+        if let Err(error) = write_topology_file(state, &topo) {
+            warn!("topology save: {error:#}");
         }
         topo.clone()
     };
-    if let Err(err) = save_topology(state, topology_update.clone()).await {
-        warn!("topology save: {err:#}");
-    }
-    let payload = encode_message(&Message::TopologyUpdate {
-        topology: topology_update.clone(),
-    })?;
-    broadcast_all(state, &payload).await;
     Ok(topology_update)
 }
 
@@ -1067,10 +1079,8 @@ async fn register_node(
                 );
             }
 
-            let payload = encode_message(&Message::TopologyUpdate {
-                topology: topology_update,
-            })?;
-            let _ = sender.send(payload);
+            let _ = topology_update;
+            broadcast_runtime_topology(state).await?;
 
             let owner = {
                 let input_owner = state.input_owner.read().await.clone();
@@ -1095,16 +1105,74 @@ async fn register_node(
     }
 }
 
-async fn unregister_node(state: &HubState, node: &str) {
-    let mut nodes = state.nodes.write().await;
-    nodes.remove(node);
-    let mut master = state.master.write().await;
-    if master.as_deref() == Some(node) {
-        *master = None;
+// Runtime routes exclude unavailable devices while saved desk positions stay intact.
+fn available_topology(saved: &PoolTopology, online: &HashMap<String, NodeInfo>) -> PoolTopology {
+    let mut topology = saved.clone();
+    for (name, node) in &mut topology.nodes {
+        node.kvm_enabled &= online.get(name).is_some_and(|info| {
+            info.kvm_enabled && info.local_active && info.mode == AgentMode::Full
+        });
     }
+    infer_neighbors(&topology, DEFAULT_EDGE_TOLERANCE_PX)
+}
+
+async fn broadcast_runtime_topology(state: &HubState) -> Result<()> {
+    let saved = state.topology.read().await.clone();
+    let runtime = available_topology(&saved, &*state.nodes.read().await);
+    broadcast_all(
+        state,
+        &encode_message(&Message::TopologyUpdate { topology: runtime })?,
+    )
+    .await;
+    Ok(())
+}
+
+async fn release_unavailable_master(state: &HubState) -> Result<()> {
+    let online = state.nodes.read().await;
+    let active = |node: &str| {
+        online.get(node).is_some_and(|info| {
+            info.mode == AgentMode::Full && info.kvm_enabled && info.local_active
+        })
+    };
+    let mut master = state.master.write().await;
     let mut owner = state.input_owner.write().await;
-    if owner.as_deref() == Some(node) {
+    let changed = master.as_deref().is_some_and(|node| !active(node))
+        || owner.as_deref().is_some_and(|node| !active(node));
+    if changed {
+        *master = None;
         *owner = None;
+    }
+    drop(owner);
+    drop(master);
+    drop(online);
+    if changed {
+        broadcast_all(
+            state,
+            &encode_message(&Message::MasterChanged {
+                node: String::new(),
+            })?,
+        )
+        .await;
+    }
+    Ok(())
+}
+
+async fn active_kvm_node(state: &HubState, node: &str) -> bool {
+    state
+        .nodes
+        .read()
+        .await
+        .get(node)
+        .is_some_and(|info| info.mode == AgentMode::Full && info.kvm_enabled && info.local_active)
+}
+
+async fn unregister_node(state: &HubState, node: &str) {
+    state.nodes.write().await.remove(node);
+    if let Err(error) = release_unavailable_master(state).await {
+        warn!("master release after disconnect: {error:#}");
+    }
+    if let Err(error) = broadcast_runtime_topology(state).await {
+        warn!("topology update after disconnect: {error:#}");
     }
 }
 
@@ -1160,6 +1228,9 @@ async fn handle_message(
             broadcast_except(state, from, text).await;
         }
         Message::MasterClaim { node, ts: _ } => {
+            if node != from || !active_kvm_node(state, from).await {
+                return Ok(());
+            }
             let changed = {
                 let mut owner = state.input_owner.write().await;
                 let changed = owner.as_deref() != Some(node.as_str());
@@ -1173,6 +1244,9 @@ async fn handle_message(
             }
         }
         Message::Input { target, kind } => {
+            if !active_kvm_node(state, from).await || !active_kvm_node(state, &target).await {
+                return Ok(());
+            }
             let payload = encode_message(&Message::Input {
                 target: target.clone(),
                 kind,
@@ -1190,6 +1264,12 @@ async fn handle_message(
             } else {
                 input_node
             };
+            if !active_kvm_node(state, from).await
+                || !active_kvm_node(state, &node).await
+                || !active_kvm_node(state, &input).await
+            {
+                return Ok(());
+            }
             let payload = encode_message(&Message::SwitchTo {
                 node: node.clone(),
                 x,
@@ -1241,6 +1321,8 @@ async fn handle_message(
                     info.monitors = monitors;
                 }
             }
+            release_unavailable_master(state).await?;
+            broadcast_runtime_topology(state).await?;
             info!(
                 "screen/layout update from {from}: {}x{}",
                 screen.width, screen.height
@@ -1280,6 +1362,137 @@ async fn route_to_node(state: &HubState, target: &str, payload: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_hub() -> HubState {
+        let file = std::env::temp_dir().join(format!("poolsync-hub-{}.json", uuid::Uuid::new_v4()));
+        HubState {
+            token: "test-only".into(),
+            node_tokens_file: None,
+            require_e2e: false,
+            started_at: now_secs(),
+            topology_file: file,
+            topology: Arc::new(RwLock::new(PoolTopology::default())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            master: Arc::new(RwLock::new(None)),
+            input_owner: Arc::new(RwLock::new(None)),
+            last_clipboard_hash: Arc::new(RwLock::new(None)),
+            last_clipboard_at: Arc::new(RwLock::new(None)),
+            clipboard_history: Arc::new(RwLock::new(VecDeque::new())),
+            clipboard_history_revision: Arc::new(RwLock::new(0)),
+            clipboard_events: broadcast::channel(64).0,
+        }
+    }
+
+    async fn join(state: &HubState, name: &str, width: u32, mode: AgentMode, active: bool) {
+        let (sender, _rx) = broadcast::channel(32);
+        let message = Message::Hello {
+            node: name.into(),
+            mode,
+            screen: ScreenInfo { width, height: 600 },
+            neighbors: vec![],
+            kvm_enabled: mode == AgentMode::Full && active,
+            kvm_desktop: Default::default(),
+            clipboard_sync: true,
+            local_active: active,
+            monitors: vec![],
+        };
+        register_node(state, &encode_message(&message).unwrap(), sender, name)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn simultaneous_logins_cannot_erase_other_device_positions() {
+        let state = test_hub();
+        let barrier = Arc::new(tokio::sync::Barrier::new(8));
+        let mut tasks = Vec::new();
+        for number in 0..8 {
+            let state = state.clone();
+            let barrier = barrier.clone();
+            tasks.push(tokio::spawn(async move {
+                barrier.wait().await;
+                join(
+                    &state,
+                    &format!("desk-{number}"),
+                    800,
+                    AgentMode::Full,
+                    true,
+                )
+                .await;
+            }));
+        }
+        for task in tasks {
+            task.await.unwrap();
+        }
+        assert_eq!(state.topology.read().await.nodes.len(), 8);
+        let persisted: PoolTopology =
+            serde_json::from_slice(&std::fs::read(&state.topology_file).unwrap()).unwrap();
+        assert_eq!(persisted.nodes.len(), 8);
+        let _ = std::fs::remove_file(&state.topology_file);
+    }
+
+    #[tokio::test]
+    async fn departure_removes_routes_and_master_but_preserves_desk_positions() {
+        let state = test_hub();
+        join(&state, "a", 800, AgentMode::Full, true).await;
+        join(&state, "b", 800, AgentMode::Full, true).await;
+        *state.master.write().await = Some("b".into());
+        *state.input_owner.write().await = Some("b".into());
+        let before = state.topology.read().await.clone();
+        unregister_node(&state, "b").await;
+        let runtime = available_topology(&*state.topology.read().await, &*state.nodes.read().await);
+        assert!(!runtime.nodes["b"].kvm_enabled);
+        assert!(runtime.nodes["a"].neighbors.is_empty());
+        assert_eq!(
+            state.topology.read().await.nodes["b"].x,
+            before.nodes["b"].x
+        );
+        assert!(state.master.read().await.is_none());
+        join(&state, "b", 800, AgentMode::Full, true).await;
+        let runtime = available_topology(&*state.topology.read().await, &*state.nodes.read().await);
+        assert_eq!(runtime.nodes["a"].neighbors["right"], "b");
+        let _ = std::fs::remove_file(&state.topology_file);
+    }
+
+    #[tokio::test]
+    async fn resizing_an_active_screen_removes_a_stale_edge() {
+        let state = test_hub();
+        join(&state, "a", 800, AgentMode::Full, true).await;
+        join(&state, "b", 800, AgentMode::Full, true).await;
+        apply_hello_geometry(
+            &state,
+            "a",
+            &ScreenInfo {
+                width: 1200,
+                height: 600,
+            },
+            &Default::default(),
+            true,
+        )
+        .await
+        .unwrap();
+        assert!(state.topology.read().await.nodes["a"].neighbors.is_empty());
+        assert_eq!(state.topology.read().await.nodes["b"].x, 800);
+        let _ = std::fs::remove_file(&state.topology_file);
+    }
+
+    #[tokio::test]
+    async fn clipboard_only_and_paused_nodes_cannot_claim_the_keyboard() {
+        let state = test_hub();
+        join(&state, "clip", 800, AgentMode::ClipboardOnly, true).await;
+        join(&state, "paused", 800, AgentMode::Full, false).await;
+        let (sender, _rx) = broadcast::channel(32);
+        for name in ["clip", "paused"] {
+            let text = encode_message(&Message::MasterClaim {
+                node: name.into(),
+                ts: 0,
+            })
+            .unwrap();
+            handle_message(&state, name, &text, &sender).await.unwrap();
+        }
+        assert!(state.master.read().await.is_none());
+        let _ = std::fs::remove_file(&state.topology_file);
+    }
 
     #[test]
     fn status_auth_rejects_missing_or_invalid_credentials() {
