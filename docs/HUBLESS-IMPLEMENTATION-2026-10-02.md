@@ -23,9 +23,10 @@ The current development candidate is version **2.1.0-dev.3**, SHA-256
 Its 130 Rust tests, workspace Clippy checks and release build pass. This adds
 acknowledged departure, safe release, bounded allocator/idle work, and lossless
 image selection, with a persistent, correlated native X11 selection reader.
-Complete native qualification remains pending. Earlier
+Complete native container qualification passes in attempt 41. Earlier
 candidates have passing subsets and recorded complete-campaign failures; none
-is a substitute for qualifying this final binary.
+is a substitute for the recorded qualification of this final binary. Physical
+deployment and device acceptance remain separate gates.
 
 ## Protocol and recovery
 
@@ -369,8 +370,16 @@ each, with native GTK and Firefox pastes. All 52 checks pass on the current
 binary, with 70 paste observations: median 2.054 seconds, p95 5.019 seconds and
 maximum 5.376 seconds, including deliberate refusal/delay and receiver sampling.
 The original agents, configurations and participation markers are preserved.
-Attempt 41 is the complete cold-start, recovery and endurance campaign on that
-same binary; it is still running. Focused success does not replace that gate.
+Attempt 41 passes the complete cold-start, recovery and endurance campaign on
+that same binary: 86 checks, 1,202.746 seconds and 296 image/text rounds, followed
+by private rejoin and relay/restart scenarios. Its 696 paste observations have
+a median of 1.779 seconds, p95 of 3.073 seconds and maximum of 6.005 seconds,
+including deliberate failures and receiver sampling. The native KVM key
+measurement is 0.224 seconds with synthetic X11 input. Its 60-second idle
+intervals measure 2.34–2.97% of one CPU and 62.6–140.2 MiB unchanged RSS. This is
+a bounded, measured baseline; further idle optimization remains possible.
+Candidate cleanup and configuration restoration pass on all three disposable
+desktops. Full container success does not establish physical-device acceptance.
 
 Attempt 42 records an early native-window lookup failure. Its failure snapshot
 shows the expected window after that lookup. The UI fixture now waits for the
@@ -394,22 +403,13 @@ not installation or physical acceptance.
 
 The goal remains open. Required work not proved by this campaign includes:
 
-1. Native container layout edits, permissions, gossip and persistence pass on
-   their recorded candidates. Repeat relevant regression checks on the final
-   candidate before promotion.
-2. Cold starts in different orders, alternate direct paths, suspended peers,
-   TCP loss and simultaneous claims pass before later clipboard failures.
-   They do not turn those failed complete campaigns into passing campaigns.
-3. Repeatable sustained native-copy campaigns and interval resource measurements
-   on the final binary. Attempt 35 passes its recorded campaign, while attempt 38
-   fails a later lossless-image regression before reaching its planned soak.
-   Native BMP, SAVE_TARGETS and superseded image-read races pass on the recorded
-   candidates; the current native-intent race fix and actual XRDP bridge recovery
-   still require qualification.
-4. Physical keyboard/mouse takeover, docks and real screen changes on Asus and
+1. Actual XRDP bridge and native browser paste on the migrated physical hosts.
+   Native BMP, SAVE_TARGETS and superseded image reads pass in containers; that
+   evidence does not replace the physical sessions.
+2. Physical keyboard/mouse takeover, docks and real screen changes on Asus and
    Acer. Synthetic X11 events cannot establish physical-device acceptance.
-5. Backed-up staged production migration, running executable/version checks
+3. Backed-up staged production migration, running executable/version checks
    and hub-independent native clipboard proof on all five computers.
-6. Dependency audit and reversible retirement of the old hub after validation.
+4. Dependency audit and reversible retirement of the old hub after validation.
 
 No GitHub Actions, CI/CD or Vercel workflow is enabled by this work.
