@@ -19,7 +19,7 @@ The first full native qualification candidate is SHA-256
 Its package version remains 2.0.3; that version alone cannot identify the
 development build. Later source changes must receive their own qualification.
 
-The current development candidate is version **2.1.0-dev.3**, SHA-256
+The full native-reader qualification candidate is version **2.1.0-dev.3**, SHA-256
 `208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4`.
 Its 130 Rust tests, workspace Clippy checks and release build pass. This adds
 acknowledged departure, safe release, bounded allocator/idle work, and lossless
@@ -32,6 +32,15 @@ notification-only correction is deployed with executable SHA-256
 It retains the qualified clipboard/control implementation, passes the same
 130 Rust tests and all-target Clippy, and adds seven real XFCE notification
 checks. Physical device acceptance remains a separate gate.
+
+Manual reverse-crossing acceptance on Asus/Acer subsequently failed. The
+current installed capture correction is SHA-256
+`fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3`,
+with the same package version. XI2 relative device motion prevents software
+pointer warps from becoming forwarded movement. It passes 130 Rust tests,
+Clippy, a native capture regression and 33 hub-unreachable control/recovery
+checks. The previous 770-pixel warp failure is retained. New physical input
+acceptance is pending; see `KVM-MOTION-QUALIFICATION-2026-10-02.md`.
 
 ## Protocol and recovery
 

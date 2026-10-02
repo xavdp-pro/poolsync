@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use tracing::warn;
 use x11rb::connection::Connection;
 use x11rb::protocol::xfixes;
+use x11rb::protocol::xinput;
 use x11rb::protocol::xproto::{
     Bool32, ConfigureWindowAux, ConnectionExt as _, CreateGCAux, CreateWindowAux, Cursor,
     EventMask, GrabMode, GrabStatus, ImageFormat, InputFocus, Pixmap, StackMode, Window,
@@ -38,6 +39,8 @@ pub struct InputGrab {
     last_y: i16,
     active: bool,
     return_keys: std::collections::HashSet<u8>,
+    raw_motion: bool,
+    motion_fraction: (f64, f64),
 }
 
 impl InputGrab {
@@ -83,6 +86,17 @@ impl InputGrab {
         let _ = conn.set_input_focus(InputFocus::POINTER_ROOT, grab_window, CURRENT_TIME);
         conn.warp_pointer(NONE, root, 0, 0, 0, 0, cx, cy)?;
         conn.flush()?;
+        // Pointer warps from recentering, peer entry or an RDP client are not
+        // user motion. XI2 reports the relative device deltas independently of
+        // those root-coordinate changes; core coordinates only locate the
+        // source pointer for confinement/recentering.
+        let raw_motion = match enable_raw_motion(&conn, root) {
+            Ok(enabled) => enabled,
+            Err(err) => {
+                warn!("XI2 grab motion unavailable; core motion fallback: {err:#}");
+                false
+            }
+        };
 
         Ok(Self {
             conn,
@@ -96,6 +110,8 @@ impl InputGrab {
             last_y: cy,
             active: true,
             return_keys,
+            raw_motion,
+            motion_fraction: (0.0, 0.0),
         })
     }
 
@@ -148,9 +164,23 @@ impl InputGrab {
                     let dy = i32::from(e.event_y) - i32::from(self.last_y);
                     self.last_x = e.event_x;
                     self.last_y = e.event_y;
+                    if !self.raw_motion && (dx != 0 || dy != 0) {
+                        out.push(GrabEvent::Motion { dx, dy });
+                    }
+                }
+                Event::XinputRawMotion(e) if self.raw_motion => {
+                    let (dx, dy) = raw_relative_xy(&e);
+                    let x = self.motion_fraction.0 + dx;
+                    let y = self.motion_fraction.1 + dy;
+                    let (dx, dy) = (x.trunc() as i32, y.trunc() as i32);
+                    self.motion_fraction = (x - f64::from(dx), y - f64::from(dy));
                     if dx != 0 || dy != 0 {
                         out.push(GrabEvent::Motion { dx, dy });
                     }
+                }
+                Event::XinputHierarchy(_) | Event::XinputDeviceChanged(_) => {
+                    self.raw_motion = relative_pointer_devices(&self.conn).unwrap_or(false);
+                    self.motion_fraction = (0.0, 0.0);
                 }
                 Event::ButtonPress(e) => {
                     out.push(GrabEvent::Button {
@@ -188,6 +218,66 @@ impl InputGrab {
         }
         Ok(out)
     }
+}
+
+fn enable_raw_motion(conn: &x11rb::rust_connection::RustConnection, root: Window) -> Result<bool> {
+    let version = xinput::xi_query_version(conn, 2, 1)?.reply()?;
+    anyhow::ensure!(
+        (version.major_version, version.minor_version) >= (2, 1),
+        "XI2.1 required"
+    );
+    xinput::xi_select_events(
+        conn,
+        root,
+        &[
+            xinput::EventMask {
+                deviceid: 1,
+                mask: vec![xinput::XIEventMask::RAW_MOTION | xinput::XIEventMask::DEVICE_CHANGED],
+            },
+            xinput::EventMask {
+                deviceid: 0,
+                mask: vec![xinput::XIEventMask::HIERARCHY],
+            },
+        ],
+    )?
+    .check()?;
+    relative_pointer_devices(conn)
+}
+
+fn relative_pointer_devices(conn: &x11rb::rust_connection::RustConnection) -> Result<bool> {
+    let devices = xinput::xi_query_device(conn, 0u16)?.reply()?;
+    // Keep the existing core behavior for absolute tablets/touchscreens rather
+    // than treating their device coordinates as mouse movement deltas.
+    Ok(!devices
+        .infos
+        .iter()
+        .flat_map(|device| &device.classes)
+        .any(|class| {
+            matches!(&class.data, xinput::DeviceClassData::Valuator(axis)
+            if axis.number < 2 && axis.mode == xinput::ValuatorMode::ABSOLUTE)
+        }))
+}
+
+fn raw_relative_xy(event: &xinput::RawMotionEvent) -> (f64, f64) {
+    let mut values = event.axisvalues.iter();
+    let mut xy = (0.0, 0.0);
+    for (word, mask) in event.valuator_mask.iter().enumerate() {
+        for bit in 0..32 {
+            if mask & (1 << bit) == 0 {
+                continue;
+            }
+            let Some(value) = values.next() else {
+                return xy;
+            };
+            let value = f64::from(value.integral) + f64::from(value.frac) / 4_294_967_296.0;
+            match word * 32 + bit {
+                0 => xy.0 = value,
+                1 => xy.1 = value,
+                _ => {}
+            }
+        }
+    }
+    xy
 }
 
 impl Drop for InputGrab {

@@ -17,20 +17,30 @@ departure/rejoin cycles. The full cold-start/recovery/endurance campaign,
 attempt 41, passes all 86 checks, including 296 image/text rounds over
 1,202.746 seconds. Configuration restoration and exact candidate cleanup pass.
 DEV qualification permitted the authorized staged installation. A subsequent
-notification-only hotfix is now the running candidate, version 2.1.0-dev.3,
+notification-only hotfix was installed next, version 2.1.0-dev.3,
 SHA-256 `ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823`.
 It passes 130 Rust tests, all-target Clippy and seven native XFCE notification
 checks on a private Xorg/DBus/HOME session in neko-desk-a. Package version alone
 does not identify either binary. Clipboard/control code is unchanged by this
 hotfix; the complete attempt-41 qualification belongs to the preceding binary.
 
+Manual Asus/Acer acceptance then exposed an unstable reverse crossing. The
+current executing candidate adds relative-device capture that excludes
+software pointer warps, SHA-256
+`fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3`.
+It passes 130 Rust tests/Clippy and 33 isolated native control/recovery/screen
+checks, including repeated warps in both crossing directions. A native harness
+retains the preceding 770-pixel warp failure and the corrected zero-pixel
+result. See `KVM-MOTION-QUALIFICATION-2026-10-02.md`. Its physical acceptance
+remains pending; native clipboard evidence below identifies each tested binary.
+
 | Computer | Authorized mode | Candidate preservation/dependency preflight | Installed/runtime validation | Physical input/screen acceptance |
 |---|---|---|---|---|
-| gbs-p3 | Clipboard only | Pass | Exact hotfix executing on :10; native GTK/Chrome paste passes | Not a KVM target |
-| gbs-p2 | Clipboard only | Pass; graphical session open | Exact hotfix executing on :10; native GTK/Chrome paste passes | Not a KVM target |
-| zaza-desktop | Clipboard only | Pass; graphical session open | Exact hotfix executing on :10; native GTK/Chrome paste passes | Not a KVM target |
-| Asus | KVM and clipboard | Pass | Exact hotfix executing on :0; direct presence passes; clipboard RDP guard active | Pending |
-| Acer | KVM and clipboard | Pass; account UID 1001 | Exact hotfix executing on :0; direct presence passes; clipboard RDP guard active | Pending |
+| gbs-p3 | Clipboard only | Pass | Exact current binary on :10; native GTK/Chrome paste passes with hub stopped | Not a KVM target |
+| gbs-p2 | Clipboard only | Pass; graphical session open | Exact current binary on :10; native GTK/Chrome paste passes with hub stopped | Not a KVM target |
+| zaza-desktop | Clipboard only | Pass; graphical session open | Exact current binary on :10; native GTK/Chrome paste passes with hub stopped | Not a KVM target |
+| Asus | KVM and clipboard | Pass | Exact current binary on :0; direct presence passes; clipboard RDP guard active | Previous binary failed; correction pending manual retest |
+| Acer | KVM and clipboard | Pass; account UID 1001 | Exact current binary on :0; direct presence passes; clipboard RDP guard active | Previous binary failed; correction pending manual retest |
 
 Private bundles are staged at
 `/opt/poolsync/staging/hubless-20261002-native-reader`. Staging does not change
@@ -59,6 +69,12 @@ installed and executing fingerprints, backs up the previous binary and complete
 configuration, then replaces only the executable. The live configuration hash
 is unchanged on every computer. Rollback with this tool restores the binary
 and service state without overwriting later user configuration edits.
+
+The subsequent KVM motion correction has the third verified binary/configuration
+backup on every computer, `20261002-grab-motion-fcd71e99`, and uses the same
+binary-only installation/rollback procedure. Saved positions and identities
+remain unchanged. Exact current runtime evidence is in
+`qualification/grab-motion-fleet-deployment-20261002.json`.
 
 ## Native production tests and notification correction
 
@@ -109,6 +125,13 @@ the selected three machines and direct presence for all five; it does not
 replace the pending Asus/Acer native paste and physical input/screen evidence.
 The hub is restarted afterward, with its previous enablement preserved.
 See `qualification/physical-three-20261002-hub-stopped-hotfix.json`.
+
+The current relative-motion capture correction also passes three alternating
+native image/text rounds, rotating the source across P2/P3/zaza-desktop with
+the hub stopped throughout. Four checks, twelve GTK/Chrome convergence
+observations, original agent PID and configuration preservation pass. The hub
+is restored afterward with its enablement unchanged. See
+`qualification/grab-motion-native-three-hub-stopped-20261002.json`.
 
 After each installation independently verify:
 

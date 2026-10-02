@@ -315,7 +315,17 @@ elif op=='browser_records':
 elif op=='key':
     r=user(['xdotool',request.get('action','key'),request['key']],env=env());assert r.returncode==0;output=True
 elif op=='motion':
-    r=user(['xdotool','mousemove_relative','--',str(request['dx']),str(request['dy'])],env=env());assert r.returncode==0;output=True
+    # libxdo mousemove_relative warps root coordinates. Use an actual relative
+    # XTEST device event so XI2 capture receives motion independently of warps.
+    code="""import ctypes,os,sys
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6')
+x.XOpenDisplay.argtypes=[ctypes.c_char_p];x.XOpenDisplay.restype=ctypes.c_void_p
+x.XSync.argtypes=[ctypes.c_void_p,ctypes.c_int];x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+t.XTestFakeRelativeMotionEvent.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_int,ctypes.c_ulong]
+d=x.XOpenDisplay(os.environ['DISPLAY'].encode());assert d
+assert t.XTestFakeRelativeMotionEvent(d,int(sys.argv[1]),int(sys.argv[2]),0)
+x.XSync(d,0);x.XCloseDisplay(d)"""
+    r=user(['python3','-c',code,str(request['dx']),str(request['dy'])],env=env());assert r.returncode==0;output=True
 elif op=='key_window':
     code="import gi,json,sys,time;gi.require_version('Gtk','3.0');from gi.repository import Gtk,GLib;w=Gtk.Window(title='PoolSync remote keyboard receiver');w.connect('key-press-event',lambda _,event: (open(sys.argv[1],'w').write(json.dumps({'keyval':event.keyval,'at':time.time()})),False)[1]);w.show_all();GLib.timeout_add_seconds(600,lambda: (Gtk.main_quit(),False)[1]);Gtk.main()"
     marker=root/'remote-key.json';marker.unlink(missing_ok=True)
@@ -760,6 +770,13 @@ def main():
             wait_lease(0,1)
             result['kvm_entry_pointer']=op(1,'pointer')
             check('A crosses to B with peer-controlled ownership and no hub',result['kvm_entry_pointer']['x']<100)
+            before=op(1,'pointer')
+            for x in (30,width-30)*3:
+                op(0,'move',x=x,y=height//2);time.sleep(.2)
+            time.sleep(.65)
+            lease=op(0,'status').get('lease',{})
+            check('Software pointer warps during A capture neither move B nor bounce its focus',
+                  op(1,'pointer')==before and lease.get('owner')==nodes[0] and lease.get('focus')==nodes[1])
             before=op(1,'pointer');op(0,'motion',dx=70,dy=35);time.sleep(.4)
             check('Grabbed A motion moves the actual B pointer',op(1,'pointer')!=before)
             key_started=time.time();op(0,'key',key='z');time.sleep(.4)
@@ -789,6 +806,15 @@ def main():
             op(1,'move',x=800,y=450);op(1,'key',key='ctrl+alt+shift+m');time.sleep(.5)
             op(1,'move',x=0,y=450);wait_lease(1,0)
             check('B takes control and crosses to A after A restarts')
+            before=op(0,'pointer');b_width,b_height=op(1,'screen')
+            for x in (b_width-30,30)*3:
+                op(1,'move',x=x,y=b_height//2);time.sleep(.2)
+            time.sleep(.65)
+            lease=op(1,'status').get('lease',{})
+            check('Reverse crossing remains on A despite repeated software warps on captured B',
+                  op(0,'pointer')==before and lease.get('owner')==nodes[1] and lease.get('focus')==nodes[0])
+            op(1,'motion',dx=-25,dy=10);time.sleep(.4)
+            check('Reverse crossing still forwards relative device motion to A',op(0,'pointer')!=before)
             op(0,'away',value=True);time.sleep(5)
             check('A temporary departure returns B input locally',op(1,'status').get('lease') is None or op(1,'status')['lease']['focus']==nodes[1])
             check('B local GTK keyboard works after its remote target leaves',op(1,'local_key'))

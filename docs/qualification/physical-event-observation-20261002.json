@@ -1,0 +1,45 @@
+{
+  "observation_only": true,
+  "physical_kvm_acceptance_passed": null,
+  "machines": [
+    {
+      "node": "asus",
+      "candidate_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "production_agent_identity_verified": true,
+      "display": ":0",
+      "hardware_acceptance_passed": null,
+      "human_confirmation_required": true,
+      "recorded_content": "event counts, control owner/focus, peer availability and screen geometry only",
+      "event_counts": {},
+      "evdev_device_count": 8,
+      "synthetic_device_count": 2,
+      "duration_seconds": 60.234,
+      "configuration_preserved": true,
+      "executing_agent_preserved": true,
+      "observer_completed": true
+    },
+    {
+      "node": "acer",
+      "candidate_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "production_agent_identity_verified": true,
+      "display": ":0",
+      "hardware_acceptance_passed": null,
+      "human_confirmation_required": true,
+      "recorded_content": "event counts, control owner/focus, peer availability and screen geometry only",
+      "event_counts": {
+        "RawKeyPress": 65,
+        "RawKeyRelease": 65,
+        "RawMotion": 277,
+        "RawButtonPress": 1,
+        "RawButtonRelease": 1
+      },
+      "evdev_device_count": 8,
+      "synthetic_device_count": 2,
+      "duration_seconds": 60.045,
+      "configuration_preserved": true,
+      "executing_agent_preserved": true,
+      "observer_completed": true
+    }
+  ],
+  "private_dev_setup_failure": "Restricted container root could not inspect a different user diagnostic process; no DEV observer qualification claimed."
+}

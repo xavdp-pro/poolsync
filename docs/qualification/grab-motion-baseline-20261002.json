@@ -1,0 +1,22 @@
+{
+  "harness_sha256": "c0b81f1083d4e84a8c078a804c0f1803198e65115b418474332cce5b6170ac20",
+  "isolated_display": 114,
+  "physical_input": false,
+  "checks": [
+    {
+      "case": "external_pointer_warp",
+      "forwarded_motion_pixels": 770,
+      "passed": false
+    },
+    {
+      "case": "relative_motion_with_recentering",
+      "expected_dx": -160,
+      "observed_dx": -160,
+      "wrong_direction": false,
+      "passed": true
+    }
+  ],
+  "exit_code": 1,
+  "passed": false,
+  "original_configuration_and_agent_preserved": true
+}

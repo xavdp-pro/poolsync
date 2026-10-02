@@ -1,0 +1,28 @@
+{
+  "candidate_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [],
+  "paste_convergence_seconds": [],
+  "native_copy_owners": [],
+  "direct_links": "triangle",
+  "fresh_desktops": false,
+  "native_copy_application": "xclip",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "functional_checks_passed": false,
+  "error": "Fixture staging failure: slow-image-owner.py was missing beside the orchestrator; no functional checks ran.",
+  "failed_fresh_sessions_retained": false,
+  "restoration": {},
+  "restoration_passed": true,
+  "checks_passed": 0,
+  "test_root": "/tmp/poolsync-no-hub-08305bc4cfc2"
+}

@@ -1,0 +1,440 @@
+{
+  "candidate_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+  "observation": "Live direct presence only; no native paste or physical KVM acceptance performed in this window",
+  "hub_stop_duration_seconds": 45.056,
+  "hub_restored": true,
+  "enablement_preserved": true,
+  "all_five_direct_presence_passed": true,
+  "machines": [
+    {
+      "node": "asus",
+      "hubless": true,
+      "mode": "full",
+      "agents": [
+        {
+          "pid": 289383,
+          "running_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+          "display": ":0",
+          "uid": 1000
+        }
+      ],
+      "status_age_seconds": 0.562,
+      "direct_presence": {
+        "acer": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "eDP",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "asus": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "eDP-1",
+              "primary": true,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 742,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node": "acer",
+      "hubless": true,
+      "mode": "full",
+      "agents": [
+        {
+          "pid": 1476832,
+          "running_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+          "display": ":0",
+          "uid": 1001
+        }
+      ],
+      "status_age_seconds": 0.398,
+      "direct_presence": {
+        "acer": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "eDP",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "asus": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "eDP-1",
+              "primary": true,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 742,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node": "gbs-p3",
+      "hubless": true,
+      "mode": "clipboard_only",
+      "agents": [
+        {
+          "pid": 893095,
+          "running_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+          "display": ":10",
+          "uid": 1000
+        }
+      ],
+      "status_age_seconds": 0.792,
+      "direct_presence": {
+        "acer": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "eDP",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "asus": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "eDP-1",
+              "primary": true,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 742,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node": "gbs-p2",
+      "hubless": true,
+      "mode": "clipboard_only",
+      "agents": [
+        {
+          "pid": 312289,
+          "running_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+          "display": ":10",
+          "uid": 1000
+        }
+      ],
+      "status_age_seconds": 0.617,
+      "direct_presence": {
+        "acer": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "eDP",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "asus": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "eDP-1",
+              "primary": true,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 742,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "node": "zaza-desktop",
+      "hubless": true,
+      "mode": "clipboard_only",
+      "agents": [
+        {
+          "pid": 3759833,
+          "running_sha256": "fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3",
+          "display": ":10",
+          "uid": 1000
+        }
+      ],
+      "status_age_seconds": 0.579,
+      "direct_presence": {
+        "acer": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "eDP",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "asus": {
+          "active": true,
+          "kvm": true,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "eDP-1",
+              "primary": true,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 742,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 756,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1344,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false,
+          "monitors": [
+            {
+              "height": 768,
+              "name": "rdp0",
+              "primary": false,
+              "width": 1366,
+              "x": 0,
+              "y": 0
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
