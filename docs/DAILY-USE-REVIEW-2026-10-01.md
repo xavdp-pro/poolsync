@@ -93,7 +93,8 @@ output directory. Its API fixtures do not access a production pool.
 
 ## Installed runtime qualification
 
-Installed on the current desktop, Asus, Acer and P3 with binary/config backups;
+Initial deployment on 2026-10-01: installed on the current desktop, Asus, Acer
+and P3 with binary/config backups;
 the hub and web bundle on P3 are updated with a rollback backup. P2's agent was
 not active and is not started by this change. Node tokens, clipboard E2E key,
 peer credentials, TLS material, systemd configuration and saved desk positions
@@ -112,6 +113,48 @@ New PKI generation now passes strict validation. Renewing and distributing the
 installed CA/certificates is a separate migration, not performed here.
 
 Physical-device and full-day acceptance are still outstanding.
+
+### Production reconciliation — 2026-10-02
+
+The requested production roles are now installed and checked against the
+running processes and hub announcements:
+
+| Machine | Requested role | Verified state |
+|---|---|---|
+| Asus | Full KVM and clipboard | Qualified agent running; KVM enabled; hub online |
+| Acer | Full KVM and clipboard | Qualified agent running; KVM enabled; hub online |
+| P3 | Clipboard only | Qualified agent and hub running; KVM disabled; hub online |
+| zaza-desktop | Clipboard only | Qualified agent running; KVM disabled; hub online |
+| P2 | Clipboard only | Compatible agent installed and enabled; KVM disabled; waiting for a graphical zaza session |
+
+The four active agents already matched the qualified binary and requested roles,
+so their working sessions were preserved. P3's running hub still matches the
+qualified hub SHA-256 above. Rollback snapshots were created on all five machines
+under `~/.local/state/poolsync/deployment-backups/20261002-5338971` with private
+permissions. Node credentials, encryption keys, TLS files, saved positions and
+existing clipboard history were preserved.
+
+P2 requires glibc 2.36. The exact source commit `5338971` was built in an isolated
+directory on P2 with the locked dependencies and one build job. Its release
+agent starts successfully for the version check, and all **81 agent tests** pass
+on P2. Compatible-agent SHA-256:
+`9aa5df8bb08c06870a2ee73b1ea23ee25a46aa5be2f9866788894ce47305a867`.
+P2's configured node identity also successfully authenticated to the production
+hub through its existing TLS trust and credentials.
+
+No live XFCE session existed for zaza on P2 during this check. Its user service
+therefore waits instead of repeatedly failing to acquire a clipboard. The
+optional `deploy/systemd/poolsync-agent-graphical-session.conf` drop-in is
+installed as `~/.config/systemd/user/poolsync-agent.service.d/50-graphical-session.conf`.
+Session autostart and the existing watchdog can start the agent when the user
+opens the graphical/RDP session. **P2's live clipboard acceptance remains
+pending that session; installation is not proof of a live clipboard.**
+
+The previous 110 workspace tests and 12 dedicated desktop-container checks
+remain the functional qualification for this unchanged Rust candidate. Real
+physical keyboard/mouse, HDMI docks, mixed DPI and full-day acceptance remain
+separate checks. This deployment does not add serverless KVM or independent
+per-monitor routing, and it does not enable GitHub CI/CD.
 
 ## Remaining product limits and next gates
 
