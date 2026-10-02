@@ -59,6 +59,9 @@ static LAST_SERVE_AT: Mutex<Option<Instant>> = Mutex::new(None);
 /// et diffère ses écritures pour rien.
 static INTERNAL_READS: AtomicU32 = AtomicU32::new(0);
 
+#[cfg(test)]
+pub(crate) static IMAGE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 pub fn current_clipboard_owner() -> u32 {
     use x11rb::protocol::xproto::ConnectionExt;
     let Ok((conn, _)) = x11rb::connect(None) else {
@@ -161,6 +164,19 @@ pub fn discard_last_image() {
     clear_image_claim();
 }
 
+/// Refresh XRDP recovery without taking ownership from the copying application.
+/// A native screenshot can already be pasteable, while the previous GTK image
+/// is still cached. Recovering from a later BMP-only callback must use this copy.
+pub fn remember_native_image(mime: &str, bytes: &[u8]) {
+    if let Ok(mut last) = LAST_PNG.lock() {
+        *last = Some(ensure_png(mime, bytes));
+    }
+    if let Ok(mut last) = LAST_REOFFER.lock() {
+        *last = None;
+    }
+    mark_image_claim();
+}
+
 pub fn recent_image_claim_active() -> bool {
     LAST_IMAGE_CLAIM_AT
         .lock()
@@ -233,14 +249,42 @@ mod internal_read_tests {
 mod tests {
     use super::*;
     use base64::{engine::general_purpose::STANDARD as B64, Engine};
+    use image::ImageEncoder;
 
     #[test]
     fn text_discards_stale_image_keepalive() {
+        let _serial = IMAGE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         *LAST_PNG.lock().unwrap() = Some(vec![1, 2, 3]);
         mark_image_claim();
         discard_last_image();
         assert!(LAST_PNG.lock().unwrap().is_none());
         assert!(!recent_image_claim_active());
+    }
+
+    #[test]
+    fn consecutive_native_captures_replace_recovery_without_claiming_x11() {
+        let _serial = IMAGE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let first = B64
+            .decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+            .unwrap();
+        let mut second = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut second)
+            .write_image(
+                &[10, 20, 30, 255, 40, 50, 60, 255],
+                2,
+                1,
+                image::ExtendedColorType::Rgba8,
+            )
+            .unwrap();
+        let owner_before = IMAGE_OWNER.load(Ordering::SeqCst);
+
+        remember_native_image("image/png", &first);
+        remember_native_image("image/png", &second);
+
+        assert_eq!(LAST_PNG.lock().unwrap().as_deref(), Some(second.as_slice()));
+        assert_eq!(IMAGE_OWNER.load(Ordering::SeqCst), owner_before);
+        assert!(recent_image_claim_active());
+        discard_last_image();
     }
 
     #[test]

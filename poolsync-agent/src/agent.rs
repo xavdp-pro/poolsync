@@ -504,6 +504,9 @@ pub(crate) async fn clipboard_poll_loop(
                     // Local-first: cache + systray avant tout envoi réseau (bs1 / peer).
                     clipboard_history::notify_local_clipboard_sent(state, &payload);
                     if payload.mime.starts_with("image/") {
+                        // Existing PRIMARY text predates this screenshot; it must
+                        // not override the newly refreshed image recovery claim.
+                        crate::clipboard::seed_primary_baseline().await;
                         info!(
                             "image-trace LOCAL id={} mime={} wire_bytes={}",
                             crate::clipboard::trace_id(&payload.hash),

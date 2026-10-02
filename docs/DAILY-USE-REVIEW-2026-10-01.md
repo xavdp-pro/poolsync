@@ -158,6 +158,40 @@ per-monitor routing, and it does not enable GitHub CI/CD.
 
 ## Remaining product limits and next gates
 
+### Native screenshot recovery — 2026-10-02
+
+A production regression on the current desktop reproduced an older screenshot
+replacing a new Flameshot copy within three seconds. Removing Clipman alone did
+not fix it: XFCE's built-in clipboard manager was also active, and PoolSync's
+BMP-only recovery still cached the last image it had offered through GTK rather
+than the latest image copied by a native application.
+
+Every accepted local image now refreshes the recovery PNG without taking X11
+ownership from the copying application. The existing PRIMARY text becomes a
+baseline so it cannot displace that screenshot. A native text copy discards the
+old image recovery cache entirely.
+
+On the current desktop, Clipman and its panel package are removed. Other XFCE
+applications are retained. XFCE's built-in clipboard manager is disabled through
+`XFSETTINGSD_NO_CLIPBOARD=1` in the user's `.xsessionrc`, which the installed X11
+session launcher sources. The running settings daemon uses the same setting,
+and PoolSync owns `CLIPBOARD_MANAGER`. The setting is supported by
+[the XFCE 4.20.1 settings daemon](https://github.com/xfce-mirror/xfce4-settings/blob/xfce4-settings-4.20.1/xfsettingsd/main.c#L149).
+
+Qualification: 111 release workspace tests and formatting pass. Four checks in
+the dedicated desktop container cover successive native PNG copies, recovery of
+the latest image after an empty BMP-only callback, an actual GTK paste consumer,
+and cancellation of stale image recovery after a native text copy. The original
+container agent is restored afterward; the production hub is not used.
+
+The corrected agent is installed only on the current desktop, preserving its
+clipboard-only role and byte-identical configuration. A real full-screen capture
+and a distinct region capture pass eight pixel comparisons, immediately and up
+to 50 seconds after copying. The installed and running executable SHA-256 is
+`7cdb6c8cad30abae068daa6190a3ddc20b06734375672d3722607a16162306c8`.
+The displayed version remains 2.0.3. Browser paste acceptance in ChatGPT still
+requires the user's retry because that browser is not connected to the UI tools.
+
 1. **Complete serverless control first.** Direct authenticated KVM transport,
    peer presence/expiry, bounded master claims and shared topology must work
    without the hub. Next gate: stop the hub, use either desktop's physical

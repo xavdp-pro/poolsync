@@ -1709,7 +1709,7 @@ pub fn prepare_local_clipboard(payload: &ClipboardPayload, last_clip_hash: &Mute
     }
     // Texte local = intention utilisateur : toujours autoriser.
     if payload.mime == "text/plain" || payload.mime == "text/html" {
-        crate::clipboard_gtk::clear_image_claim();
+        crate::clipboard_gtk::discard_last_image();
         clear_image_clipboard_epoch();
     }
     let mut last = match last_clip_hash.lock() {
@@ -1722,6 +1722,11 @@ pub fn prepare_local_clipboard(payload: &ClipboardPayload, last_clip_hash: &Mute
     *last = payload.hash.clone();
     drop(last);
     remember_clipboard_content(&payload.mime, &payload.wire_data, &payload.hash);
+    if payload.mime.starts_with("image/") {
+        if let Ok(bytes) = B64.decode(&payload.wire_data) {
+            crate::clipboard_gtk::remember_native_image(&payload.mime, &bytes);
+        }
+    }
     true
 }
 
@@ -2582,6 +2587,9 @@ mod tests {
     /// copie : c'est ce qui empêche un redémarrage de faire régresser le pool.
     #[test]
     fn an_adopted_baseline_is_not_re_detected_as_a_local_copy() {
+        let _serial = crate::clipboard_gtk::IMAGE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let payload = text_payload("contenu hérité du démarrage");
         let last = Mutex::new(String::new());
         // Ce que seed_local_baseline fait du hash.
