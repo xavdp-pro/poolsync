@@ -12,7 +12,6 @@
 //! le sondage rattrape après coup, ce protocole prévient — l'application nous
 //! donne son contenu avant de disparaître, sans fenêtre d'oubli possible.
 
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -20,7 +19,7 @@ use anyhow::{Context, Result};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
     Atom, AtomEnum, ConnectionExt as _, CreateWindowAux, EventMask, PropMode, SelectionNotifyEvent,
-    SelectionRequestEvent, Window, WindowClass, SELECTION_NOTIFY_EVENT,
+    SelectionRequestEvent, WindowClass, SELECTION_NOTIFY_EVENT,
 };
 use x11rb::protocol::Event;
 use x11rb::rust_connection::RustConnection;
@@ -50,7 +49,6 @@ struct Atoms {
     save_targets: Atom,
     clipboard: Atom,
     targets: Atom,
-    utf8: Atom,
 }
 
 fn intern(conn: &RustConnection, name: &str) -> Result<Atom> {
@@ -65,7 +63,6 @@ fn run() -> Result<()> {
         save_targets: intern(&conn, "SAVE_TARGETS")?,
         clipboard: intern(&conn, "CLIPBOARD")?,
         targets: intern(&conn, "TARGETS")?,
-        utf8: intern(&conn, "UTF8_STRING")?,
     };
 
     let existing = conn.get_selection_owner(atoms.manager)?.reply()?.owner;
@@ -170,12 +167,12 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
         return Ok(());
     }
     let guard = crate::clipboard_gtk::SelectionGuard::capture();
-    let targets = clipboard_targets_via_xclip();
+    let targets = clipboard_targets_native();
     if !guard.handoff_current() {
         return Ok(());
     }
     if let Some(mime) = preferred_image_target(&targets) {
-        match read_target_via_xclip(mime) {
+        match read_target_native(mime, guard) {
             Ok(Some(bytes)) => {
                 let (stored_mime, hash) =
                     crate::clipboard::remember_clipboard_manager_image(&bytes, guard)?;
@@ -194,7 +191,7 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
         }
     }
 
-    let text = read_utf8_selection(conn, atoms, owner)?;
+    let text = read_utf8_selection(guard)?;
     if let Some(text) = text {
         let len = text.len();
         crate::clipboard::remember_clipboard_manager_text(text, guard);
@@ -206,97 +203,51 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
     Ok(())
 }
 
-fn clipboard_targets_via_xclip() -> Vec<String> {
-    let Ok(output) = Command::new("timeout")
-        .args([
-            "0.35",
-            "xclip",
-            "-selection",
-            "clipboard",
-            "-t",
-            "TARGETS",
-            "-o",
-        ])
-        .output()
-    else {
-        return Vec::new();
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
-        .collect()
+fn clipboard_targets_native() -> Vec<String> {
+    crate::clipboard_x11::read_blocking("clipboard", "TARGETS", Duration::from_millis(350))
+        .ok()
+        .map(|bytes| {
+            String::from_utf8_lossy(&bytes)
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn preferred_image_target(targets: &[String]) -> Option<&str> {
-    ["image/png", "image/jpeg", "image/jpg", "image/bmp"]
+    ["image/png", "image/bmp", "image/jpeg", "image/jpg"]
         .into_iter()
         .find(|candidate| targets.iter().any(|target| target == candidate))
 }
 
-fn read_target_via_xclip(target: &str) -> Result<Option<Vec<u8>>> {
-    let output = Command::new("timeout")
-        .args(["2", "xclip", "-selection", "clipboard", "-t", target, "-o"])
-        .output()
-        .with_context(|| format!("lecture xclip {target}"))?;
-    if !output.status.success() || output.stdout.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(output.stdout))
+fn read_target_native(
+    target: &str,
+    guard: crate::clipboard_gtk::SelectionGuard,
+) -> Result<Option<Vec<u8>>> {
+    let _internal = crate::clipboard_gtk::InternalRead::begin();
+    let bytes = crate::clipboard_x11::read_blocking_while(
+        "clipboard",
+        target,
+        Duration::from_secs(10),
+        || guard.handoff_current(),
+    )?;
+    Ok((!bytes.is_empty()).then_some(bytes))
 }
 
-fn read_utf8_selection(
-    conn: &RustConnection,
-    atoms: &Atoms,
-    _owner: Window,
-) -> Result<Option<String>> {
-    let screen = &conn.setup().roots[0];
-    let dest = conn.generate_id()?;
-    conn.create_window(
-        x11rb::COPY_DEPTH_FROM_PARENT,
-        dest,
-        screen.root,
-        0,
-        0,
-        1,
-        1,
-        0,
-        WindowClass::INPUT_OUTPUT,
-        screen.root_visual,
-        &CreateWindowAux::new().event_mask(EventMask::PROPERTY_CHANGE),
-    )?;
-    let prop = intern(conn, "POOLSYNC_SAVE")?;
-    conn.convert_selection(dest, atoms.clipboard, atoms.utf8, prop, CURRENT_TIME)?;
-    conn.flush()?;
-
-    // Attente bornée : une application en train de mourir peut ne jamais
-    // répondre, et on ne doit pas bloquer la fermeture des autres.
-    let deadline = std::time::Instant::now() + Duration::from_millis(400);
-    let mut out = None;
-    while std::time::Instant::now() < deadline {
-        match conn.poll_for_event()? {
-            Some(Event::SelectionNotify(ev)) if ev.requestor == dest => {
-                if ev.property != x11rb::NONE {
-                    let reply = conn
-                        .get_property(true, dest, ev.property, AtomEnum::ANY, 0, u32::MAX / 4)?
-                        .reply()?;
-                    if !reply.value.is_empty() {
-                        out = Some(String::from_utf8_lossy(&reply.value).into_owned());
-                    }
-                }
-                break;
-            }
-            Some(_) => {}
-            None => std::thread::sleep(Duration::from_millis(10)),
-        }
-    }
-    conn.destroy_window(dest)?;
-    conn.flush()?;
-    Ok(out)
+fn read_utf8_selection(guard: crate::clipboard_gtk::SelectionGuard) -> Result<Option<String>> {
+    let bytes = crate::clipboard_x11::read_blocking_while(
+        "clipboard",
+        "UTF8_STRING",
+        Duration::from_millis(400),
+        || guard.handoff_current(),
+    );
+    Ok(bytes
+        .ok()
+        .filter(|bytes| !bytes.is_empty())
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
 }
 
 #[cfg(test)]

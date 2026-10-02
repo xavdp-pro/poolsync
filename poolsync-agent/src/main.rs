@@ -8,6 +8,7 @@ mod clipboard_gtk;
 mod clipboard_history;
 mod clipboard_incoming;
 mod clipboard_manager;
+mod clipboard_x11;
 mod config_window;
 mod crashlog;
 mod cursor_ripple;

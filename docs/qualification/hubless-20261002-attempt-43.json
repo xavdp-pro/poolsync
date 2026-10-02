@@ -1,0 +1,239 @@
+{
+  "candidate_sha256": "208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Native drag/save persists and gossips",
+      "passed": true
+    },
+    {
+      "name": "Native layout survives restart",
+      "passed": true
+    },
+    {
+      "name": "Native permission edit disables B in persisted and live layouts",
+      "passed": true
+    },
+    {
+      "name": "Pool-disabled B cannot claim control and keeps its native keyboard",
+      "passed": true
+    },
+    {
+      "name": "Native permission restore enables B without changing its position",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [],
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "native_copy_application": "xclip",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "native_layout_document": [
+    {
+      "revision": 2,
+      "origin": "nohub-a",
+      "topology": {
+        "nodes": {
+          "nohub-a": {
+            "x": 0,
+            "y": 0,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": true,
+            "neighbors": {
+              "down": "nohub-b"
+            },
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          },
+          "nohub-b": {
+            "x": 0,
+            "y": 900,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": true,
+            "neighbors": {
+              "up": "nohub-a"
+            },
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          },
+          "nohub-c": {
+            "x": 3200,
+            "y": 0,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": false,
+            "neighbors": {},
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          }
+        }
+      }
+    },
+    {
+      "revision": 2,
+      "origin": "nohub-a",
+      "topology": {
+        "nodes": {
+          "nohub-a": {
+            "x": 0,
+            "y": 0,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": true,
+            "neighbors": {
+              "down": "nohub-b"
+            },
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          },
+          "nohub-c": {
+            "x": 3200,
+            "y": 0,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": false,
+            "neighbors": {},
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          },
+          "nohub-b": {
+            "x": 0,
+            "y": 900,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": true,
+            "neighbors": {
+              "up": "nohub-a"
+            },
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          }
+        }
+      }
+    },
+    {
+      "revision": 2,
+      "origin": "nohub-a",
+      "topology": {
+        "nodes": {
+          "nohub-c": {
+            "x": 3200,
+            "y": 0,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": false,
+            "neighbors": {},
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          },
+          "nohub-b": {
+            "x": 0,
+            "y": 900,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": true,
+            "neighbors": {
+              "up": "nohub-a"
+            },
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          },
+          "nohub-a": {
+            "x": 0,
+            "y": 0,
+            "width": 1600,
+            "height": 900,
+            "kvm_enabled": true,
+            "neighbors": {
+              "down": "nohub-b"
+            },
+            "monitor_x": 0,
+            "monitor_y": 0,
+            "desktop_x": 0,
+            "desktop_y": 0,
+            "desktop_width": 1600,
+            "desktop_height": 900
+          }
+        }
+      }
+    }
+  ],
+  "functional_checks_passed": true,
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 6
+}

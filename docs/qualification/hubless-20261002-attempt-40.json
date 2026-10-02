@@ -1,0 +1,328 @@
+{
+  "candidate_sha256": "208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 0",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 0",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 1 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 1",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 1 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 1",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 2 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 2",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 2 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 2",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 3 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 3",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 3 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 3",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 4 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 4",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 4 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 4",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 5 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 5",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 5 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 5",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 6 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 6",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 6 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 6",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 7 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 7",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 7 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 7",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 8 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 8",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 8 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 8",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 9 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata round 9",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 9 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal round 9",
+      "passed": true
+    },
+    {
+      "name": "Hub remained unreachable during lossless regressions",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.593,
+    1.679,
+    1.732,
+    1.881,
+    2.31,
+    1.702,
+    1.673,
+    1.904,
+    2.059,
+    1.676,
+    1.58,
+    3.976,
+    1.539,
+    1.802,
+    4.929,
+    1.584,
+    1.608,
+    4.395,
+    1.546,
+    1.603,
+    4.727,
+    1.883,
+    1.762,
+    3.798,
+    1.679,
+    1.561,
+    4.9,
+    4.444,
+    1.75,
+    4.347,
+    1.852,
+    1.745,
+    5.019,
+    4.044,
+    2.035,
+    3.718,
+    2.123,
+    1.828,
+    5.302,
+    4.24,
+    1.709,
+    4.24,
+    2.102,
+    1.665,
+    5.044,
+    4.735,
+    1.608,
+    3.671,
+    2.048,
+    1.625,
+    5.376,
+    4.05,
+    1.795,
+    3.829,
+    2.35,
+    1.821,
+    5.324,
+    4.347,
+    1.556,
+    4.028,
+    2.222,
+    1.704,
+    4.663,
+    4.116,
+    1.793,
+    3.87,
+    2.1,
+    1.985,
+    4.749,
+    4.022
+  ],
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "functional_checks_passed": true,
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "fresh_desktop": false
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 52
+}

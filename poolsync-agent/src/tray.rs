@@ -84,7 +84,7 @@ fn run_tray_gtk(state: Arc<AgentState>, show_window: bool) -> Result<()> {
     away_item.set_active(state.pool_away());
     away_item.set_tooltip_text(Some("À emporter : aucun partage automatique ni nouvelles copies du pool. Décochez au retour ; vos positions sont conservées."));
     let state_away = state.clone();
-    away_item.connect_toggled(move |item| {
+    let away_handler = away_item.connect_toggled(move |item| {
         if let Err(error) = state_away.set_pool_away(item.is_active()) {
             tracing::warn!("cannot persist local absence: {error}");
             item.set_active(state_away.pool_away());
@@ -341,7 +341,11 @@ fn run_tray_gtk(state: Arc<AgentState>, show_window: bool) -> Result<()> {
 
     glib::timeout_add_local(std::time::Duration::from_millis(2500), move || {
         if away_item.is_active() != state_tick.pool_away() {
+            // Reflect a CLI command without generating a second user command.
+            // The live state can change concurrently with this GTK refresh.
+            away_item.block_signal(&away_handler);
             away_item.set_active(state_tick.pool_away());
+            away_item.unblock_signal(&away_handler);
         }
         let revision = state_tick.tray_history_revision();
         if revision != last_revision {

@@ -1,0 +1,42 @@
+[
+  {
+    "trial": 0,
+    "exit": 0,
+    "seconds": 0.111,
+    "bytes": 29,
+    "png_signature": false,
+    "unexpected_metadata": "TARGETS\nimage/png\nimage/jpeg\n"
+  },
+  {
+    "trial": 1,
+    "exit": 0,
+    "seconds": 0.261,
+    "bytes": 29,
+    "png_signature": false,
+    "unexpected_metadata": "TARGETS\nimage/png\nimage/jpeg\n"
+  },
+  {
+    "trial": 2,
+    "exit": 0,
+    "seconds": 0.412,
+    "bytes": 29,
+    "png_signature": false,
+    "unexpected_metadata": "TARGETS\nimage/png\nimage/jpeg\n"
+  },
+  {
+    "trial": 3,
+    "exit": 0,
+    "seconds": 0.109,
+    "bytes": 29,
+    "png_signature": false,
+    "unexpected_metadata": "TARGETS\nimage/png\nimage/jpeg\n"
+  },
+  {
+    "trial": 4,
+    "exit": 0,
+    "seconds": 0.26,
+    "bytes": 29,
+    "png_signature": false,
+    "unexpected_metadata": "TARGETS\nimage/png\nimage/jpeg\n"
+  }
+]

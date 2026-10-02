@@ -1,0 +1,277 @@
+{
+  "candidate_sha256": "208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 0",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 0",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 1",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 1",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 2",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 2",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 3",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 3",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 4",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 4",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 5",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 5",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 6",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 6",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 7",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 7",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 8",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 8",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 9",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 9",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 10",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 10",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 11",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 11",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 12",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 12",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 13",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 13",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 14",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 14",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 15",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 15",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 16",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 16",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 17",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 17",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 18",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 18",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 19",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 19",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.793,
+    0.617,
+    1.891,
+    1.513,
+    1.114,
+    1.708,
+    1.683,
+    0.656,
+    1.425,
+    1.606,
+    1.479,
+    1.441,
+    2.179,
+    0.672,
+    1.391,
+    2.217,
+    0.828,
+    2.304,
+    1.886,
+    0.732,
+    1.455,
+    1.738,
+    1.168,
+    1.856,
+    1.634,
+    1.119,
+    1.419,
+    1.734,
+    1.322,
+    2.158,
+    2.037,
+    0.73,
+    1.824,
+    1.656,
+    0.714,
+    1.455,
+    1.779,
+    1.093,
+    1.462,
+    1.83,
+    1.181,
+    2.4,
+    2.239,
+    0.718,
+    1.445,
+    2.099,
+    0.693,
+    1.496,
+    1.954,
+    1.121,
+    1.411,
+    2.108,
+    0.769,
+    2.43,
+    1.96,
+    0.686,
+    1.385,
+    1.86,
+    1.175,
+    1.8,
+    1.577
+  ],
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "functional_checks_passed": true,
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 41
+}

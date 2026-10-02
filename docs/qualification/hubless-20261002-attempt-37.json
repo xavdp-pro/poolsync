@@ -1,0 +1,107 @@
+{
+  "candidate_sha256": "0927dc98383a2cf8a59b76caa5cd0abd149ae8b60ae738eb89ca138beb1b8b02",
+  "functional_checks_passed": true,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after slow metadata",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox preserves lossless pixels after temporary PNG refusal",
+      "passed": true
+    },
+    {
+      "name": "Hub remained unreachable during lossless regressions",
+      "passed": true
+    }
+  ],
+  "checks_passed": 16,
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "failed_fresh_sessions_retained": false,
+  "paste_convergence_seconds": [
+    2.182,
+    1.694,
+    1.606,
+    1.886,
+    1.588,
+    1.497,
+    1.768,
+    1.8,
+    1.756,
+    1.89,
+    2.21,
+    8.138,
+    4.422,
+    1.849,
+    4.618,
+    4.744
+  ]
+}

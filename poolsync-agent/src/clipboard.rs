@@ -648,25 +648,24 @@ fn note_gtk_read_attempt() {
     }
 }
 
-/// Lance `xclip` en lecture avec timeout. `kill_on_drop` garantit qu'un xclip
-/// bloqué est tué (pas d'accumulation de processus zombies figés).
-async fn xclip_read_timeout(args: &[&str], limit: Duration) -> Result<std::process::Output> {
-    // Marquer la lecture comme interne : elle passe par le même rappel GTK que
-    // celle d'une application qui colle, et serait sinon prise pour un collage
-    // en cours — l'agent différerait alors ses propres écritures pour rien.
+/// Read a single correlated native target with a bounded, cancellable lifetime.
+async fn selection_read_timeout(args: &[&str], limit: Duration) -> Result<std::process::Output> {
+    use std::os::unix::process::ExitStatusExt;
     let _internal = crate::clipboard_gtk::InternalRead::begin();
-    let child = Command::new("xclip")
-        .args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .spawn()
-        .context("spawn xclip")?;
-    match timeout(limit, child.wait_with_output()).await {
-        Ok(res) => res.context("xclip wait"),
-        Err(_) => anyhow::bail!("xclip timeout: {}", args.join(" ")),
-    }
+    anyhow::ensure!(
+        args.len() == 5 && args[0] == "-selection" && args[2] == "-t" && args[4] == "-o",
+        "invalid native selection request"
+    );
+    let (status, stdout) = match crate::clipboard_x11::read(args[1], args[3], limit).await {
+        Ok(bytes) => (0, bytes),
+        Err(error) if error.is::<crate::clipboard_x11::UnsupportedTarget>() => (1 << 8, Vec::new()),
+        Err(error) => return Err(error),
+    };
+    Ok(std::process::Output {
+        status: std::process::ExitStatus::from_raw(status),
+        stdout,
+        stderr: Vec::new(),
+    })
 }
 
 /// TIMESTAMP X11 (petit) — pas le contenu. Si inchangé, on ne relit pas l'image.
@@ -708,7 +707,7 @@ async fn clipboard_timestamp() -> Option<String> {
     {
         return None;
     }
-    let output = xclip_read_timeout(
+    let output = selection_read_timeout(
         &["-selection", "clipboard", "-t", "TIMESTAMP", "-o"],
         Duration::from_millis(400),
     )
@@ -821,7 +820,7 @@ async fn read_wayland_clipboard(
         }
     }
     if allow_images {
-        if let Some(mime) = ["image/png", "image/jpeg", "image/bmp"]
+        if let Some(mime) = ["image/png", "image/bmp", "image/jpeg"]
             .into_iter()
             .find(|mime| types.contains(mime))
         {
@@ -922,8 +921,9 @@ fn is_x11_target_atom(line: &str) -> bool {
 /// refuse de les servir), c'est la seule sonde qui répond — et sa sortie a
 /// déjà été diffusée à tout le pool comme si l'utilisateur l'avait copiée.
 ///
-/// On exige deux atomes X11 *connus* : une simple liste de chemins ou de types
-/// MIME copiée par l'utilisateur ne doit pas être confondue avec une sonde.
+/// Require recognizable metadata atoms, or TARGETS with actual MIME targets.
+/// Owners may omit TIMESTAMP/MULTIPLE, leaving a minimal TARGETS+image list.
+/// A user list containing only paths or MIME types remains ordinary text.
 pub fn is_target_list_dump(text: &str) -> bool {
     let lines: Vec<&str> = text
         .lines()
@@ -941,6 +941,14 @@ pub fn is_target_list_dump(text: &str) -> bool {
         .filter(|l| X11_TARGET_ATOMS.iter().any(|a| a.eq_ignore_ascii_case(l)))
         .count();
     known >= 2
+        || (lines
+            .iter()
+            .any(|line| line.eq_ignore_ascii_case("TARGETS"))
+            && lines.iter().any(|line| {
+                line.starts_with("image/")
+                    || line.starts_with("text/")
+                    || line.starts_with("application/")
+            }))
 }
 
 /// La sélection annonce-t-elle au moins une cible texte ?
@@ -967,7 +975,7 @@ pub fn is_rdp_bmp_only(targets: &[String]) -> bool {
 }
 
 pub async fn clipboard_targets(selection: &str) -> Result<Vec<String>> {
-    let output = xclip_read_timeout(
+    let output = selection_read_timeout(
         &["-selection", selection, "-t", "TARGETS", "-o"],
         XCLIP_TARGETS_TIMEOUT,
     )
@@ -1021,7 +1029,7 @@ pub async fn read_clipboard_payload_filtered(
                     crate::clipboard_gtk::current_clipboard_owner(),
                     crate::clipboard_epoch::current(),
                 ) {
-                    // Dropping the read also kills its pending xclip child.
+                    // Dropping the read cancels its native request window.
                     // A hung owner cannot delay a fresh native selection.
                     invalidate_payload_cache();
                     if let Ok(mut last) = LAST_IMAGE_READ_KEY.lock() { *last = None; }
@@ -1602,10 +1610,28 @@ async fn read_unadvertised_image_payload() -> Option<ClipboardPayload> {
         *at = Some(Instant::now());
     }
     for mime in ["image/png", "image/jpeg", "image/jpg"] {
-        let Ok(bytes) = read_selection_bytes_timeout("clipboard", mime, XCLIP_TEXT_TIMEOUT).await
-        else {
-            continue;
+        // Incomplete metadata does not make image conversion cheaper. Native
+        // GTK owners can take over 500 ms to encode a full-HD PNG. Timing it
+        // out and accepting the faster JPEG permanently loses source pixels.
+        // The enclosing read still cancels within 40 ms of a newer selection.
+        let output = match selection_read_timeout(
+            &["-selection", "clipboard", "-t", mime, "-o"],
+            XCLIP_IMAGE_READ_TIMEOUT,
+        )
+        .await
+        {
+            Ok(output) => output,
+            Err(error) => {
+                tracing::debug!("unadvertised image read deferred mime={mime}: {error:#}");
+                return None;
+            }
         };
+        // Only an explicit unsupported target permits a different format.
+        // A slow or malformed PNG response is not proof that PNG is absent.
+        if !output.status.success() {
+            continue;
+        }
+        let bytes = output.stdout;
         if let Ok(payload) = image_payload_from_bytes(&bytes) {
             tracing::info!(
                 "clipboard read: image recovered despite incomplete TARGETS mime={} bytes={}",
@@ -1614,6 +1640,7 @@ async fn read_unadvertised_image_payload() -> Option<ClipboardPayload> {
             );
             return Some(payload);
         }
+        return None;
     }
     None
 }
@@ -1628,8 +1655,8 @@ async fn read_primary_image_payload() -> Option<ClipboardPayload> {
     if !targets_have_pasteable_image(&targets) {
         return None;
     }
-    for mime in ["image/png", "image/jpeg", "image/jpg"] {
-        let Ok(bytes) = read_selection_bytes("primary", mime).await else {
+    for mime in preferred_image_mimes(&targets) {
+        let Ok(bytes) = read_selection_bytes("primary", &mime).await else {
             continue;
         };
         if bytes.is_empty() {
@@ -1640,6 +1667,25 @@ async fn read_primary_image_payload() -> Option<ClipboardPayload> {
         }
     }
     None
+}
+
+/// Preserve source pixels when an owner advertises a lossless representation.
+/// A transient failed conversion must be retried, rather than cached as JPEG.
+fn preferred_image_mimes(targets: &[String]) -> Vec<String> {
+    let mut lossless = Vec::new();
+    let mut lossy = Vec::new();
+    for target in targets {
+        match target.to_ascii_lowercase().as_str() {
+            "image/png" | "image/bmp" => lossless.push(target.clone()),
+            "image/jpeg" | "image/jpg" => lossy.push(target.clone()),
+            _ => {}
+        }
+    }
+    if lossless.is_empty() {
+        return lossy;
+    }
+    lossless.sort_by_key(|mime| !mime.eq_ignore_ascii_case("image/png"));
+    lossless
 }
 
 async fn read_image_payload(targets: &[String]) -> Option<ClipboardPayload> {
@@ -1660,18 +1706,9 @@ async fn read_image_payload(targets: &[String]) -> Option<ClipboardPayload> {
             return None;
         }
     }
-    let mut image_mimes: Vec<String> = targets
-        .iter()
-        .filter(|t| t.starts_with("image/"))
-        .cloned()
-        .collect();
-    image_mimes.retain(|m| {
-        let l = m.to_ascii_lowercase();
-        l == "image/png" || l == "image/jpeg" || l == "image/jpg" || l == "image/bmp"
-    });
-    image_mimes.sort_by_key(|m| match m.to_ascii_lowercase().as_str() {
-        "image/png" => 0,
-        _ => 1,
+    let image_mimes = preferred_image_mimes(targets);
+    let lossless_advertised = image_mimes.iter().any(|mime| {
+        mime.eq_ignore_ascii_case("image/png") || mime.eq_ignore_ascii_case("image/bmp")
     });
     for mime in &image_mimes {
         if let Ok(bytes) = read_selection_bytes("clipboard", mime).await {
@@ -1679,7 +1716,7 @@ async fn read_image_payload(targets: &[String]) -> Option<ClipboardPayload> {
                 match image_payload_from_bytes(&bytes) {
                     Ok(p) => {
                         tracing::info!(
-                            "image-trace CAPTURE id={} mime={} bytes={} reader=xclip",
+                            "image-trace CAPTURE id={} mime={} bytes={} reader=native-x11",
                             trace_id(&p.hash),
                             p.mime,
                             bytes.len()
@@ -1694,7 +1731,9 @@ async fn read_image_payload(targets: &[String]) -> Option<ClipboardPayload> {
             }
         }
     }
-    if targets_have_image(targets) && gtk_read_allowed() {
+    // GTK's generic image conversion can choose JPEG after a failed PNG.
+    // Keep lossless failures uncached so the next native poll retries them.
+    if !lossless_advertised && targets_have_image(targets) && gtk_read_allowed() {
         note_gtk_read_attempt();
         if let Ok(bytes) = read_image_via_gtk().await {
             if !bytes.is_empty() {
@@ -2427,9 +2466,10 @@ async fn read_selection_bytes_timeout(
     mime: &str,
     limit: Duration,
 ) -> Result<Vec<u8>> {
-    let output = xclip_read_timeout(&["-selection", selection, "-t", mime, "-o"], limit).await?;
+    let output =
+        selection_read_timeout(&["-selection", selection, "-t", mime, "-o"], limit).await?;
     if !output.status.success() {
-        anyhow::bail!("xclip read {selection} {mime} failed");
+        anyhow::bail!("native read {selection} {mime} failed");
     }
     Ok(output.stdout)
 }
@@ -2437,6 +2477,31 @@ async fn read_selection_bytes_timeout(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lossless_image_targets_exclude_jpeg_even_when_the_owner_lists_jpeg_first() {
+        assert_eq!(
+            preferred_image_mimes(&targets(&["image/jpeg", "image/bmp", "image/png"])),
+            vec!["image/png", "image/bmp"]
+        );
+        assert_eq!(
+            preferred_image_mimes(&targets(&["image/jpeg", "image/bmp"])),
+            vec!["image/bmp"]
+        );
+        assert_eq!(
+            preferred_image_mimes(&targets(&["image/jpg", "image/jpeg"])),
+            vec!["image/jpg", "image/jpeg"]
+        );
+    }
+
+    #[test]
+    fn minimal_image_target_metadata_is_never_published_as_copied_text() {
+        let metadata = "TARGETS\nimage/png\nimage/jpeg\n";
+        assert!(is_target_list_dump(metadata));
+        assert!(!is_syncable_text(metadata));
+        assert!(is_syncable_text("image/png\nimage/jpeg"));
+        assert!(is_syncable_text("/tmp/first.png\n/tmp/second.png"));
+    }
 
     #[test]
     fn a_native_text_copy_cancels_delayed_image_recovery() {

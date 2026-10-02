@@ -68,6 +68,14 @@ def run(args,**kwargs):
 def user(args,**kwargs):
     return run(['runuser','-m','-u','zaza','--',*args],**kwargs)
 def env():return json.loads((root/'environment.json').read_text())
+def ui_window():
+    # IPC acknowledges presentation intent before GTK maps the window.
+    deadline=time.monotonic()+4
+    while time.monotonic()<deadline:
+        r=user(['xdotool','search','--onlyvisible','--name','^PoolSync — nohub-a$'],env=env())
+        if r.returncode==0 and r.stdout.strip():return r.stdout.decode().splitlines()[-1]
+        time.sleep(.05)
+    raise AssertionError('Native configuration window did not become visible')
 def spawn(args,log):
     # Keep a parent waiting on the worker so container PID 1 cannot leave an
     # unreaped agent PID that its existing single-instance guard sees as alive.
@@ -119,6 +127,7 @@ if op=='snapshot':
     output={'pid':pid,'fresh':fresh,'args':args,'environment':original_env,'running_sha256':running_sha,'config_sha256':digest(cfg) if cfg.exists() else None,'away':marker.read_text() if marker.exists() else None}
 elif op=='prepare':
     root.mkdir(mode=0o700);(root/'slow-image-owner.py').write_text(request['slow_fixture']);home=root/'home';home.mkdir(mode=0o700);(root/'runtime').mkdir(mode=0o700)
+    (root/'lossless-image-owner.py').write_text(request['lossless_fixture'])
     original=request['original'];environment=dict(original['environment'])
     environment.update(HOME=str(home),XDG_RUNTIME_DIR=str(root/'runtime'),XDG_CACHE_HOME=str(home/'.cache'),XDG_CONFIG_HOME=str(home/'.config'))
     environment['DBUS_SESSION_BUS_ADDRESS']='unix:path='+str(root/'runtime/bus')
@@ -209,6 +218,14 @@ elif op=='slow_image':
     marker=root/'slow-image-requested';marker.unlink(missing_ok=True)
     output=spawn(['python3',str(root/'slow-image-owner.py'),'--image',str(root/'first.png'),'--requested',str(marker)],'slow-image.log')
 elif op=='slow_requested':output=(root/'slow-image-requested').exists()
+elif op=='lossless_image':
+    import gi;gi.require_version('GdkPixbuf','2.0');from gi.repository import GdkPixbuf
+    image=root/(request['image']+'.png');jpeg=root/'lossless-fallback.jpg'
+    assert GdkPixbuf.Pixbuf.new_from_file(str(image)).savev(str(jpeg),'jpeg',['quality'],['70'])
+    output=spawn(['python3',str(root/'lossless-image-owner.py'),'--image',str(image),'--jpeg',str(jpeg),
+                  '--metadata-delay',str(request.get('metadata_delay',0)),'--png-delay','0.8',
+                  '--refuse-png-count',str(request.get('refuse_png_count',0)),
+                  '--log',str(root/'lossless-requests.log')],'lossless-owner.log')
 elif op=='handoff':
     marker=root/'handoff-requested';marker.unlink(missing_ok=True);marker.with_suffix('.ack').unlink(missing_ok=True)
     output=spawn(['python3',str(root/'slow-image-owner.py'),'--image',str(root/(request.get('image','second')+'.png')),'--requested',str(marker),'--delay',str(request.get('delay',0)),'--save-targets'],'handoff.log')
@@ -254,14 +271,12 @@ elif op=='ui_snapshot':
     r=user(['python3','-c',code,str(root/'ui.png')],env=env());assert r.returncode==0;output=str(root/'ui.png')
 elif op=='ui_open':
     r=user([str(root/'candidate-agent'),'--config',str(root/'agent.toml'),'--open-window'],env=env());assert r.returncode==0
-    time.sleep(.4);output=True
+    ui_window();output=True
 elif op=='ui_click':
-    r=user(['xdotool','search','--name','^PoolSync — nohub-a$'],env=env());assert r.returncode==0
-    window=r.stdout.decode().splitlines()[-1]
+    window=ui_window()
     r=user(['xdotool','windowraise',window,'windowfocus','--sync',window,'mousemove','--window',window,str(request['x']),str(request['y']),'click','1'],env=env());assert r.returncode==0;output=True
 elif op=='ui_drag':
-    r=user(['xdotool','search','--name','^PoolSync — nohub-a$'],env=env());assert r.returncode==0
-    window=r.stdout.decode().splitlines()[-1]
+    window=ui_window()
     r=user(['xdotool','windowraise',window,'windowfocus','--sync',window,'mousemove','--window',window,str(request['from_x']),str(request['from_y']),'mousedown','1','sleep','0.15','mousemove','--window',window,str(request['to_x']),str(request['to_y']),'sleep','0.2','mouseup','1'],env=env());assert r.returncode==0;output=True
 elif op=='saved_layout':output=json.loads((root/'agent.topology.json').read_text())
 elif op=='resources':
@@ -354,6 +369,12 @@ elif op=='restore':
     original=request['original'];cfg=Path('/home/zaza/.config/poolsync/agent.toml')
     assert (digest(cfg) if cfg.exists() else None)==original['config_sha256'],'original configuration changed'
     marker=cfg.with_suffix('.away');assert (marker.read_text() if marker.exists() else None)==original['away'],'original participation changed'
+    # The isolated executable is named candidate-agent, not poolsync-agent.
+    # Check its exact path instead of treating a negative name lookup as cleanup.
+    for process in Path('/proc').glob('[0-9]*/cmdline'):
+        try:command=process.read_bytes().split(b'\0')[0]
+        except (FileNotFoundError,PermissionError,ProcessLookupError):continue
+        assert command!=str(root/'candidate-agent').encode(),'isolated candidate remains running'
     existing=run(['pgrep','-u','zaza','-x','poolsync-agent']).stdout.decode().split()
     if not existing and not original.get('fresh'):
         subprocess.Popen(['runuser','-m','-u','zaza','--',*original['args']],env=original['environment'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
@@ -366,7 +387,7 @@ elif op=='restore':
         assert len(pids)==1
         assert digest('/proc/'+pids[0]+'/exe')==original['running_sha256'],'restored agent differs'
         preserved=int(pids[0])==original['pid']
-    output={'config_preserved':True,'original_agent_restored':True,'original_pid_preserved':preserved,'away_preserved':True,'fresh_desktop':original.get('fresh',False)}
+    output={'config_preserved':True,'original_agent_restored':True,'original_pid_preserved':preserved,'away_preserved':True,'candidate_agent_stopped':True,'fresh_desktop':original.get('fresh',False)}
 else:raise RuntimeError('unknown operation')
 print(json.dumps(output))
 '''
@@ -390,6 +411,8 @@ def main():
     parser.add_argument('--simultaneous-claims', action='store_true', help='Issue concurrent native ownership shortcuts on A and B repeatedly')
     parser.add_argument('--ui-only', action='store_true', help='Diagnose native layout editing before KVM recovery scenarios')
     parser.add_argument('--participation-only', action='store_true', help='Qualify immediate departure and concurrent private rejoin without the long KVM/soak sequence')
+    parser.add_argument('--lossless-only', action='store_true', help='Stop after the slow metadata/PNG lossless paste regressions')
+    parser.add_argument('--lossless-rounds', type=int, default=1, help='Repeat the two native slow/refused PNG regression cases')
     parser.add_argument('--bounded-allocator', action='store_true', help='Match the launcher limits for glibc arenas and large-buffer mmap allocation')
     parser.add_argument('--layout-ui', action='store_true', help='Show the running A agent configuration window for native layout qualification')
     parser.add_argument('--flameshot', action='store_true', help='Use the real Flameshot application for the fullscreen clipboard capture')
@@ -406,6 +429,8 @@ def main():
     assert not args.kvm_only or args.hubless, '--kvm-only requires --hubless'
     assert not args.reboot_desktops or args.fresh_desktops, 'Reboots require disposable fresh desktops'
     assert not args.participation_only or args.hubless, '--participation-only requires --hubless'
+    assert not args.lossless_only or args.clipboard_races, '--lossless-only requires --clipboard-races'
+    assert args.lossless_rounds > 0, '--lossless-rounds must be positive'
     assert os.geteuid() == 0, 'Run on the disposable Podman host as root'
     actual = hashlib.file_digest(args.candidate.open('rb'), 'sha256').hexdigest()
     assert actual == args.expected_sha256, 'Unexpected candidate binary'
@@ -536,7 +561,7 @@ def main():
                           'direction="right"' if j > index else 'direction="left"',
                           f'peer_url="ws://{args.addresses[j]}:{port}/ws"']
             layout={'revision':1,'origin':'nohub-a','topology':{'nodes':{name:{'x':j*1600,'y':0,'width':1600,'height':900,'kvm_enabled':j!=2} for j,name in enumerate(nodes)}}}
-            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
+            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),lossless_fixture=Path(__file__).with_name('lossless-image-owner.py').read_text(),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
             subprocess.run(['podman', 'cp', str(args.candidate), args.containers[index] + ':' + root + '/candidate-agent'], check=True, capture_output=True)
             subprocess.run(['podman', 'exec', args.containers[index], 'chmod', '755', root + '/candidate-agent'], check=True, capture_output=True)
         for index in range(3):
@@ -668,6 +693,26 @@ def main():
                 check('A real '+('Flameshot' if args.flameshot else 'XFCE')+' screenshot survives application close and pastes on every peer')
 
             if args.clipboard_races:
+                lossless_cases=[(label+' round '+str(round_), delay, refused) for round_ in range(args.lossless_rounds) for label,delay,refused in [('slow metadata',0.45,0),('temporary PNG refusal',0,5)]]
+                for label, metadata_delay, refused in lossless_cases:
+                    copy_text(0,'Distinct clipboard baseline before '+label)
+                    started=time.time();owner=op(0,'lossless_image',image='first',metadata_delay=metadata_delay,refuse_png_count=refused)
+                    try:
+                        expect((0,1,2),images[0]['first'],started)
+                        check('Lossless PNG pixels survive '+label+' with JPEG also advertised')
+                        if args.native_browser:
+                            op(1,'browser_paste');deadline=time.monotonic()+10
+                            while time.monotonic()<deadline:
+                                if any(e['at']>=started and e.get('sha256')==images[0]['first']['sha256'] for e in op(1,'browser_records')):break
+                                time.sleep(.2)
+                            else:raise AssertionError('Native Firefox did not paste the lossless image')
+                            check('Native Firefox preserves lossless pixels after '+label)
+                        copy_text(0,'Fresh native copy ends '+label)
+                    finally:op(0,'stop',pid=owner)
+                if args.lossless_only:
+                    check('Hub remained unreachable during lossless regressions',all(not op(i,'health',port=port)['hub_connected_logged'] for i in range(3)))
+                    result['functional_checks_passed']=True
+                    return
                 for image in ('second','first'):
                     started=time.time();op(1,'copy',image=image,bmp=True)
                     expect((0,1,2),images[1][image],started)

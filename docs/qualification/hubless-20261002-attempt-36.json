@@ -1,0 +1,83 @@
+{
+  "candidate_sha256": "003b2dbb1f7da619d1684c70b773ca31c50b0aec00ecee6c5e72f621e60b2cee",
+  "functional_checks_passed": false,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    }
+  ],
+  "checks_passed": 11,
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "error": "Native paste did not converge on neko-desk-b, neko-desk-c",
+  "failed_fresh_sessions_retained": false,
+  "paste_convergence_seconds": [
+    1.503,
+    1.761,
+    2.075,
+    1.876,
+    2.03,
+    2.155,
+    1.736,
+    1.845,
+    2.005,
+    1.54,
+    1.353
+  ]
+}

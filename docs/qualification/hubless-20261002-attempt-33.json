@@ -1,0 +1,70 @@
+{
+  "candidate_sha256": "003b2dbb1f7da619d1684c70b773ca31c50b0aec00ecee6c5e72f621e60b2cee",
+  "restoration_passed": false,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    }
+  ],
+  "checks_passed": 9,
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents and complete disposable containers",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "direct_links": "triangle",
+  "fresh_desktops": true,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "failed_fresh_sessions_retained": true,
+  "paste_convergence_seconds": [
+    1.932,
+    1.576,
+    1.85,
+    1.93,
+    2.091,
+    2.051,
+    2.012,
+    2.248
+  ],
+  "execution_note": "Intentionally interrupted to correct the non-distinct native receiver assertion; no complete behavior qualification."
+}

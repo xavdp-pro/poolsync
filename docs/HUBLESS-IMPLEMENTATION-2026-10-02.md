@@ -19,12 +19,13 @@ Its package version remains 2.0.3; that version alone cannot identify the
 development build. Later source changes must receive their own qualification.
 
 The current development candidate is version **2.1.0-dev.3**, SHA-256
-`c1c38e2f957e32a8e2a5e35d533c82a2f414f2ed1234dedba8e4f2e421090b93`.
-Its 124 Rust tests, workspace Clippy checks and release build pass. Attempt 27
-passed a 20-minute sequence with GTK native copy providers and real Flameshot
-captures. Attempt 27 later failed an immediate private-copy departure scenario;
-this candidate is not eligible for production. Departure acknowledgment and
-selection release protection are being qualified in a later candidate.
+`208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4`.
+Its 130 Rust tests, workspace Clippy checks and release build pass. This adds
+acknowledged departure, safe release, bounded allocator/idle work, and lossless
+image selection, with a persistent, correlated native X11 selection reader.
+Complete native qualification remains pending. Earlier
+candidates have passing subsets and recorded complete-campaign failures; none
+is a substitute for qualifying this final binary.
 
 ## Protocol and recovery
 
@@ -76,7 +77,8 @@ must be recognized before recovering a stripped offer. A BMP is read before
 recovery: a valid new BMP is normalized to PNG, never replaced by cached pixels.
 Queued GTK offers and repair callbacks retain selection owner, XFixes epoch and
 offer generation guards. A superseded native read is cancelled within its next
-40 ms selection check, killing its pending xclip child. XFixes selection
+40 ms selection check; the reader disposes its request window within the next
+5 ms worker cycle. XFixes selection
 epochs distinguish fresh native images when an application reuses its owner
 window and provides no TIMESTAMP target. A failed or superseded image read
 does not permanently poison the read cache. The source pointer stays centered
@@ -207,7 +209,15 @@ environments and credentials remain private.
 | `c1c38e2f…`, 27 | The 1,203.957-second soak passes 284 image/text rounds, with 636 recorded paste observations including earlier scenarios. A later immediate private-copy departure fails locally on C: the CLI returns before the live absence gate changes, and a delayed release clears another application's selection. The full campaign fails and fresh sessions are retained for diagnosis. |
 | `c1c38e2f…`, 28 | Six native layout and permission regression checks pass on neko-desk-a/b/c. Original configurations, participation, running PIDs and binaries are preserved. This is UI/control coverage, not the sustained clipboard campaign. |
 | `3253861f…`, 29 | All 41 immediate-departure/private-rejoin checks pass, covering 20 concurrent return rounds and 61 native paste operations. Neither office receiver history contains private contents; original agents/configurations are preserved. This candidate adds live command acknowledgment and safe release, before resource optimization. |
-| `90bc1ddc…`, 30 | Complete cold-desktop campaign in progress with the acknowledged departure fixes, XFixes idle polling and launcher-equivalent allocator limits. Planned 20-minute paste soak and interval resource comparison remain pending. |
+| `90bc1ddc…`, 30 | 57 checks pass, including complete cold-start orders, full-HD GTK/Firefox pastes and KVM recovery. The first full-HD soak image fails pixel fidelity on B/C: incomplete TARGETS fallback gives native PNG only 500 ms, then accepts lossy JPEG. The source PNG remains correct. The full campaign fails; partial resource samples do not qualify performance. Live failure logs were preserved before resetting only disposable test sessions. |
+| `90bc1ddc…`, 31 | Complete original-desktop chain campaign passes 72 checks, including layout persistence, native xclip/full-HD/Firefox, recovery and participation. Its 84 paste observations have median 1.577 s, p95 2.199 s and maximum 4.291 s including sampling/orchestration. This does not supersede attempt 30. |
+| `90bc1ddc…`, 32 | A native owner with slow TARGETS/PNG and fast JPEG reproduces a JPEG wire dispatch. The complete assertion fails. The fixture initially repeats the receiver's already recorded PNG; subsequent fixtures start with distinct text to avoid that observation ambiguity. |
+| `003b2dbb…`, 33–34 | Intentionally interrupted before the ambiguous non-distinct PNG assertion. The fixture was corrected to start each case with distinct text. These interrupted runs qualify no new behavior. Original desktop restoration passes for 34; disposable retained sessions from 33 are explicitly reset. |
+
+| `003b2dbb…`, 35 | Complete cold-desktop/native/KVM/20-minute resource campaign in progress. |
+| `003b2dbb…`, 36 | Slow native metadata exposes xclip returning a minimal TARGETS+PNG+JPEG list for unsupported text requests. The old metadata filter requires two named X11 atoms, so this short list is published as text and PNG is skipped. B/C fidelity checks fail; original desktops are restored. |
+| `0927dc98…`, 37 | All 16 native lossless regressions pass, including slow metadata, temporarily refused PNG, simultaneous JPEG availability and real Firefox Ctrl+V. Original desktop configurations/PIDs are preserved. The forced slow/refused owner case reaches 8.138 seconds; this is fault-injection convergence, not ordinary latency. |
+| `0927dc98…`, 38–39 | Final complete cold-desktop soak/resource campaign and native UI regression in progress. |
 
 ## Further clipboard and permission corrections
 
@@ -308,12 +318,77 @@ The launcher preserves explicit allocator choices and otherwise limits glibc to
 two arenas and a static 128-KiB mmap threshold for large buffers. These are
 supported [glibc allocator settings](https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html).
 Container resource qualification must use `--bounded-allocator` to match these
-launch conditions. Improvements remain unmeasured until that campaign finishes.
-The current source candidate is SHA-256
-`90bc1ddc4cde89fed3208d5c93189fb448270641abb1bc59d8068693085bb921`,
-version 2.1.0-dev.3, with **126 Rust tests**, Clippy and release build passing.
-Attempt 30 is its full functional/resource qualification; no production
-installation has occurred.
+launch conditions. Attempt 35 measures the improvement on its recorded binary;
+the current binary still requires its own endurance measurement.
+Attempt 30 reveals a separate lossless-image failure. Its source native PNG
+conversions take 0.481–0.836 seconds, exceeding the fallback's 500-ms limit.
+That fallback accepted a 1,248,305-byte JPEG and changed the pasted RGBA pixels.
+The new candidate gives unknown-format image reads the same cancellable
+10-second image limit as advertised formats. A timeout or malformed response
+does not prove the target is unsupported. Advertised PNG/BMP exclude JPEG
+fallback, and a failed lossless conversion is left uncached for retry. GTK
+generic conversion is not used to bypass that fidelity constraint. Native
+regression fixtures offer a delayed PNG alongside a fast lossy JPEG.
+
+Tray status refresh blocks its checkbox signal while reflecting a live away
+state, preventing programmatic refresh from issuing another participation
+command. A minimal TARGETS+MIME list is also rejected as metadata, while ordinary
+MIME-only or file-path lists remain text. The final source candidate is
+SHA-256 `0927dc98…` at that stage. Its check-only preservation/runtime-dependency gate passes
+on all five physical targets. Files are staged only; production remains untouched.
+
+## Correlated native selection reads
+
+Attempt 35 passes its complete 78-check campaign on `003b2dbb…`, including
+1,205.464 seconds and 291 image/text rounds. Its 60-second idle intervals measure
+1.66–2.91% of one CPU and 72.4–136.7 MiB final RSS. Attempts 36 and 38 subsequently
+demonstrate that passing this one campaign did not establish repeatability.
+Attempt 39 separately passes six native layout/permission checks on `0927dc98…`.
+Their sanitized reports preserve both the successes and failures.
+
+A focused native reproduction explains the intermittent metadata confusion:
+terminate a TARGETS xclip read before its delayed owner replies, then start a PNG
+read. All five trials return the old 29-byte TARGETS list with exit status zero
+instead of PNG bytes. Short-lived X11 clients reuse resource identifiers, so an
+old owner response can reach the next client. Filtering the list prevents a
+bogus text copy but does not make the requested image available. The measured
+reproduction is retained in
+`qualification/xclip-late-selection-replies-20261002.json`.
+
+The reader now keeps one Rust X11 connection and gives every conversion a fresh
+request window. It validates the requestor, selection, target, property and data
+type; old replies cannot complete a newer conversion. Content limits, request
+deadlines and cancellation also apply to INCR transfers. Large images use the
+same lossless format priority as small images. The dedicated SAVE_TARGETS
+manager uses this reader and stops a capture when a newer native copy supersedes
+it. xclip remains available for existing write paths, but production selection
+reads no longer create short-lived xclip clients.
+
+Attempt 40 repeats the slow-metadata and temporarily-refused PNG cases ten times
+each, with native GTK and Firefox pastes. All 52 checks pass on the current
+binary, with 70 paste observations: median 2.054 seconds, p95 5.019 seconds and
+maximum 5.376 seconds, including deliberate refusal/delay and receiver sampling.
+The original agents, configurations and participation markers are preserved.
+Attempt 41 is the complete cold-start, recovery and endurance campaign on that
+same binary; it is still running. Focused success does not replace that gate.
+
+Attempt 42 records an early native-window lookup failure. Its failure snapshot
+shows the expected window after that lookup. The UI fixture now waits for the
+actual mapped window, rather than assuming a fixed 400-ms presentation delay.
+Attempt 43 passes all six native layout, persistence and KVM-permission checks
+with that bounded wait on the same current binary. Attempt 44 passes all 41
+checks across twenty acknowledged departure/private-rejoin cycles separately
+from the full campaign, preserving private selections and excluding them from
+the other receivers' history. Original configurations and agent PIDs are
+preserved, and the isolated candidates are confirmed stopped by their paths.
+Both test restoration and candidate cleanup inspect the exact candidate path;
+the copied executable is named `candidate-agent`, so its absence cannot be
+established by searching only for the production process name.
+
+The native-reader binary's check-only preservation and runtime dependency gate
+passes on all five physical computers. Its private staging directory is
+`/opt/poolsync/staging/hubless-20261002-native-reader`. This remains staging,
+not installation or physical acceptance.
 
 ## Remaining qualification and deployment gates
 
@@ -325,7 +400,9 @@ The goal remains open. Required work not proved by this campaign includes:
 2. Cold starts in different orders, alternate direct paths, suspended peers,
    TCP loss and simultaneous claims pass before later clipboard failures.
    They do not turn those failed complete campaigns into passing campaigns.
-3. A completed sustained native-copy campaign and interval resource measurements.
+3. Repeatable sustained native-copy campaigns and interval resource measurements
+   on the final binary. Attempt 35 passes its recorded campaign, while attempt 38
+   fails a later lossless-image regression before reaching its planned soak.
    Native BMP, SAVE_TARGETS and superseded image-read races pass on the recorded
    candidates; the current native-intent race fix and actual XRDP bridge recovery
    still require qualification.
