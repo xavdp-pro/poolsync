@@ -201,6 +201,14 @@ explicitly a separate test path.
 
 ## Remaining product limits and next gates
 
+The 2026-10-02 no-hub development run passes 18 checks on three private Xorg
+sessions inside the dedicated test desktops. Native text/images, persistent
+absence and direct-peer recovery work without a hub. KVM remains hub-dependent,
+and measured clipboard convergence reaches 11.208 seconds. Earlier transition
+failures remain a repeatability concern. See
+[the qualification and reproduction guide](NO-HUB-DEVELOPMENT-2026-10-02.md)
+before treating clipboard survival as complete serverless-control acceptance.
+
 1. **Complete serverless control first.** Direct authenticated KVM transport,
    peer presence/expiry, bounded master claims and shared topology must work
    without the hub. Next gate: stop the hub, use either desktop's physical
