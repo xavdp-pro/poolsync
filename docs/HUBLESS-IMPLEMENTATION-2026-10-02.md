@@ -21,9 +21,10 @@ development build. Later source changes must receive their own qualification.
 The current development candidate is version **2.1.0-dev.3**, SHA-256
 `c1c38e2f957e32a8e2a5e35d533c82a2f414f2ed1234dedba8e4f2e421090b93`.
 Its 124 Rust tests, workspace Clippy checks and release build pass. Attempt 27
-is qualifying GTK native copy providers, real Flameshot captures and a planned
-20-minute paste soak. That campaign is still running; its earlier passing
-checks are not a complete endurance qualification.
+passed a 20-minute sequence with GTK native copy providers and real Flameshot
+captures. Attempt 27 later failed an immediate private-copy departure scenario;
+this candidate is not eligible for production. Departure acknowledgment and
+selection release protection are being qualified in a later candidate.
 
 ## Protocol and recovery
 
@@ -203,7 +204,10 @@ environments and credentials remain private.
 | `28eb5f05…`, 24 | Large images and a real XFCE screenshot pass. Browser instrumentation later cannot find its window by transient title; capture and retain the native window identifier instead. |
 | `28eb5f05…`, 25 | Full 67-check original-desktop campaign passes, including two different full-HD images, a real XFCE capture, native Firefox paste, screen changes, claims and layout editing. Maximum measured convergence is 4.162 seconds including orchestration. No prolonged soak is included. |
 | `20b65773…`, 26 | Complete cold starts and nine native checks pass, then the first browser image check fails on all three desktops. Retained live sessions prove an old local GTK selection is promoted with a fresh sequence while a newer incoming offer is being applied. This is a PoolSync race, not a passing run. |
-| `c1c38e2f…`, 27 | Qualification in progress with native GTK copy providers, actual Flameshot capture, cold starts, repeated full-HD images, a planned 20-minute soak and concurrent private rejoin checks. Do not count this row as a completed pass. |
+| `c1c38e2f…`, 27 | The 1,203.957-second soak passes 284 image/text rounds, with 636 recorded paste observations including earlier scenarios. A later immediate private-copy departure fails locally on C: the CLI returns before the live absence gate changes, and a delayed release clears another application's selection. The full campaign fails and fresh sessions are retained for diagnosis. |
+| `c1c38e2f…`, 28 | Six native layout and permission regression checks pass on neko-desk-a/b/c. Original configurations, participation, running PIDs and binaries are preserved. This is UI/control coverage, not the sustained clipboard campaign. |
+| `3253861f…`, 29 | All 41 immediate-departure/private-rejoin checks pass, covering 20 concurrent return rounds and 61 native paste operations. Neither office receiver history contains private contents; original agents/configurations are preserved. This candidate adds live command acknowledgment and safe release, before resource optimization. |
+| `90bc1ddc…`, 30 | Complete cold-desktop campaign in progress with the acknowledged departure fixes, XFixes idle polling and launcher-equivalent allocator limits. Planned 20-minute paste soak and interval resource comparison remain pending. |
 
 ## Further clipboard and permission corrections
 
@@ -267,6 +271,49 @@ actual running executable and graphical checks remain deployment requirements.
 Check-only also passed on all five physical targets with the earlier
 `28eb5f05…` bundle. Staging files is not deployment and must be repeated with
 the final qualified candidate.
+
+The pre-migration dependency audit observes exactly the five intended physical
+agents connected to the legacy hub on gbs-p3. Every computer still runs in
+legacy mode. Installed watchdogs and local history commands reference the hub;
+the replacement scripts remove those dependencies in hubless mode. Asus also
+has an old manual `poolsync-test` utility which measures hub APIs; it is not a
+hubless acceptance tool. No production hub has been stopped. The Acer account
+uses UID 1001; migration discovers each account's actual UID rather than assuming
+the UID 1000 used on the other computers.
+
+## Participation acknowledgment and resource follow-up
+
+Attempt 27 proves a 1,203.957-second paste soak with 284 native image/text
+rounds, including periodic distinct full-HD images. The complete campaign still
+fails its later immediate private departure scenario. Across all scenarios it
+records 636 paste observations: median 1.895 seconds, p95 2.933 seconds and
+maximum 5.736 seconds, including sampling and orchestration.
+
+The 60-second idle intervals measure 3.71–4.83% of one CPU and 395–465 MiB RSS.
+Sampled active peak RSS reaches 499 MiB. These observations are a performance
+baseline, not evidence that the desired lightweight daily behavior is complete.
+
+The next candidate makes the user-owned control socket acknowledge departure
+only after the running agent changes its participation and privacy gates. An
+inactive agent may persist the marker for its next start; a running agent which
+cannot acknowledge does not report an applied departure. Polling observes the
+latest marker under the same transition lock and cannot rewrite a newer command.
+Repeated departure is idempotent. A delayed GTK release clears only an offer
+still owned by PoolSync, preserving a copying application's private selection.
+
+The resource experiment keeps fast polling for XFixes selection changes, with
+a one-second fallback for owners which change their data silently. Unchanged
+selections no longer trigger full conversion at every configured poll interval.
+The launcher preserves explicit allocator choices and otherwise limits glibc to
+two arenas and a static 128-KiB mmap threshold for large buffers. These are
+supported [glibc allocator settings](https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html).
+Container resource qualification must use `--bounded-allocator` to match these
+launch conditions. Improvements remain unmeasured until that campaign finishes.
+The current source candidate is SHA-256
+`90bc1ddc4cde89fed3208d5c93189fb448270641abb1bc59d8068693085bb921`,
+version 2.1.0-dev.3, with **126 Rust tests**, Clippy and release build passing.
+Attempt 30 is its full functional/resource qualification; no production
+installation has occurred.
 
 ## Remaining qualification and deployment gates
 

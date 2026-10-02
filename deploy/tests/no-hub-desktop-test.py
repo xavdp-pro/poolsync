@@ -73,8 +73,11 @@ def spawn(args,log):
     # unreaped agent PID that its existing single-instance guard sees as alive.
     pid_file=root/(log+'.pid.'+str(os.getpid()))
     guardian="import os,subprocess,sys;from pathlib import Path;p=subprocess.Popen(sys.argv[2:],user='zaza',group='zaza',extra_groups=[],start_new_session=True);Path(sys.argv[1]).write_text(str(p.pid));p.wait()"
+    environment=env()
+    if log=='agent.log' and (root/'bounded-allocator').exists():
+        environment.update(MALLOC_ARENA_MAX='2',MALLOC_MMAP_THRESHOLD_='131072')
     with (root/log).open('ab') as stream:
-        process=subprocess.Popen(['python3','-c',guardian,str(pid_file),*args],env=env(),stdout=stream,stderr=stream,start_new_session=True)
+        process=subprocess.Popen(['python3','-c',guardian,str(pid_file),*args],env=environment,stdout=stream,stderr=stream,start_new_session=True)
     for _ in range(40):
         if pid_file.exists() and pid_file.read_text().strip():return int(pid_file.read_text())
         time.sleep(.05)
@@ -130,6 +133,7 @@ elif op=='prepare':
     (root/'agent.toml').write_text(request['config']);(root/'agent.toml').chmod(0o600)
     if request.get('show_window'):(root/'show-window').touch()
     if request.get('native_owner')=='gtk':(root/'gtk-native-owner').touch()
+    if request.get('bounded_allocator'):(root/'bounded-allocator').touch()
     if 'layout' in request:
         (root/'agent.topology.json').write_text(json.dumps(request['layout']));(root/'agent.topology.json').chmod(0o600)
     import gi
@@ -385,6 +389,8 @@ def main():
     parser.add_argument('--clipboard-races', action='store_true', help='Qualify valid BMP and a delayed image owner superseded by fresh text')
     parser.add_argument('--simultaneous-claims', action='store_true', help='Issue concurrent native ownership shortcuts on A and B repeatedly')
     parser.add_argument('--ui-only', action='store_true', help='Diagnose native layout editing before KVM recovery scenarios')
+    parser.add_argument('--participation-only', action='store_true', help='Qualify immediate departure and concurrent private rejoin without the long KVM/soak sequence')
+    parser.add_argument('--bounded-allocator', action='store_true', help='Match the launcher limits for glibc arenas and large-buffer mmap allocation')
     parser.add_argument('--layout-ui', action='store_true', help='Show the running A agent configuration window for native layout qualification')
     parser.add_argument('--flameshot', action='store_true', help='Use the real Flameshot application for the fullscreen clipboard capture')
     parser.add_argument('--native-owner', choices=['xclip','gtk'], default='xclip', help='Foreground native application used to copy fixtures')
@@ -399,6 +405,7 @@ def main():
     assert not args.retain_failed_desktops or args.fresh_desktops, 'failure retention is limited to disposable fresh desktops'
     assert not args.kvm_only or args.hubless, '--kvm-only requires --hubless'
     assert not args.reboot_desktops or args.fresh_desktops, 'Reboots require disposable fresh desktops'
+    assert not args.participation_only or args.hubless, '--participation-only requires --hubless'
     assert os.geteuid() == 0, 'Run on the disposable Podman host as root'
     actual = hashlib.file_digest(args.candidate.open('rb'), 'sha256').hexdigest()
     assert actual == args.expected_sha256, 'Unexpected candidate binary'
@@ -423,6 +430,7 @@ def main():
     result['direct_links']=args.links
     result['fresh_desktops']=args.fresh_desktops
     result['native_copy_application']=args.native_owner
+    result['allocator']={'arena_max':2,'mmap_threshold':131072} if args.bounded_allocator else 'system default'
     resource_samples=[]
     result['resource_samples']=resource_samples
 
@@ -528,7 +536,7 @@ def main():
                           'direction="right"' if j > index else 'direction="left"',
                           f'peer_url="ws://{args.addresses[j]}:{port}/ws"']
             layout={'revision':1,'origin':'nohub-a','topology':{'nodes':{name:{'x':j*1600,'y':0,'width':1600,'height':900,'kvm_enabled':j!=2} for j,name in enumerate(nodes)}}}
-            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
+            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
             subprocess.run(['podman', 'cp', str(args.candidate), args.containers[index] + ':' + root + '/candidate-agent'], check=True, capture_output=True)
             subprocess.run(['podman', 'exec', args.containers[index], 'chmod', '755', root + '/candidate-agent'], check=True, capture_output=True)
         for index in range(3):
@@ -576,6 +584,22 @@ def main():
             check('Pool-disabled B cannot claim control and keeps its native keyboard',all(op(i,'status').get('lease',{}).get('owner')!=nodes[1] for i in range(3)) and op(1,'local_key'))
             op(0,'ui_click',x=30,y=530);op(0,'ui_click',x=355,y=62);time.sleep(3)
             check('Native permission restore enables B without changing its position',all(op(i,'status')['topology']['nodes'][nodes[1]]['kvm_enabled'] and op(i,'saved_layout')['topology']['nodes'][nodes[1]]['y']==900 for i in range(3)))
+            result['functional_checks_passed']=True
+            return
+
+        if args.participation_only:
+            copy_text(0,'Initial shared clipboard before immediate departure')
+            for wake_round in range(20):
+                op(2,'away',value=True)
+                private=copy_text(2,'Immediate private departure '+str(wake_round),targets=(2,))
+                private_hash=hashlib.sha256(private.encode()).hexdigest()
+                check('Acknowledged departure keeps the immediate native copy usable round '+str(wake_round))
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    returning=executor.submit(op,2,'away',value=False)
+                    office_copy=executor.submit(copy_text,0,'Concurrent office/rejoin '+str(wake_round),targets=(0,1))
+                    returning.result();office_copy.result()
+                copy_text(0,'Fresh copy after acknowledged rejoin '+str(wake_round))
+                check('Private contents never enter office receiver history round '+str(wake_round),all(not any(record['sha256']==private_hash for record in op(i,'pastes')) for i in (0,1)))
             result['functional_checks_passed']=True
             return
 
@@ -848,8 +872,9 @@ def main():
                 private_race=copy_text(2,'Private rejoin race '+str(wake_round),targets=(2,))
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     returning=executor.submit(op,2,'away',value=False)
-                    office_copy=executor.submit(copy_text,0,'Concurrent office/rejoin '+str(wake_round))
+                    office_copy=executor.submit(copy_text,0,'Concurrent office/rejoin '+str(wake_round),targets=(0,1))
                     returning.result();office_copy.result()
+                copy_text(0,'Fresh office copy after concurrent rejoin '+str(wake_round))
                 time.sleep(.5)
                 check('Concurrent rejoin does not replay private clipboard round '+str(wake_round),all(op(i,'text')!=private_race for i in (0,1)))
 

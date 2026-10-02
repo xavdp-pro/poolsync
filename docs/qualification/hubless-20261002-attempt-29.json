@@ -1,0 +1,235 @@
+{
+  "candidate_sha256": "3253861fcfc20f8b4a4b3e0af327a9cb81c30dabfe17b07ee0c48e37e9469bea",
+  "functional_checks_passed": true,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 0",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 0",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 1",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 1",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 2",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 2",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 3",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 3",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 4",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 4",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 5",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 5",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 6",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 6",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 7",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 7",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 8",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 8",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 9",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 9",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 10",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 10",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 11",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 11",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 12",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 12",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 13",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 13",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 14",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 14",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 15",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 15",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 16",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 16",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 17",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 17",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 18",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 18",
+      "passed": true
+    },
+    {
+      "name": "Acknowledged departure keeps the immediate native copy usable round 19",
+      "passed": true
+    },
+    {
+      "name": "Private contents never enter office receiver history round 19",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    2.175,
+    1.552,
+    1.764,
+    1.638,
+    1.518,
+    1.734,
+    1.547,
+    0.718,
+    1.416,
+    1.713,
+    1.581,
+    1.619,
+    1.622,
+    1.104,
+    1.57,
+    1.668,
+    1.653,
+    1.629,
+    1.577,
+    1.101,
+    1.598,
+    1.543,
+    1.2,
+    1.571,
+    1.957,
+    0.716,
+    1.42,
+    1.725,
+    1.636,
+    1.837,
+    1.605,
+    1.155,
+    1.58,
+    1.871,
+    1.626,
+    1.365,
+    1.806,
+    1.049,
+    1.324,
+    1.545,
+    1.416,
+    1.498,
+    2.053,
+    1.489,
+    1.285,
+    1.73,
+    1.524,
+    1.424,
+    1.828,
+    1.097,
+    1.399,
+    2.054,
+    1.744,
+    1.556,
+    1.615,
+    1.063,
+    1.352,
+    1.704,
+    1.133,
+    1.37,
+    1.571
+  ],
+  "native_copy_application": "gtk"
+}

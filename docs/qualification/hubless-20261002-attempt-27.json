@@ -1,0 +1,1530 @@
+{
+  "candidate_sha256": "c1c38e2f957e32a8e2a5e35d533c82a2f414f2ed1234dedba8e4f2e421090b93",
+  "functional_checks_passed": false,
+  "restoration_passed": false,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real Flameshot screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "A genuine new second BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the fresh converted second BMP",
+      "passed": true
+    },
+    {
+      "name": "A genuine new first BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the fresh converted first BMP",
+      "passed": true
+    },
+    {
+      "name": "Application SAVE_TARGETS handoff preserves a fresh image after close",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff starts a real image transfer",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff cannot replace a newer native copy",
+      "passed": true
+    },
+    {
+      "name": "The delayed native image owner has received a real read request",
+      "passed": true
+    },
+    {
+      "name": "Fresh text converges before the six-second image response",
+      "passed": true
+    },
+    {
+      "name": "A late image response cannot restore the previous capture",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Emergency shortcut returns captured input to A",
+      "passed": true
+    },
+    {
+      "name": "Emergency return releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "A held modifier is injected on B",
+      "passed": true
+    },
+    {
+      "name": "Network loss releases the remote held modifier",
+      "passed": true
+    },
+    {
+      "name": "Source native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Target native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Direct KVM resumes after the network partition",
+      "passed": true
+    },
+    {
+      "name": "Controller disappearance releases the held modifier on B",
+      "passed": true
+    },
+    {
+      "name": "B native keyboard is usable after the controller disappears",
+      "passed": true
+    },
+    {
+      "name": "B takes control and crosses to A after A restarts",
+      "passed": true
+    },
+    {
+      "name": "A temporary departure returns B input locally",
+      "passed": true
+    },
+    {
+      "name": "B local GTK keyboard works after its remote target leaves",
+      "passed": true
+    },
+    {
+      "name": "Two local monitors are announced directly",
+      "passed": true
+    },
+    {
+      "name": "Docking keeps the saved neighboring computer adjacent",
+      "passed": true
+    },
+    {
+      "name": "The internal monitor edge keeps input local",
+      "passed": true
+    },
+    {
+      "name": "The added local monitor remains directly usable",
+      "passed": true
+    },
+    {
+      "name": "The external desktop edge reaches the other computer",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab returns native input locally",
+      "passed": true
+    },
+    {
+      "name": "Undocking restores the neighbor and advertises a different resolution",
+      "passed": true
+    },
+    {
+      "name": "Crossing scales coordinates between different resolutions",
+      "passed": true
+    },
+    {
+      "name": "Original desktop dimensions return after screen restoration",
+      "passed": true
+    },
+    {
+      "name": "Ten concurrent claim rounds converge on one eligible controller",
+      "passed": true
+    },
+    {
+      "name": "Concurrent claims leave both native keyboards available",
+      "passed": true
+    },
+    {
+      "name": "Repeated native image/text transitions",
+      "passed": true
+    },
+    {
+      "name": "Sustained real paste sequence finishes without stale contents",
+      "passed": true
+    },
+    {
+      "name": "Idle resource interval finishes with all peers alive",
+      "passed": true
+    },
+    {
+      "name": "Absent C neither receives nor retains office copies",
+      "passed": true
+    },
+    {
+      "name": "Absent C does not send its private copy",
+      "passed": true
+    },
+    {
+      "name": "Absence survives agent restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Rejoin does not replay the private clipboard",
+      "passed": true
+    },
+    {
+      "name": "Fresh native copies resume after rejoin without hub",
+      "passed": true
+    }
+  ],
+  "error": "Native paste did not converge on poolsync-soak-c",
+  "paste_convergence_seconds": [
+    1.981,
+    2.09,
+    2.168,
+    1.749,
+    1.876,
+    1.941,
+    2.034,
+    2.037,
+    1.161,
+    1.815,
+    1.107,
+    1.731,
+    3.486,
+    5.291,
+    4.654,
+    2.451,
+    1.663,
+    1.757,
+    1.667,
+    1.634,
+    1.2,
+    4.201,
+    2.065,
+    1.967,
+    1.863,
+    1.703,
+    1.626,
+    1.967,
+    2.214,
+    1.52,
+    1.918,
+    1.119,
+    1.948,
+    1.785,
+    1.097,
+    1.207,
+    1.919,
+    1.797,
+    1.444,
+    1.89,
+    2.169,
+    1.921,
+    1.857,
+    2.085,
+    2.03,
+    1.996,
+    2.036,
+    1.968,
+    1.91,
+    1.979,
+    2.328,
+    2.06,
+    1.699,
+    1.88,
+    1.665,
+    1.587,
+    1.868,
+    1.925,
+    1.968,
+    2.042,
+    2.087,
+    2.093,
+    2.034,
+    5.211,
+    2.022,
+    1.743,
+    2.068,
+    1.54,
+    1.959,
+    1.825,
+    2.011,
+    1.724,
+    1.959,
+    1.666,
+    2.079,
+    1.632,
+    1.965,
+    1.755,
+    2.036,
+    1.571,
+    2.272,
+    1.439,
+    2.063,
+    4.068,
+    1.927,
+    1.619,
+    2.003,
+    1.751,
+    1.905,
+    2.084,
+    2.221,
+    1.864,
+    1.569,
+    1.61,
+    1.902,
+    1.776,
+    2.058,
+    1.533,
+    1.92,
+    2.118,
+    2.135,
+    1.945,
+    1.016,
+    3.486,
+    1.967,
+    1.537,
+    2.023,
+    1.799,
+    1.846,
+    1.989,
+    1.98,
+    1.644,
+    1.932,
+    1.735,
+    2.088,
+    1.567,
+    1.887,
+    1.843,
+    1.907,
+    1.928,
+    2.156,
+    2.503,
+    1.915,
+    2.868,
+    1.925,
+    2.027,
+    1.764,
+    1.912,
+    2.041,
+    2.267,
+    2.293,
+    1.639,
+    1.672,
+    1.668,
+    1.204,
+    1.933,
+    1.952,
+    1.711,
+    1.948,
+    1.942,
+    2.041,
+    1.159,
+    1.094,
+    3.46,
+    1.663,
+    1.832,
+    1.924,
+    1.838,
+    2.026,
+    1.757,
+    2.007,
+    1.492,
+    1.984,
+    1.799,
+    1.96,
+    1.704,
+    2.095,
+    1.658,
+    1.985,
+    1.969,
+    1.663,
+    1.779,
+    2.038,
+    2.761,
+    1.144,
+    1.786,
+    1.896,
+    1.958,
+    2.027,
+    1.762,
+    1.71,
+    1.662,
+    1.685,
+    1.933,
+    1.775,
+    1.712,
+    1.091,
+    2.384,
+    1.676,
+    1.73,
+    2.317,
+    2.474,
+    1.914,
+    3.686,
+    1.745,
+    1.811,
+    1.202,
+    1.959,
+    1.995,
+    1.446,
+    2.44,
+    1.381,
+    1.991,
+    1.653,
+    2.04,
+    1.832,
+    1.995,
+    1.561,
+    1.673,
+    2.236,
+    2.173,
+    2.047,
+    1.106,
+    3.572,
+    1.837,
+    1.312,
+    1.149,
+    1.754,
+    1.809,
+    2.271,
+    1.632,
+    1.903,
+    1.884,
+    1.766,
+    1.957,
+    1.811,
+    1.826,
+    1.726,
+    1.903,
+    2.13,
+    1.582,
+    1.88,
+    1.994,
+    4.462,
+    1.432,
+    1.735,
+    1.878,
+    1.866,
+    2.34,
+    2.321,
+    2.037,
+    1.626,
+    1.872,
+    2.259,
+    1.462,
+    1.957,
+    1.948,
+    1.691,
+    2.316,
+    2.555,
+    1.72,
+    1.757,
+    1.944,
+    3.055,
+    2.088,
+    1.687,
+    1.992,
+    1.861,
+    1.989,
+    1.638,
+    1.898,
+    1.894,
+    1.983,
+    1.536,
+    1.935,
+    1.951,
+    1.956,
+    1.738,
+    1.985,
+    2.212,
+    1.186,
+    1.966,
+    2.024,
+    2.869,
+    1.762,
+    1.892,
+    1.738,
+    2.411,
+    1.874,
+    1.168,
+    1.208,
+    2.073,
+    1.675,
+    1.947,
+    2.036,
+    1.213,
+    1.574,
+    1.244,
+    2.064,
+    1.815,
+    2.083,
+    1.462,
+    1.814,
+    4.456,
+    2.099,
+    1.316,
+    1.595,
+    1.687,
+    1.772,
+    2.615,
+    2.506,
+    2.403,
+    1.764,
+    1.693,
+    2.028,
+    1.558,
+    1.808,
+    2.501,
+    2.055,
+    2.232,
+    1.935,
+    1.655,
+    2.143,
+    2.933,
+    2.083,
+    1.491,
+    2.245,
+    1.83,
+    1.646,
+    1.797,
+    1.941,
+    1.746,
+    1.987,
+    1.876,
+    2.087,
+    1.246,
+    1.504,
+    2.86,
+    1.532,
+    1.412,
+    2.376,
+    1.721,
+    2.09,
+    3.626,
+    1.921,
+    2.256,
+    1.748,
+    1.389,
+    1.727,
+    1.963,
+    1.785,
+    1.898,
+    1.116,
+    1.958,
+    1.988,
+    1.475,
+    2.032,
+    1.641,
+    2.359,
+    1.295,
+    1.893,
+    2.069,
+    2.097,
+    3.568,
+    1.998,
+    2.197,
+    3.318,
+    2.359,
+    1.845,
+    1.647,
+    2.134,
+    1.232,
+    1.555,
+    1.838,
+    1.632,
+    1.938,
+    1.969,
+    1.957,
+    1.229,
+    2.137,
+    1.977,
+    1.259,
+    1.374,
+    4.643,
+    2.678,
+    2.628,
+    1.41,
+    2.168,
+    1.735,
+    1.531,
+    2.069,
+    1.938,
+    2.068,
+    1.813,
+    1.988,
+    2.773,
+    1.645,
+    1.907,
+    2.024,
+    1.144,
+    1.063,
+    1.954,
+    1.708,
+    3.823,
+    1.506,
+    1.466,
+    1.772,
+    1.715,
+    1.184,
+    2.006,
+    1.982,
+    1.602,
+    1.712,
+    1.972,
+    1.763,
+    2.407,
+    1.475,
+    1.928,
+    2.039,
+    1.571,
+    1.903,
+    1.963,
+    2.01,
+    3.584,
+    2.562,
+    2.102,
+    1.616,
+    1.561,
+    1.922,
+    1.075,
+    1.152,
+    1.972,
+    1.955,
+    1.891,
+    1.794,
+    2.038,
+    1.601,
+    2.118,
+    1.857,
+    1.318,
+    2.008,
+    1.923,
+    1.927,
+    3.079,
+    2.508,
+    2.449,
+    1.861,
+    1.515,
+    1.726,
+    1.989,
+    2.175,
+    1.635,
+    1.855,
+    1.91,
+    2.448,
+    2.321,
+    2.165,
+    1.606,
+    1.934,
+    1.214,
+    1.215,
+    1.752,
+    1.734,
+    4.383,
+    2.287,
+    1.899,
+    1.552,
+    1.606,
+    1.872,
+    1.917,
+    2.128,
+    1.382,
+    1.956,
+    2.24,
+    2.367,
+    2.247,
+    2.037,
+    1.637,
+    2.172,
+    1.669,
+    1.667,
+    1.803,
+    1.839,
+    4.159,
+    2.01,
+    1.888,
+    2.097,
+    1.223,
+    1.759,
+    1.862,
+    1.852,
+    2.269,
+    2.717,
+    2.451,
+    2.211,
+    1.829,
+    2.155,
+    1.154,
+    1.19,
+    2.012,
+    2.17,
+    1.78,
+    1.742,
+    3.41,
+    1.611,
+    1.596,
+    2.052,
+    1.907,
+    1.146,
+    2.076,
+    2.174,
+    1.836,
+    1.644,
+    1.289,
+    1.268,
+    1.992,
+    2.088,
+    1.698,
+    1.712,
+    1.757,
+    2.126,
+    1.342,
+    1.704,
+    4.374,
+    2.073,
+    0.981,
+    1.052,
+    1.759,
+    1.517,
+    1.101,
+    1.068,
+    1.786,
+    1.043,
+    2.032,
+    2.132,
+    1.332,
+    2.2,
+    2.39,
+    1.99,
+    2.157,
+    2.05,
+    1.954,
+    1.117,
+    4.525,
+    1.997,
+    1.521,
+    1.725,
+    1.635,
+    1.203,
+    1.936,
+    1.767,
+    2.065,
+    1.892,
+    2.443,
+    2.133,
+    1.965,
+    1.844,
+    2.009,
+    2.044,
+    1.918,
+    1.25,
+    1.773,
+    1.827,
+    5.736,
+    1.147,
+    2.062,
+    1.83,
+    1.876,
+    2.03,
+    1.61,
+    1.801,
+    2.259,
+    1.534,
+    1.983,
+    1.968,
+    1.164,
+    1.078,
+    2.09,
+    1.806,
+    1.842,
+    1.733,
+    1.971,
+    1.919,
+    4.124,
+    1.841,
+    1.095,
+    1.106,
+    2.004,
+    1.906,
+    1.95,
+    1.874,
+    2.049,
+    2.954,
+    1.629,
+    1.955,
+    1.958,
+    1.126,
+    1.706,
+    1.014,
+    1.619,
+    1.116,
+    1.947,
+    1.648,
+    4.224,
+    1.494,
+    1.1,
+    1.053,
+    1.794,
+    1.585,
+    1.59,
+    2.007,
+    1.106,
+    1.647,
+    1.713,
+    1.657,
+    1.764,
+    1.919,
+    2.009,
+    1.859,
+    1.619,
+    1.712,
+    1.758,
+    1.424,
+    3.89,
+    2.16,
+    1.202,
+    1.09,
+    1.873,
+    1.858,
+    2.005,
+    1.863,
+    1.927,
+    1.95,
+    1.816,
+    2.123,
+    1.727,
+    1.626,
+    1.876,
+    1.863,
+    1.773,
+    2.015,
+    1.593,
+    1.927,
+    3.696,
+    2.541,
+    1.601,
+    1.936,
+    1.813,
+    1.881,
+    1.907,
+    2.052,
+    1.115,
+    1.647,
+    1.514,
+    0.902,
+    1.973
+  ],
+  "soak": {
+    "elapsed_seconds": 1203.957,
+    "image_text_rounds": 284
+  },
+  "idle_resources": [
+    {
+      "elapsed_seconds": 60.78004550980404,
+      "cpu_percent": 4.771302778199179,
+      "rss_start_kib": 403960,
+      "rss_end_kib": 404088
+    },
+    {
+      "elapsed_seconds": 60.720400776248425,
+      "cpu_percent": 4.82539634545053,
+      "rss_start_kib": 424544,
+      "rss_end_kib": 424544
+    },
+    {
+      "elapsed_seconds": 60.651845848187804,
+      "cpu_percent": 3.709697484940162,
+      "rss_start_kib": 475868,
+      "rss_end_kib": 475612
+    }
+  ],
+  "resource_samples": [
+    [
+      {
+        "at": 4136497.470915833,
+        "cpu_seconds": 4.37,
+        "rss_kib": 37212,
+        "pid": 4536
+      },
+      {
+        "at": 4136497.716517874,
+        "cpu_seconds": 10.76,
+        "rss_kib": 140176,
+        "pid": 15
+      },
+      {
+        "at": 4136497.928675771,
+        "cpu_seconds": 7.59,
+        "rss_kib": 123188,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136541.361196698,
+        "cpu_seconds": 6.55,
+        "rss_kib": 138748,
+        "pid": 4536
+      },
+      {
+        "at": 4136541.584204736,
+        "cpu_seconds": 13.13,
+        "rss_kib": 223032,
+        "pid": 15
+      },
+      {
+        "at": 4136541.79160352,
+        "cpu_seconds": 9.39,
+        "rss_kib": 200076,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136584.010124375,
+        "cpu_seconds": 8.86,
+        "rss_kib": 279920,
+        "pid": 4536
+      },
+      {
+        "at": 4136584.196397354,
+        "cpu_seconds": 15.4,
+        "rss_kib": 290304,
+        "pid": 15
+      },
+      {
+        "at": 4136584.428564922,
+        "cpu_seconds": 11.1,
+        "rss_kib": 247352,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136627.449277614,
+        "cpu_seconds": 10.97,
+        "rss_kib": 293708,
+        "pid": 4536
+      },
+      {
+        "at": 4136627.671363682,
+        "cpu_seconds": 17.64,
+        "rss_kib": 327452,
+        "pid": 15
+      },
+      {
+        "at": 4136627.89636481,
+        "cpu_seconds": 13.03,
+        "rss_kib": 305568,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136668.151256665,
+        "cpu_seconds": 13.28,
+        "rss_kib": 293952,
+        "pid": 4536
+      },
+      {
+        "at": 4136668.360613883,
+        "cpu_seconds": 19.8,
+        "rss_kib": 211236,
+        "pid": 15
+      },
+      {
+        "at": 4136668.614950018,
+        "cpu_seconds": 14.77,
+        "rss_kib": 297572,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136710.46429137,
+        "cpu_seconds": 15.98,
+        "rss_kib": 345080,
+        "pid": 4536
+      },
+      {
+        "at": 4136710.68339101,
+        "cpu_seconds": 22.12,
+        "rss_kib": 286164,
+        "pid": 15
+      },
+      {
+        "at": 4136710.894364429,
+        "cpu_seconds": 17.15,
+        "rss_kib": 378920,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136751.499024178,
+        "cpu_seconds": 18.14,
+        "rss_kib": 347960,
+        "pid": 4536
+      },
+      {
+        "at": 4136751.757142652,
+        "cpu_seconds": 24.28,
+        "rss_kib": 245664,
+        "pid": 15
+      },
+      {
+        "at": 4136751.983723372,
+        "cpu_seconds": 19.36,
+        "rss_kib": 378872,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136793.187520626,
+        "cpu_seconds": 20.4,
+        "rss_kib": 348084,
+        "pid": 4536
+      },
+      {
+        "at": 4136793.378627542,
+        "cpu_seconds": 26.57,
+        "rss_kib": 372696,
+        "pid": 15
+      },
+      {
+        "at": 4136793.613759107,
+        "cpu_seconds": 21.19,
+        "rss_kib": 321404,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136834.573758415,
+        "cpu_seconds": 22.61,
+        "rss_kib": 387016,
+        "pid": 4536
+      },
+      {
+        "at": 4136834.821916527,
+        "cpu_seconds": 28.93,
+        "rss_kib": 399448,
+        "pid": 15
+      },
+      {
+        "at": 4136835.100418208,
+        "cpu_seconds": 23.0,
+        "rss_kib": 377936,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136879.483688086,
+        "cpu_seconds": 25.5,
+        "rss_kib": 443232,
+        "pid": 4536
+      },
+      {
+        "at": 4136879.671137873,
+        "cpu_seconds": 31.84,
+        "rss_kib": 329504,
+        "pid": 15
+      },
+      {
+        "at": 4136879.849193458,
+        "cpu_seconds": 25.01,
+        "rss_kib": 437600,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136921.649222499,
+        "cpu_seconds": 28.25,
+        "rss_kib": 443216,
+        "pid": 4536
+      },
+      {
+        "at": 4136921.868358012,
+        "cpu_seconds": 34.17,
+        "rss_kib": 372224,
+        "pid": 15
+      },
+      {
+        "at": 4136922.090123746,
+        "cpu_seconds": 26.73,
+        "rss_kib": 404968,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4136961.248673519,
+        "cpu_seconds": 30.84,
+        "rss_kib": 443312,
+        "pid": 4536
+      },
+      {
+        "at": 4136961.460719586,
+        "cpu_seconds": 36.29,
+        "rss_kib": 422024,
+        "pid": 15
+      },
+      {
+        "at": 4136961.685894943,
+        "cpu_seconds": 28.96,
+        "rss_kib": 411816,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137006.735479872,
+        "cpu_seconds": 33.28,
+        "rss_kib": 354864,
+        "pid": 4536
+      },
+      {
+        "at": 4137006.967702936,
+        "cpu_seconds": 38.73,
+        "rss_kib": 403392,
+        "pid": 15
+      },
+      {
+        "at": 4137007.162438898,
+        "cpu_seconds": 31.52,
+        "rss_kib": 408928,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137048.845908328,
+        "cpu_seconds": 35.63,
+        "rss_kib": 423868,
+        "pid": 4536
+      },
+      {
+        "at": 4137049.095971823,
+        "cpu_seconds": 41.07,
+        "rss_kib": 361884,
+        "pid": 15
+      },
+      {
+        "at": 4137049.344392941,
+        "cpu_seconds": 33.36,
+        "rss_kib": 465648,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137090.821604365,
+        "cpu_seconds": 37.87,
+        "rss_kib": 370800,
+        "pid": 4536
+      },
+      {
+        "at": 4137091.104427213,
+        "cpu_seconds": 43.38,
+        "rss_kib": 382564,
+        "pid": 15
+      },
+      {
+        "at": 4137091.338911613,
+        "cpu_seconds": 35.25,
+        "rss_kib": 377828,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137133.765717617,
+        "cpu_seconds": 40.35,
+        "rss_kib": 433432,
+        "pid": 4536
+      },
+      {
+        "at": 4137133.989565083,
+        "cpu_seconds": 45.87,
+        "rss_kib": 323212,
+        "pid": 15
+      },
+      {
+        "at": 4137134.222726896,
+        "cpu_seconds": 37.19,
+        "rss_kib": 432412,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137178.33259117,
+        "cpu_seconds": 43.12,
+        "rss_kib": 498488,
+        "pid": 4536
+      },
+      {
+        "at": 4137178.591653443,
+        "cpu_seconds": 48.49,
+        "rss_kib": 318768,
+        "pid": 15
+      },
+      {
+        "at": 4137178.831936748,
+        "cpu_seconds": 39.4,
+        "rss_kib": 418476,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137219.870081214,
+        "cpu_seconds": 45.28,
+        "rss_kib": 498360,
+        "pid": 4536
+      },
+      {
+        "at": 4137220.116887319,
+        "cpu_seconds": 50.76,
+        "rss_kib": 398860,
+        "pid": 15
+      },
+      {
+        "at": 4137220.475148825,
+        "cpu_seconds": 41.07,
+        "rss_kib": 418076,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137261.670378243,
+        "cpu_seconds": 47.59,
+        "rss_kib": 373376,
+        "pid": 4536
+      },
+      {
+        "at": 4137261.896942075,
+        "cpu_seconds": 53.02,
+        "rss_kib": 429264,
+        "pid": 15
+      },
+      {
+        "at": 4137262.093423938,
+        "cpu_seconds": 42.91,
+        "rss_kib": 434388,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137304.415385052,
+        "cpu_seconds": 50.11,
+        "rss_kib": 323044,
+        "pid": 4536
+      },
+      {
+        "at": 4137304.632872449,
+        "cpu_seconds": 55.31,
+        "rss_kib": 433004,
+        "pid": 15
+      },
+      {
+        "at": 4137304.842507059,
+        "cpu_seconds": 44.89,
+        "rss_kib": 403676,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137348.719739591,
+        "cpu_seconds": 52.57,
+        "rss_kib": 306448,
+        "pid": 4536
+      },
+      {
+        "at": 4137348.916778078,
+        "cpu_seconds": 57.86,
+        "rss_kib": 433200,
+        "pid": 15
+      },
+      {
+        "at": 4137349.178189566,
+        "cpu_seconds": 46.87,
+        "rss_kib": 404036,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137393.080223822,
+        "cpu_seconds": 55.58,
+        "rss_kib": 366580,
+        "pid": 4536
+      },
+      {
+        "at": 4137393.368987867,
+        "cpu_seconds": 60.88,
+        "rss_kib": 452332,
+        "pid": 15
+      },
+      {
+        "at": 4137393.684939701,
+        "cpu_seconds": 48.95,
+        "rss_kib": 445376,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137433.442391682,
+        "cpu_seconds": 58.41,
+        "rss_kib": 366984,
+        "pid": 4536
+      },
+      {
+        "at": 4137433.801743386,
+        "cpu_seconds": 63.25,
+        "rss_kib": 388368,
+        "pid": 15
+      },
+      {
+        "at": 4137434.154422046,
+        "cpu_seconds": 50.91,
+        "rss_kib": 459940,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137473.499264026,
+        "cpu_seconds": 60.75,
+        "rss_kib": 366528,
+        "pid": 4536
+      },
+      {
+        "at": 4137473.722909428,
+        "cpu_seconds": 65.58,
+        "rss_kib": 388660,
+        "pid": 15
+      },
+      {
+        "at": 4137473.941115976,
+        "cpu_seconds": 52.7,
+        "rss_kib": 476200,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137516.622445606,
+        "cpu_seconds": 62.98,
+        "rss_kib": 366592,
+        "pid": 4536
+      },
+      {
+        "at": 4137516.873175786,
+        "cpu_seconds": 67.92,
+        "rss_kib": 443692,
+        "pid": 15
+      },
+      {
+        "at": 4137517.141195977,
+        "cpu_seconds": 54.64,
+        "rss_kib": 482100,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137560.032508604,
+        "cpu_seconds": 65.25,
+        "rss_kib": 366540,
+        "pid": 4536
+      },
+      {
+        "at": 4137560.329229797,
+        "cpu_seconds": 70.12,
+        "rss_kib": 382232,
+        "pid": 15
+      },
+      {
+        "at": 4137560.699027102,
+        "cpu_seconds": 56.52,
+        "rss_kib": 510780,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137600.517868518,
+        "cpu_seconds": 67.42,
+        "rss_kib": 389256,
+        "pid": 4536
+      },
+      {
+        "at": 4137600.732086184,
+        "cpu_seconds": 72.35,
+        "rss_kib": 393480,
+        "pid": 15
+      },
+      {
+        "at": 4137600.972705898,
+        "cpu_seconds": 58.28,
+        "rss_kib": 421832,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137639.282366458,
+        "cpu_seconds": 69.55,
+        "rss_kib": 344868,
+        "pid": 4536
+      },
+      {
+        "at": 4137639.467825311,
+        "cpu_seconds": 74.46,
+        "rss_kib": 423784,
+        "pid": 15
+      },
+      {
+        "at": 4137639.684984862,
+        "cpu_seconds": 60.12,
+        "rss_kib": 421500,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137681.066986165,
+        "cpu_seconds": 71.87,
+        "rss_kib": 331540,
+        "pid": 4536
+      },
+      {
+        "at": 4137681.286862764,
+        "cpu_seconds": 76.67,
+        "rss_kib": 298360,
+        "pid": 15
+      },
+      {
+        "at": 4137681.481325871,
+        "cpu_seconds": 61.9,
+        "rss_kib": 466420,
+        "pid": 15
+      }
+    ],
+    [
+      {
+        "at": 4137700.684259829,
+        "cpu_seconds": 73.18,
+        "rss_kib": 403960,
+        "pid": 4536
+      },
+      {
+        "at": 4137700.930718012,
+        "cpu_seconds": 78.09,
+        "rss_kib": 424416,
+        "pid": 15
+      },
+      {
+        "at": 4137701.192409663,
+        "cpu_seconds": 62.97,
+        "rss_kib": 475868,
+        "pid": 15
+      }
+    ]
+  ],
+  "native_copy_application": "gtk",
+  "failed_fresh_sessions_retained": true
+}

@@ -442,13 +442,12 @@ pub(crate) async fn clipboard_poll_loop(
         .map(|h| h.clone())
         .filter(|h| !h.is_empty());
     let mut participation_probe = std::time::Instant::now();
+    let mut last_native_probe = std::time::Instant::now();
+    let mut last_selection_epoch = None;
     loop {
         if participation_probe.elapsed() >= Duration::from_secs(1) {
-            let away = crate::participation::is_away(&state.config_path);
-            if away != state.pool_away() {
-                if let Err(error) = state.set_pool_away(away) {
-                    warn!("cannot update local pool absence: {error}");
-                }
+            if let Err(error) = state.refresh_pool_away() {
+                warn!("cannot update local pool absence: {error}");
             }
             participation_probe = std::time::Instant::now();
         }
@@ -472,10 +471,25 @@ pub(crate) async fn clipboard_poll_loop(
         // promote RDP echoes to new copies, and overwrite newer screenshots.
         let rdp_paused = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
         if state.clipboard_sync_enabled() && state.local_poolsync_active() && !rdp_paused {
+            let manager_payload = crate::clipboard::take_clipboard_manager_payload();
+            let selection_epoch = crate::clipboard_epoch::current();
+            // XFixes observes both CLIPBOARD and PRIMARY changes. Keep the
+            // configured fast response to a new copy, but avoid repeatedly
+            // converting an unchanged native selection while idle. A one-
+            // second fallback still checks owners which silently change data.
+            if manager_payload.is_none()
+                && selection_epoch.is_some()
+                && selection_epoch == last_selection_epoch
+                && last_native_probe.elapsed() < Duration::from_secs(1)
+            {
+                sleep(poll).await;
+                continue;
+            }
+            last_selection_epoch = selection_epoch;
+            last_native_probe = std::time::Instant::now();
             crate::clipboard::maintain_xrdp_clipboard_fixup().await;
             // Consume explicit application handoffs before orphan recovery
             // can change their selection generation.
-            let manager_payload = crate::clipboard::take_clipboard_manager_payload();
             if manager_payload.is_none() {
                 crate::clipboard::reclaim_orphaned_selection().await;
             }

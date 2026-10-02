@@ -4,6 +4,10 @@
 # Sur xrdp : suit la session RDP actuellement connectée (xrdp-chansrv vivant),
 # pas un display figé dans agent.toml.
 set -euo pipefail
+# Large clipboard buffers must return to the OS after image/text transitions.
+# Bound glibc arena retention while preserving explicit administrator choices.
+export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
+export MALLOC_MMAP_THRESHOLD_="${MALLOC_MMAP_THRESHOLD_:-131072}"
 UID_NUM="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID_NUM}"
 

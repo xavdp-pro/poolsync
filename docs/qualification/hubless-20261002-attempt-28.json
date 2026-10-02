@@ -1,0 +1,32 @@
+{
+  "candidate_sha256": "c1c38e2f957e32a8e2a5e35d533c82a2f414f2ed1234dedba8e4f2e421090b93",
+  "functional_checks_passed": true,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Native drag/save persists and gossips",
+      "passed": true
+    },
+    {
+      "name": "Native layout survives restart",
+      "passed": true
+    },
+    {
+      "name": "Native permission edit disables B in persisted and live layouts",
+      "passed": true
+    },
+    {
+      "name": "Pool-disabled B cannot claim control and keeps its native keyboard",
+      "passed": true
+    },
+    {
+      "name": "Native permission restore enables B without changing its position",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": []
+}

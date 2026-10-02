@@ -523,13 +523,19 @@ fn apply_offer(offer: ClipboardOffer) {
             }
         }
         ClipboardOffer::Release => {
+            // A delayed pause can arrive after an application made a private
+            // copy. Release our own offer only; never clear that application's
+            // selection when leaving the pool.
+            let was_ours = owns_clipboard();
             TEXT_OWNER.store(0, Ordering::SeqCst);
             IMAGE_OWNER.store(0, Ordering::SeqCst);
             if let Ok(mut last) = LAST_PNG.lock() {
                 *last = None;
             }
             clear_image_claim();
-            clip.clear();
+            if was_ours {
+                clip.clear();
+            }
         }
     }
 }

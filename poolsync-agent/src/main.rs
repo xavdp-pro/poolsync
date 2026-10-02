@@ -108,8 +108,16 @@ fn main() -> Result<()> {
     // pour pouvoir la tester pendant que l'agent principal tourne.
     if let Some(away) = args.away {
         anyhow::ensure!(args.config.is_file(), "agent configuration does not exist");
-        participation::set_away(&args.config, away)?;
-        println!("Local pool absence saved: {away}");
+        if let Err(error) = local_control::request_away(&args.config, away) {
+            let _instance = single::InstanceLock::acquire().context(
+                "running agent must confirm participation; restart it to enable local control",
+            )?;
+            tracing::debug!("no live agent participation control: {error:#}");
+            participation::set_away(&args.config, away)?;
+            println!("Local pool absence saved for next start: {away}");
+        } else {
+            println!("Local pool absence applied and saved: {away}");
+        }
         return Ok(());
     }
     if args.open_window {

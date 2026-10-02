@@ -28,6 +28,7 @@ pub struct AgentState {
     /// Pause locale (raccourci clavier) — n'affecte que cette machine.
     local_active: Arc<AtomicBool>,
     pool_away: Arc<AtomicBool>,
+    pool_away_transition: Arc<Mutex<()>>,
     clipboard_baseline_reset: Arc<AtomicBool>,
     private_clipboard_epoch: Arc<Mutex<PrivateClipboardEpoch>>,
     /// Ctrl+Alt+Shift+M : la boucle KVM doit reprendre le master sur ce nœud.
@@ -165,6 +166,7 @@ impl AgentState {
             layout_kvm_allowed: Arc::new(AtomicBool::new(true)),
             local_active: Arc::new(AtomicBool::new(true)),
             pool_away: Arc::new(AtomicBool::new(away)),
+            pool_away_transition: Arc::new(Mutex::new(())),
             clipboard_baseline_reset: Arc::new(AtomicBool::new(false)),
             private_clipboard_epoch: Arc::new(Mutex::new(None)),
             master_claim_requested: Arc::new(AtomicBool::new(false)),
@@ -535,7 +537,30 @@ impl AgentState {
     }
 
     pub fn set_pool_away(&self, away: bool) -> std::io::Result<()> {
+        let _transition = self
+            .pool_away_transition
+            .lock()
+            .map_err(|_| std::io::Error::other("pool participation transition unavailable"))?;
         crate::participation::set_away(&self.config_path, away)?;
+        self.apply_pool_away(away);
+        Ok(())
+    }
+
+    /// Observe the latest marker under the same lock as explicit commands.
+    /// An older polling observation must never rewrite a newer user command.
+    pub fn refresh_pool_away(&self) -> std::io::Result<()> {
+        let _transition = self
+            .pool_away_transition
+            .lock()
+            .map_err(|_| std::io::Error::other("pool participation transition unavailable"))?;
+        self.apply_pool_away(crate::participation::is_away(&self.config_path));
+        Ok(())
+    }
+
+    fn apply_pool_away(&self, away: bool) {
+        if away == self.pool_away() {
+            return;
+        }
         if !away && self.pool_away() {
             if let Ok(mut private) = self.private_clipboard_epoch.lock() {
                 *private = Some((
@@ -547,7 +572,6 @@ impl AgentState {
         }
         self.pool_away.store(away, Ordering::SeqCst);
         self.set_local_poolsync_active(!away);
-        Ok(())
     }
 
     /// Returning to the pool excludes the private selection itself, including
