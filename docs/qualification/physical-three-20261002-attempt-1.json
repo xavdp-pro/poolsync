@@ -1,0 +1,37 @@
+{
+  "candidate_sha256": "208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4",
+  "selected_nodes": [
+    "gbs-p2",
+    "gbs-p3",
+    "zaza-desktop"
+  ],
+  "input_source": "synthetic native GTK copy applications",
+  "checks": [
+    {
+      "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [],
+  "functional_checks_passed": false,
+  "error": "Native paste did not converge across the five desktops",
+  "preservation": {
+    "gbs-p2": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    },
+    "gbs-p3": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    },
+    "zaza-desktop": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    }
+  },
+  "preservation_passed": true,
+  "legacy_hub_available": true
+}

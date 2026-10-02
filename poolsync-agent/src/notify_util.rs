@@ -1,6 +1,11 @@
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
 use std::time::Duration;
 use tracing::{info, warn};
+
+// All routine PoolSync status changes share one expiring toast. Serialize the
+// returned ID so simultaneous hotkeys replace it instead of stacking windows.
+static STATUS_NOTIFICATION_ID: Mutex<(String, u32)> = Mutex::new((String::new(), 0));
 
 pub fn notify_icon_path() -> String {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
@@ -152,7 +157,7 @@ pub fn notify_poolsync_toggle(active: bool, node: &str) {
                  KVM et presse-papiers réseau coupés sur cette machine.\n\
                  {HOTKEY} pour réactiver."
             ),
-            "critical",
+            "normal",
             10000u32,
         )
     };
@@ -182,7 +187,7 @@ pub fn notify_master_claim(node: &str, kvm_ok: bool) {
                 "KVM inactif sur {node} (presse-papiers seul).\n\
                  Impossible de réclamer le master."
             ),
-            "critical",
+            "normal",
         )
     };
     if notify_send(title, &body, urgency, 5000) {
@@ -223,6 +228,35 @@ pub fn notify_cursor_locate(node: &str, monitor: &str) {
 
 fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool {
     ensure_notify_daemon();
+    let mut previous_id = STATUS_NOTIFICATION_ID
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    // IDs belong to a notification daemon instance. Never reuse a retained ID
+    // after it restarts: that number could now belong to another application.
+    let mut owner_command = Command::new("timeout");
+    session_env(&mut owner_command);
+    let owner = owner_command
+        .args([
+            "1",
+            "busctl",
+            "--user",
+            "call",
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "GetNameOwner",
+            "s",
+            "org.freedesktop.Notifications",
+        ])
+        .stderr(Stdio::null())
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .unwrap_or_default();
+    if owner.is_empty() || previous_id.0 != owner {
+        *previous_id = (owner, 0);
+    }
     let icon = notify_icon_path();
     let icon_arg = if std::path::Path::new(&icon).is_file() {
         icon
@@ -235,6 +269,9 @@ fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool 
     cmd.args([
         &timeout_secs,
         "notify-send",
+        "--print-id",
+        "--replace-id",
+        &previous_id.1.to_string(),
         "-a",
         "com.xavdp.poolsync",
         "-i",
@@ -246,11 +283,16 @@ fn notify_send(title: &str, body: &str, urgency: &str, timeout_ms: u32) -> bool 
     ])
     .arg(title)
     .arg(body)
-    .stdout(Stdio::null())
+    .stdout(Stdio::piped())
     .stderr(Stdio::piped());
 
     match cmd.output() {
-        Ok(out) if out.status.success() => true,
+        Ok(out) if out.status.success() => {
+            if let Ok(id) = String::from_utf8_lossy(&out.stdout).trim().parse::<u32>() {
+                previous_id.1 = id;
+            }
+            true
+        }
         Ok(out) => {
             let err = String::from_utf8_lossy(&out.stderr);
             warn!("notify-send exit {:?} — {}", out.status.code(), err.trim());

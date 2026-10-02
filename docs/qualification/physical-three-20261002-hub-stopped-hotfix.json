@@ -1,0 +1,234 @@
+{
+  "candidate_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+  "selected_nodes": [
+    "gbs-p2",
+    "gbs-p3",
+    "zaza-desktop"
+  ],
+  "input_source": "synthetic native GTK copy applications",
+  "checks": [
+    {
+      "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 0 copied from gbs-p2",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 1 copied from gbs-p3",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 2 copied from zaza-desktop",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    2.352,
+    3.651,
+    2.322,
+    3.598,
+    2.303,
+    3.586,
+    3.074,
+    4.368,
+    1.556,
+    2.836,
+    1.55,
+    2.834
+  ],
+  "functional_checks_passed": true,
+  "preservation": {
+    "gbs-p2": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    },
+    "gbs-p3": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    },
+    "zaza-desktop": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    }
+  },
+  "preservation_passed": true,
+  "legacy_hub_available": false,
+  "hub_stop_and_restore": {
+    "hub_was_active": true,
+    "hub_temporarily_stopped": true,
+    "hub_restored": true,
+    "qualification_exit_code": 0
+  },
+  "direct_presence_while_hub_stopped": {
+    "gbs-p3": {
+      "agent": {
+        "pid": 819199,
+        "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+        "display": ":10",
+        "uid": 1000
+      },
+      "hubless": true,
+      "mode": "clipboard_only",
+      "status_age_seconds": 0.656,
+      "peer_modes": {
+        "acer": {
+          "active": true,
+          "kvm": true
+        },
+        "asus": {
+          "active": true,
+          "kvm": true
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false
+        }
+      }
+    },
+    "gbs-p2": {
+      "agent": {
+        "pid": 87015,
+        "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+        "display": ":10",
+        "uid": 1000
+      },
+      "hubless": true,
+      "mode": "clipboard_only",
+      "status_age_seconds": 0.955,
+      "peer_modes": {
+        "acer": {
+          "active": true,
+          "kvm": true
+        },
+        "asus": {
+          "active": true,
+          "kvm": true
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false
+        }
+      }
+    },
+    "zaza-desktop": {
+      "agent": {
+        "pid": 3107326,
+        "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+        "display": ":10",
+        "uid": 1000
+      },
+      "hubless": true,
+      "mode": "clipboard_only",
+      "status_age_seconds": 0.686,
+      "peer_modes": {
+        "acer": {
+          "active": true,
+          "kvm": true
+        },
+        "asus": {
+          "active": true,
+          "kvm": true
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false
+        }
+      }
+    },
+    "asus": {
+      "agent": {
+        "pid": 257731,
+        "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+        "display": ":0",
+        "uid": 1000
+      },
+      "hubless": true,
+      "mode": "full",
+      "status_age_seconds": 0.992,
+      "peer_modes": {
+        "acer": {
+          "active": true,
+          "kvm": true
+        },
+        "asus": {
+          "active": true,
+          "kvm": true
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false
+        }
+      }
+    },
+    "acer": {
+      "agent": {
+        "pid": 1468096,
+        "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+        "display": ":0",
+        "uid": 1001
+      },
+      "hubless": true,
+      "mode": "full",
+      "status_age_seconds": 0.041,
+      "peer_modes": {
+        "acer": {
+          "active": true,
+          "kvm": true
+        },
+        "asus": {
+          "active": true,
+          "kvm": true
+        },
+        "gbs-p2": {
+          "active": true,
+          "kvm": false
+        },
+        "gbs-p3": {
+          "active": true,
+          "kvm": false
+        },
+        "zaza-desktop": {
+          "active": true,
+          "kvm": false
+        }
+      }
+    }
+  }
+}

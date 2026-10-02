@@ -1,0 +1,102 @@
+{
+  "harness_sha256": "e6270c47ab34ede78a0834372a645d92f3f1457323da93811ab2f763b7ec50cd",
+  "isolated_display": 114,
+  "checks": [
+    {
+      "name": "Twenty denied control requests produce one PoolSync toast alongside an unrelated toast",
+      "passed": true
+    },
+    {
+      "name": "Denied control toast expires within six seconds; unrelated critical toast survives",
+      "passed": true
+    },
+    {
+      "name": "Suspension status appears without replacing the unrelated toast",
+      "passed": true
+    },
+    {
+      "name": "Suspension status expires within eleven seconds",
+      "passed": true
+    },
+    {
+      "name": "Fresh daemon assigns the old PoolSync ID to an unrelated notification",
+      "passed": true
+    },
+    {
+      "name": "PoolSync does not replace another application after notification daemon restart",
+      "passed": true
+    },
+    {
+      "name": "Post-restart PoolSync toast expires while unrelated critical toast remains",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "original_agent_and_config_preserved": true,
+  "candidate_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+  "physical_gbs_p3": {
+    "original_matching_notifications": 0,
+    "three_requests_visible_toasts": 1,
+    "matching_notifications_after_six_seconds": 0,
+    "passed": true
+  },
+  "rust_tests_passed": 130,
+  "workspace_clippy_all_targets_passed": true,
+  "deployments": [
+    {
+      "installed": true,
+      "node": "gbs-p3",
+      "pid": 819199,
+      "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "configuration_preserved": true,
+      "mode": "clipboard_only",
+      "hubless": true,
+      "display": ":10",
+      "uid": 1000
+    },
+    {
+      "installed": true,
+      "node": "gbs-p2",
+      "pid": 87015,
+      "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "configuration_preserved": true,
+      "mode": "clipboard_only",
+      "hubless": true,
+      "display": ":10",
+      "uid": 1000
+    },
+    {
+      "installed": true,
+      "node": "zaza-desktop",
+      "pid": 3107326,
+      "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "configuration_preserved": true,
+      "mode": "clipboard_only",
+      "hubless": true,
+      "display": ":10",
+      "uid": 1000
+    },
+    {
+      "installed": true,
+      "node": "asus",
+      "pid": 257731,
+      "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "configuration_preserved": true,
+      "mode": "full",
+      "hubless": true,
+      "display": ":0",
+      "uid": 1000
+    },
+    {
+      "installed": true,
+      "node": "acer",
+      "pid": 1468096,
+      "running_sha256": "ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823",
+      "configuration_preserved": true,
+      "mode": "full",
+      "hubless": true,
+      "display": ":0",
+      "uid": 1001
+    }
+  ]
+}

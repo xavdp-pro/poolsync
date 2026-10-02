@@ -1,0 +1,157 @@
+{
+  "candidate_sha256": "208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4",
+  "selected_nodes": [
+    "gbs-p2",
+    "gbs-p3",
+    "zaza-desktop"
+  ],
+  "input_source": "synthetic native GTK copy applications",
+  "checks": [
+    {
+      "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 0 copied from gbs-p2",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 1 copied from gbs-p3",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 2 copied from zaza-desktop",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 3 copied from gbs-p2",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 4 copied from gbs-p3",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 5 copied from zaza-desktop",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 6 copied from gbs-p2",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 7 copied from gbs-p3",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 8 copied from zaza-desktop",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 9 copied from gbs-p2",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 10 copied from gbs-p3",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 11 copied from zaza-desktop",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 12 copied from gbs-p2",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 13 copied from gbs-p3",
+      "passed": true
+    },
+    {
+      "name": "Native image/text round 14 copied from zaza-desktop",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    3.16,
+    4.769,
+    2.291,
+    3.877,
+    2.216,
+    3.846,
+    2.328,
+    3.919,
+    1.535,
+    3.125,
+    1.553,
+    3.137,
+    2.296,
+    3.884,
+    2.279,
+    3.863,
+    2.211,
+    3.8,
+    2.219,
+    3.813,
+    1.539,
+    3.124,
+    1.541,
+    3.125,
+    2.313,
+    3.903,
+    2.28,
+    3.866,
+    3.041,
+    4.621,
+    2.201,
+    3.813,
+    1.544,
+    3.13,
+    1.545,
+    3.161,
+    2.326,
+    3.914,
+    2.273,
+    3.858,
+    2.196,
+    3.775,
+    2.201,
+    3.787,
+    1.549,
+    3.127,
+    1.538,
+    3.126,
+    2.296,
+    3.884,
+    2.286,
+    3.867,
+    2.962,
+    4.558,
+    2.205,
+    3.786,
+    1.539,
+    3.149,
+    1.55,
+    3.148
+  ],
+  "functional_checks_passed": true,
+  "preservation": {
+    "gbs-p2": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    },
+    "gbs-p3": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    },
+    "zaza-desktop": {
+      "config_preserved": true,
+      "agent_pid_preserved": true,
+      "running_sha256_preserved": true
+    }
+  },
+  "preservation_passed": true,
+  "legacy_hub_available": true
+}

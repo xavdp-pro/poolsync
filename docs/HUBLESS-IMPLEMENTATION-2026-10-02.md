@@ -5,9 +5,10 @@
 The development agent can run presence, layout, input ownership, KVM and
 clipboard over authenticated direct peer links. `hubless = true` prevents
 starting the legacy hub session or its KVM loop. An absent hub is not a fallback
-condition; it is the qualified startup condition. No production machine has
-been migrated by the qualification described here. This is not a release or
-physical daily-use acceptance report.
+condition; it is the qualified startup condition. The five production machines
+have now been migrated; installation and native acceptance evidence are tracked
+in `HUBLESS-DEPLOYMENT-2026-10-02.md`. This is not a completed physical daily-use
+acceptance report.
 
 The existing WireGuard VPN is retained by explicit user choice. Hubless here
 means no PoolSync hub process or indispensable PoolSync computer. It does not
@@ -25,8 +26,12 @@ acknowledged departure, safe release, bounded allocator/idle work, and lossless
 image selection, with a persistent, correlated native X11 selection reader.
 Complete native container qualification passes in attempt 41. Earlier
 candidates have passing subsets and recorded complete-campaign failures; none
-is a substitute for the recorded qualification of this final binary. Physical
-deployment and device acceptance remain separate gates.
+is a substitute for the recorded qualification of this binary. A subsequent
+notification-only correction is deployed with executable SHA-256
+`ef4798a183e7adb85749eea496eecfe148a3d969d042a31acb01fbee6d161823`.
+It retains the qualified clipboard/control implementation, passes the same
+130 Rust tests and all-target Clippy, and adds seven real XFCE notification
+checks. Physical device acceptance remains a separate gate.
 
 ## Protocol and recovery
 
