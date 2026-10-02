@@ -1,0 +1,368 @@
+{
+  "candidate_sha256": "214d24134ddd42c7786f24a3416ec9db540d7233dbd42f733ce0dc83b143b54d",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": true,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Sustained native device motion and software warps retain C focus and GTK input",
+      "passed": true
+    },
+    {
+      "name": "A held modifier reaches the actual C desktop",
+      "passed": true
+    },
+    {
+      "name": "Losing B preserves A control of C over the alternate direct path",
+      "passed": true
+    },
+    {
+      "name": "C native GTK still receives A input while B is unreachable",
+      "passed": true
+    },
+    {
+      "name": "Returning B learns the exact ongoing epoch without changing A/C control",
+      "passed": true
+    },
+    {
+      "name": "Resynchronizing B preserves the held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "C control resumes or persists after the relay reconnects",
+      "passed": true
+    },
+    {
+      "name": "Relay recovery leaves no held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "A can return from C to B without changing controller",
+      "passed": true
+    },
+    {
+      "name": "A can return through B to its own native desktop",
+      "passed": true
+    },
+    {
+      "name": "Emergency shortcut returns captured input to A",
+      "passed": true
+    },
+    {
+      "name": "Emergency return releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "A held modifier is injected on B",
+      "passed": true
+    },
+    {
+      "name": "Network loss releases the remote held modifier",
+      "passed": true
+    },
+    {
+      "name": "Source native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Target native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Direct KVM resumes after the network partition",
+      "passed": true
+    },
+    {
+      "name": "Controller disappearance releases the held modifier on B",
+      "passed": true
+    },
+    {
+      "name": "B native keyboard is usable after the controller disappears",
+      "passed": true
+    },
+    {
+      "name": "B takes control and crosses to A after A restarts",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing remains on A despite repeated software warps on captured B",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing still forwards relative device motion to A",
+      "passed": true
+    },
+    {
+      "name": "A temporary departure returns B input locally",
+      "passed": true
+    },
+    {
+      "name": "B local GTK keyboard works after its remote target leaves",
+      "passed": true
+    },
+    {
+      "name": "Two local monitors are announced directly",
+      "passed": true
+    },
+    {
+      "name": "Docking keeps the saved neighboring computer adjacent",
+      "passed": true
+    },
+    {
+      "name": "The internal monitor edge keeps input local",
+      "passed": true
+    },
+    {
+      "name": "The added local monitor remains directly usable",
+      "passed": true
+    },
+    {
+      "name": "The external desktop edge reaches the other computer",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab returns native input locally",
+      "passed": true
+    },
+    {
+      "name": "Undocking restores the neighbor and advertises a different resolution",
+      "passed": true
+    },
+    {
+      "name": "Crossing scales coordinates between different resolutions",
+      "passed": true
+    },
+    {
+      "name": "Original desktop dimensions return after screen restoration",
+      "passed": true
+    },
+    {
+      "name": "Ten concurrent claim rounds converge on one eligible controller",
+      "passed": true
+    },
+    {
+      "name": "Concurrent claims leave both native keyboards available",
+      "passed": true
+    },
+    {
+      "name": "Hub stayed unreachable throughout; agents report no panic",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [],
+  "native_copy_owners": [],
+  "direct_links": "triangle",
+  "three_kvm_peers": true,
+  "fresh_desktops": false,
+  "native_copy_application": "xclip",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "resource_samples": [],
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1689,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.2",
+        "10.89.2.5"
+      ],
+      [
+        "10.89.2.2",
+        "10.89.2.3"
+      ]
+    ],
+    [
+      [
+        "10.89.2.3",
+        "10.89.2.2"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.5"
+      ]
+    ],
+    [
+      [
+        "10.89.2.5",
+        "10.89.2.2"
+      ],
+      [
+        "10.89.2.5",
+        "10.89.2.3"
+      ]
+    ]
+  ],
+  "active_kvm_soak": {
+    "elapsed_seconds": 61.751,
+    "motion_events": 3348,
+    "software_warps": 27,
+    "native_key_latency_seconds": [
+      0.1879,
+      0.1719,
+      0.1733,
+      0.1668,
+      0.2016,
+      0.1599
+    ],
+    "resources": [
+      {
+        "node": "nohub-a",
+        "cpu_percent": 3.568036410821063,
+        "rss_start_kib": 88252,
+        "rss_end_kib": 88380,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-b",
+        "cpu_percent": 2.9824815333472854,
+        "rss_start_kib": 87480,
+        "rss_end_kib": 87992,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-c",
+        "cpu_percent": 5.537729761520084,
+        "rss_start_kib": 87648,
+        "rss_end_kib": 88416,
+        "pid_preserved": true
+      }
+    ]
+  },
+  "mixed_resolution_entry_pointer": {
+    "x": 30,
+    "y": 384
+  },
+  "simultaneous_claim_winners": [
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 9
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 11
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 13
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 15
+    },
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 17
+    },
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 19
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 21
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 23
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 25
+    },
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 27
+    }
+  ],
+  "kvm_observation": "Direct peer edge crossing, native GTK key reception, held-key release and target/controller recovery. Input is synthetic X11, not physical acceptance.",
+  "functional_checks_passed": true,
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 46,
+  "test_root": "/tmp/poolsync-no-hub-b497761a1809"
+}

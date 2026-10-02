@@ -16,6 +16,22 @@ pub const CONTROL_TIMEOUT_MS: u64 = 3_000;
 const DOMAIN: &[u8] = b"poolsync-peer-control-v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LeaseQuery {
+    pub owner: String,
+    pub min_term: u64,
+    pub nonce: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LeaseAnswer {
+    pub recipient: String,
+    pub recipient_boot: String,
+    pub nonce: String,
+    pub term: u64,
+    pub focus: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Presence {
     pub mode: AgentMode,
     pub screen: ScreenInfo,
@@ -25,6 +41,12 @@ pub struct Presence {
     pub kvm: bool,
     #[serde(default)]
     pub control_clock: u64,
+    // Optional presence metadata lets older peers relay the encrypted packet
+    // unchanged without understanding the reconnect handshake.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_query: Option<LeaseQuery>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lease_answers: Vec<LeaseAnswer>,
 }
 
 impl Presence {
@@ -159,6 +181,15 @@ pub struct Control {
     retired: HashMap<String, HashSet<String>>,
     boots: HashMap<String, String>,
     last_claim: (u64, String),
+    pending_lease: Option<PendingLease>,
+}
+
+struct PendingLease {
+    requester: String,
+    requester_boot: String,
+    owner_boot: String,
+    query: LeaseQuery,
+    requested_at: u64,
 }
 
 impl Control {
@@ -168,6 +199,14 @@ impl Control {
     }
 
     pub fn expire(&mut self, now: u64) {
+        if self.lease.is_some()
+            || self
+                .pending_lease
+                .as_ref()
+                .is_some_and(|p| now.saturating_sub(p.requested_at) >= CONTROL_TIMEOUT_MS)
+        {
+            self.pending_lease = None;
+        }
         self.members
             .retain(|_, m| now.saturating_sub(m.last_seen) < PRESENCE_TIMEOUT_MS);
         if let Some(l) = &self.lease {
@@ -183,6 +222,95 @@ impl Control {
 
     pub fn enabled(&self, node: &str) -> bool {
         self.members.get(node).is_some_and(|m| m.presence.can_kvm())
+    }
+
+    /// An expired lease needs a fresh challenge response, not a late renewal.
+    pub fn request_lease(
+        &mut self,
+        renewal: &Packet,
+        requester: &str,
+        requester_boot: &str,
+        nonce: String,
+        now: u64,
+    ) -> bool {
+        let Event::Renew { term, focus } = &renewal.event else {
+            return false;
+        };
+        if self.lease.is_some()
+            || self.pending_lease.is_some()
+            || nonce.is_empty()
+            || nonce.len() > 128
+            || !self.enabled(&renewal.origin)
+            || !self.enabled(focus)
+            || (*term, &renewal.origin) < (self.last_claim.0, &self.last_claim.1)
+            || self
+                .members
+                .get(&renewal.origin)
+                .is_none_or(|m| m.boot != renewal.boot || renewal.seq != m.max_seq)
+            || self
+                .members
+                .get(requester)
+                .is_none_or(|m| m.boot != requester_boot || !m.presence.active)
+        {
+            return false;
+        }
+        self.pending_lease = Some(PendingLease {
+            requester: requester.into(),
+            requester_boot: requester_boot.into(),
+            owner_boot: renewal.boot.clone(),
+            query: LeaseQuery {
+                owner: renewal.origin.clone(),
+                min_term: *term,
+                nonce,
+            },
+            requested_at: now,
+        });
+        true
+    }
+
+    pub fn lease_query(&self) -> Option<LeaseQuery> {
+        self.pending_lease.as_ref().map(|p| p.query.clone())
+    }
+
+    fn accept_lease_answer(&mut self, packet: &Packet, answers: &[LeaseAnswer], now: u64) {
+        let Some(pending) = self.pending_lease.as_ref() else {
+            return;
+        };
+        if self.lease.is_some()
+            || now.saturating_sub(pending.requested_at) >= CONTROL_TIMEOUT_MS
+            || packet.origin != pending.query.owner
+            || packet.boot != pending.owner_boot
+            || !self.enabled(&packet.origin)
+            || self
+                .members
+                .get(&pending.requester)
+                .is_none_or(|m| m.boot != pending.requester_boot || !m.presence.active)
+        {
+            return;
+        }
+        let Some(answer) = answers.iter().find(|a| {
+            a.recipient == pending.requester
+                && a.recipient_boot == pending.requester_boot
+                && a.nonce == pending.query.nonce
+                && a.term >= pending.query.min_term
+                && (a.term, &packet.origin) >= (self.last_claim.0, &self.last_claim.1)
+                && self.enabled(&a.focus)
+        }) else {
+            return;
+        };
+        self.clock = self.clock.max(answer.term);
+        self.last_claim = (answer.term, packet.origin.clone());
+        self.lease = Some(Lease {
+            owner: packet.origin.clone(),
+            boot: packet.boot.clone(),
+            term: answer.term,
+            renewed_at: now,
+            focus: answer.focus.clone(),
+            // Input/switches queued before this fresh answer cannot be replayed.
+            switch_seq: packet.seq,
+            input_seq: HashMap::new(),
+        });
+        self.pending_lease = None;
     }
 
     /// Returns true for a fresh, authorized event. Consumers may then relay it.
@@ -212,6 +340,10 @@ impl Control {
                 })
                 || presence.desktop.desktop_width > 65535
                 || presence.desktop.desktop_height > 65535
+                || presence.lease_answers.len() > 64
+                || presence.lease_query.as_ref().is_some_and(|q| {
+                    q.owner.is_empty() || q.nonce.is_empty() || q.nonce.len() > 128
+                })
                 || [
                     presence.desktop.monitor_x,
                     presence.desktop.monitor_y,
@@ -277,7 +409,11 @@ impl Control {
         let floor = m.max_seq.saturating_sub(256);
         m.seen.retain(|s| *s >= floor);
         match &packet.event {
-            Event::Presence { .. } | Event::Layout { .. } => true,
+            Event::Presence { presence } => {
+                self.accept_lease_answer(packet, &presence.lease_answers, now);
+                true
+            }
+            Event::Layout { .. } => true,
             Event::Claim { term } => {
                 if !self.enabled(&packet.origin)
                     || (*term, &packet.origin) <= (self.last_claim.0, &self.last_claim.1)
@@ -286,6 +422,7 @@ impl Control {
                 }
                 self.clock = self.clock.max(*term);
                 self.last_claim = (*term, packet.origin.clone());
+                self.pending_lease = None;
                 self.lease = Some(Lease {
                     owner: packet.origin.clone(),
                     boot: packet.boot.clone(),
@@ -409,6 +546,8 @@ mod tests {
                         active: true,
                         kvm: full,
                         control_clock: 0,
+                        lease_query: None,
+                        lease_answers: Vec::new(),
                     }
                 }
             ),
@@ -448,6 +587,222 @@ mod tests {
             3_003
         ));
         assert!(c.accept(&packet("a", 4, Event::Claim { term: 2 }), 3_004));
+    }
+
+    fn expired_remote_lease() -> Control {
+        let mut c = Control::default();
+        for node in ["a", "b", "c"] {
+            join(&mut c, node, true);
+        }
+        assert!(c.accept(&packet("a", 2, Event::Claim { term: 1 }), 1));
+        assert!(c.accept(
+            &packet(
+                "a",
+                3,
+                Event::Switch {
+                    term: 1,
+                    target: "c".into(),
+                    x: 20,
+                    y: 20,
+                }
+            ),
+            2
+        ));
+        c.expire(3_003);
+        assert!(c.lease.is_none());
+        c
+    }
+
+    fn query(c: &mut Control) {
+        let renewal = packet(
+            "a",
+            4,
+            Event::Renew {
+                term: 1,
+                focus: "c".into(),
+            },
+        );
+        assert!(!c.accept(&renewal, 3_004));
+        assert!(c.request_lease(&renewal, "b", "boot-1", "fresh-challenge".into(), 3_004));
+    }
+
+    fn answer(c: &Control, seq: u64, nonce: &str) -> Packet {
+        let mut presence = c.members["a"].presence.clone();
+        presence.lease_answers = vec![LeaseAnswer {
+            recipient: "b".into(),
+            recipient_boot: "boot-1".into(),
+            nonce: nonce.into(),
+            term: 1,
+            focus: "c".into(),
+        }];
+        packet("a", seq, Event::Presence { presence })
+    }
+
+    #[test]
+    fn expired_lease_resync_needs_a_fresh_correlated_answer() {
+        let mut c = expired_remote_lease();
+        query(&mut c);
+        assert!(c.accept(&answer(&c, 7, "previous-challenge"), 3_005));
+        assert!(c.lease.is_none());
+        assert!(c.accept(&answer(&c, 9, "fresh-challenge"), 3_006));
+        let lease = c.lease.as_ref().unwrap();
+        assert_eq!(
+            (lease.owner.as_str(), lease.focus.as_str(), lease.term),
+            ("a", "c", 1)
+        );
+        assert!(c.lease_query().is_none());
+        // A reordered input queued before the answer cannot revive an old key.
+        assert!(!c.accept(
+            &packet(
+                "a",
+                8,
+                Event::Input {
+                    term: 1,
+                    target: "c".into(),
+                    kind: InputKind::Key {
+                        keycode: 38,
+                        pressed: true
+                    },
+                }
+            ),
+            3_007
+        ));
+        assert!(c.accept(
+            &packet(
+                "a",
+                10,
+                Event::Input {
+                    term: 1,
+                    target: "c".into(),
+                    kind: InputKind::Key {
+                        keycode: 38,
+                        pressed: false
+                    },
+                }
+            ),
+            3_008
+        ));
+    }
+
+    #[test]
+    fn unsolicited_answer_cannot_resurrect_a_lease() {
+        let mut c = expired_remote_lease();
+        assert!(c.accept(&answer(&c, 4, "fresh-challenge"), 3_004));
+        assert!(c.lease.is_none());
+    }
+
+    #[test]
+    fn a_timed_out_challenge_cannot_restore_a_lease() {
+        let mut c = expired_remote_lease();
+        query(&mut c);
+        let presences: Vec<_> = ["a", "b", "c"]
+            .into_iter()
+            .map(|node| (node, c.members[node].presence.clone()))
+            .collect();
+        for (node, presence) in presences {
+            assert!(c.accept(
+                &packet(
+                    node,
+                    if node == "a" { 5 } else { 2 },
+                    Event::Presence { presence }
+                ),
+                5_000
+            ));
+        }
+        assert!(c.accept(&answer(&c, 6, "fresh-challenge"), 6_005));
+        assert!(c.lease.is_none());
+    }
+
+    #[test]
+    fn restarted_recipient_and_newer_claim_fence_old_answers() {
+        let mut c = expired_remote_lease();
+        query(&mut c);
+        let mut restart = packet(
+            "b",
+            1,
+            Event::Presence {
+                presence: c.members["b"].presence.clone(),
+            },
+        );
+        restart.boot = "boot-2".into();
+        assert!(c.accept(&restart, 3_005));
+        assert!(c.accept(&answer(&c, 5, "fresh-challenge"), 3_006));
+        assert!(c.lease.is_none());
+
+        let mut c = expired_remote_lease();
+        query(&mut c);
+        assert!(c.accept(&packet("b", 2, Event::Claim { term: 2 }), 3_005));
+        assert!(c.accept(&answer(&c, 5, "fresh-challenge"), 3_006));
+        assert_eq!(c.lease.unwrap().owner, "b");
+    }
+
+    #[test]
+    fn restarted_owner_cannot_answer_a_previous_process_challenge() {
+        let mut c = expired_remote_lease();
+        query(&mut c);
+        let mut restart = packet(
+            "a",
+            1,
+            Event::Presence {
+                presence: c.members["a"].presence.clone(),
+            },
+        );
+        restart.boot = "boot-2".into();
+        assert!(c.accept(&restart, 3_005));
+        let old = answer(&c, 5, "fresh-challenge");
+        assert!(!c.accept(&old, 3_006));
+        let mut wrong_process = answer(&c, 2, "fresh-challenge");
+        wrong_process.boot = "boot-2".into();
+        assert!(c.accept(&wrong_process, 3_007));
+        assert!(c.lease.is_none());
+    }
+
+    #[test]
+    fn answers_do_not_reset_an_uninterrupted_controller_session() {
+        let mut c = expired_remote_lease();
+        assert!(c.accept(&packet("a", 4, Event::Claim { term: 2 }), 3_004));
+        assert!(c.accept(
+            &packet(
+                "a",
+                5,
+                Event::Switch {
+                    term: 2,
+                    target: "c".into(),
+                    x: 20,
+                    y: 20
+                }
+            ),
+            3_005
+        ));
+        let before = c.lease.as_ref().unwrap().clone();
+        assert!(c.accept(&answer(&c, 6, "someone-else"), 3_006));
+        let after = c.lease.unwrap();
+        assert_eq!(
+            (
+                after.owner,
+                after.focus,
+                after.term,
+                after.switch_seq,
+                after.renewed_at
+            ),
+            (
+                before.owner,
+                before.focus,
+                before.term,
+                before.switch_seq,
+                before.renewed_at
+            )
+        );
+    }
+
+    #[test]
+    fn resync_metadata_is_optional_for_legacy_presence() {
+        let mut c = Control::default();
+        join(&mut c, "a", true);
+        let legacy = serde_json::to_value(&c.members["a"].presence).unwrap();
+        assert!(legacy.get("lease_query").is_none() && legacy.get("lease_answers").is_none());
+        let decoded: Presence = serde_json::from_value(legacy).unwrap();
+        assert!(decoded.lease_query.is_none() && decoded.lease_answers.is_empty());
     }
     #[test]
     fn clipboard_only_peers_cannot_claim_or_receive_input() {

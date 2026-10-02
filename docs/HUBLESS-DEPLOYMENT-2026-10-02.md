@@ -7,7 +7,16 @@ installation and qualification record; physical daily-use acceptance is still
 incomplete. The existing WireGuard VPN is intentionally retained. Identities,
 certificates, pool encryption keys and saved positions were preserved.
 
-The staged candidate is `poolsync-agent 2.1.0-dev.3`, source commit `2415168`,
+Updated 2026-10-03: the current executing binary on all five hosts is
+`1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132`,
+version `2.1.0-dev.3`. It adds fresh owner-confirmed lease resynchronization
+and target-process held-input recovery. The legacy hub is now stopped and its
+automatic startup disabled, with backup retained. All five report fresh direct
+membership without the hub. Current qualification, rollback and remaining
+physical gates are in `KVM-TARGET-RECOVERY-2026-10-03.md` and
+`qualification/recovery-fleet-nohub-20261003.json`.
+
+The initial migration candidate is `poolsync-agent 2.1.0-dev.3`, source commit `2415168`,
 executable SHA-256
 `208d67cb42a48e34037dcefda46f1ec84c1510f73acbd425bd4daa6e6fc0bec4`.
 Package version alone does not identify it. Its 130 Rust tests, Clippy and
@@ -25,7 +34,7 @@ does not identify either binary. Clipboard/control code is unchanged by this
 hotfix; the complete attempt-41 qualification belongs to the preceding binary.
 
 Manual Asus/Acer acceptance then exposed an unstable reverse crossing. The
-current executing candidate adds relative-device capture that excludes
+motion-capture candidate adds relative-device capture that excludes
 software pointer warps, SHA-256
 `fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3`.
 It passes 130 Rust tests/Clippy and 33 isolated native control/recovery/screen
@@ -153,17 +162,31 @@ on the physical computers, not physical keyboard-device acceptance.
 
 ## Hub retirement and remaining human evidence
 
-The legacy hub on gbs-p3 is retained for rollback and incomplete acceptance.
+The legacy hub on gbs-p3 is stopped and disabled as of 2026-10-03; its files
+and rollback backup remain. Physical acceptance is still incomplete.
 Its previous automatic dependencies were the five legacy agents and their
 watchdog/history scripts. Replacement
 scripts use the direct runtime state in hubless mode. An old manual hub API
 test utility is not a hubless acceptance tool.
 
-First complete fleet runtime/native-paste validation, then stop the hub
-temporarily and repeat the fleet native-paste qualification. Preserve the hub
-executable, configuration, credentials and systemd enablement state for rollback.
-Reversible disablement follows dependency and independence validation; deletion
-is not necessary to achieve hubless operation.
+Dependency validation found no established legacy-hub clients, no remaining
+service dependencies beyond boot targets, and installed hubless-aware watchdog
+and history scripts. The saved hub binary fingerprint, unit, configuration and
+state were independently checked. Before disablement, the current candidate
+passed native GTK/Chrome clipboard exchange on P2/P3/zaza-desktop while the hub
+was stopped. All five then retained fresh direct membership and correct modes.
+This proves the stated subset and direct presence, not Asus/Acer physical KVM
+or their pending native-paste campaign. See
+`qualification/recovery-native-three-hub-stopped-20261003.json` and
+`qualification/recovery-fleet-nohub-20261003.json`.
+
+The hub rollback bundle is `/opt/poolsync/hub-backups/20261002-pre-nohub` on
+gbs-p3. Restore its previous active/enabled service state with
+`systemctl enable --now poolsync-hub` as root if required; the old configuration,
+credentials, executable and unit have not been deleted. Reverting the entire
+fleet to the legacy architecture additionally requires the original migration
+backups. Binary-only hotfix rollback keeps the hubless configuration. No VPN
+configuration was changed.
 
 Asus and Acer still require real keyboard/mouse takeover in both directions,
 local emergency recovery, distinct Flameshot pastes into the user's application,

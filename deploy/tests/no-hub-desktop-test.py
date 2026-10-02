@@ -178,6 +178,10 @@ elif op=='cold_reset':
 elif op=='receiver':
     output=spawn(['python3','/opt/poolsync-tests/paste-receiver/clipboard-receiver.py','--watch','--log',str(root/'pastes.json'),'--quit-after','7200'],'receiver.log')
 elif op=='stop':stop(request['pid']);output=True
+elif op=='crash':
+    try:os.killpg(request['pid'],signal.SIGKILL)
+    except ProcessLookupError:pass
+    output=True
 elif op=='copy':
     raw=(root/(request['image']+'.png')).read_bytes() if 'image' in request else request['text'].encode()
     mime='image/png' if 'image' in request else 'UTF8_STRING'
@@ -317,15 +321,20 @@ elif op=='key':
 elif op=='motion':
     # libxdo mousemove_relative warps root coordinates. Use an actual relative
     # XTEST device event so XI2 capture receives motion independently of warps.
-    code="""import ctypes,os,sys
+    code="""import ctypes,os,sys,time
 x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6')
 x.XOpenDisplay.argtypes=[ctypes.c_char_p];x.XOpenDisplay.restype=ctypes.c_void_p
 x.XSync.argtypes=[ctypes.c_void_p,ctypes.c_int];x.XCloseDisplay.argtypes=[ctypes.c_void_p]
 t.XTestFakeRelativeMotionEvent.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_int,ctypes.c_ulong]
 d=x.XOpenDisplay(os.environ['DISPLAY'].encode());assert d
-assert t.XTestFakeRelativeMotionEvent(d,int(sys.argv[1]),int(sys.argv[2]),0)
-x.XSync(d,0);x.XCloseDisplay(d)"""
-    r=user(['python3','-c',code,str(request['dx']),str(request['dy'])],env=env());assert r.returncode==0;output=True
+steps=int(sys.argv[3]);interval=float(sys.argv[4]);assert 1<=steps<=250 and 0<=interval<=.02
+for step in range(steps):
+    sign=1 if step%2==0 else -1
+    assert t.XTestFakeRelativeMotionEvent(d,int(sys.argv[1])*sign,int(sys.argv[2])*sign,0)
+    x.XSync(d,0)
+    if interval:time.sleep(interval)
+x.XCloseDisplay(d)"""
+    r=user(['python3','-c',code,str(request['dx']),str(request['dy']),str(request.get('steps',1)),str(request.get('interval',0))],env=env());assert r.returncode==0;output=True
 elif op=='key_window':
     code="import gi,json,sys,time;gi.require_version('Gtk','3.0');from gi.repository import Gtk,GLib;w=Gtk.Window(title='PoolSync remote keyboard receiver');w.connect('key-press-event',lambda _,event: (open(sys.argv[1],'w').write(json.dumps({'keyval':event.keyval,'at':time.time()})),False)[1]);w.show_all();GLib.timeout_add_seconds(600,lambda: (Gtk.main_quit(),False)[1]);Gtk.main()"
     marker=root/'remote-key.json';marker.unlink(missing_ok=True)
@@ -339,9 +348,23 @@ elif op=='key_window':
 elif op=='received_key':
     try:output=json.loads((root/'remote-key.json').read_text())
     except (FileNotFoundError,json.JSONDecodeError):output={}
+elif op=='peer_connections':
+    output=[]
+    for line in Path('/proc/net/tcp').read_text().splitlines()[1:]:
+        fields=line.split()
+        if fields[3]!='01':continue
+        endpoints=[field.split(':') for field in fields[1:3]]
+        if not any(int(port,16)==request['port'] for _,port in endpoints):continue
+        output.append([socket.inet_ntoa(bytes.fromhex(address)[::-1]) for address,_ in endpoints])
 elif op=='key_state':
     code="import ctypes,os,sys,json;l=ctypes.CDLL('libX11.so.6');l.XOpenDisplay.argtypes=[ctypes.c_char_p];l.XOpenDisplay.restype=ctypes.c_void_p;l.XStringToKeysym.argtypes=[ctypes.c_char_p];l.XStringToKeysym.restype=ctypes.c_ulong;l.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];l.XKeysymToKeycode.restype=ctypes.c_ubyte;l.XQueryKeymap.argtypes=[ctypes.c_void_p,ctypes.c_void_p];l.XCloseDisplay.argtypes=[ctypes.c_void_p];d=l.XOpenDisplay(os.environ['DISPLAY'].encode());assert d;k=l.XKeysymToKeycode(d,l.XStringToKeysym(sys.argv[1].encode()));m=ctypes.create_string_buffer(32);l.XQueryKeymap(d,m);l.XCloseDisplay(d);print(json.dumps(bool(m.raw[k//8]&(1<<(k%8)))))"
     r=user(['python3','-c',code,request['key']],env=env());assert r.returncode==0;output=json.loads(r.stdout)
+elif op=='button_state':
+    r=user(['xinput','query-state','Virtual core XTEST pointer'],env=env());assert r.returncode==0
+    output=('button['+str(request['button'])+']=down') in r.stdout.decode()
+elif op=='injected_marker':
+    r=user(['xprop','-root','_POOLSYNC_INJECTED_V1_'+request['node']],env=env());assert r.returncode==0
+    output=' = ' in r.stdout.decode()
 elif op=='local_key':
     code="import gi,json,sys;gi.require_version('Gtk','3.0');from gi.repository import Gtk,GLib;w=Gtk.Window(title='PoolSync isolated local input proof');w.connect('key-press-event',lambda _,event: (open(sys.argv[1],'w').write(json.dumps({'keyval':event.keyval})),False)[1]);w.show_all();GLib.timeout_add_seconds(8,lambda: (Gtk.main_quit(),False)[1]);Gtk.main()"
     marker=root/'key.json';marker.unlink(missing_ok=True)
@@ -415,6 +438,9 @@ def main():
     parser.add_argument('--clipboard-rounds', type=int, default=0, help='Additional alternating native image/text rounds')
     parser.add_argument('--native-browser', action='store_true', help='Use an isolated Firefox profile and native Ctrl+V on B')
     parser.add_argument('--kvm-only', action='store_true', help='Run the native control and recovery scenarios without clipboard scenarios')
+    parser.add_argument('--three-kvm-peers', action='store_true', help='Make C KVM-capable and verify A controls C through B and returns')
+    parser.add_argument('--kvm-soak-seconds', type=int, default=0, help='Measure active native motion/key capture with repeated software warps')
+    parser.add_argument('--target-restart', action='store_true', help='Restart the actual target agent while a remote modifier/button is held')
     parser.add_argument('--screen-changes', action='store_true', help='Qualify private-display docking, resolution changes and undocking')
     parser.add_argument('--network-loss', action='store_true', help='Drop only candidate TCP traffic in its network namespace, then recover')
     parser.add_argument('--clipboard-races', action='store_true', help='Qualify valid BMP and a delayed image owner superseded by fresh text')
@@ -437,6 +463,10 @@ def main():
     args = parser.parse_args()
     assert not args.retain_failed_desktops or args.fresh_desktops, 'failure retention is limited to disposable fresh desktops'
     assert not args.kvm_only or args.hubless, '--kvm-only requires --hubless'
+    assert not args.three_kvm_peers or args.kvm_only, '--three-kvm-peers requires --kvm-only'
+    assert 0 <= args.kvm_soak_seconds <= 300
+    assert not args.kvm_soak_seconds or args.three_kvm_peers, '--kvm-soak-seconds requires --three-kvm-peers'
+    assert not args.target_restart or args.three_kvm_peers, '--target-restart requires --three-kvm-peers'
     assert not args.reboot_desktops or args.fresh_desktops, 'Reboots require disposable fresh desktops'
     assert not args.participation_only or args.hubless, '--participation-only requires --hubless'
     assert not args.lossless_only or args.clipboard_races, '--lossless-only requires --clipboard-races'
@@ -452,7 +482,7 @@ def main():
     tokens = {node: secrets.token_hex(24) for node in nodes}
     e2e_key = base64.b64encode(secrets.token_bytes(32)).decode()
     port = 19676
-    snapshots, agents, receivers, images, xservers, buses = {}, {}, {}, {}, {}, {}
+    snapshots, agents, receivers, key_windows, images, xservers, buses = {}, {}, {}, {}, {}, {}, {}
     browser_workers = {}
     network_rules = []
     checked, checks, restoration = set(), [], {}
@@ -463,6 +493,7 @@ def main():
               'receiver_mode': 'native GTK paste handler sampled once per second',
               'checks': checks, 'paste_convergence_seconds': latencies, 'native_copy_owners': copies}
     result['direct_links']=args.links
+    result['three_kvm_peers']=args.three_kvm_peers
     result['fresh_desktops']=args.fresh_desktops
     result['native_copy_application']=args.native_owner
     result['allocator']={'arena_max':2,'mmap_threshold':131072} if args.bounded_allocator else 'system default'
@@ -557,11 +588,12 @@ def main():
         (artifacts / 'original-agents.json').chmod(0o600)
         for index, node in enumerate(nodes):
             peers = [j for j in range(3) if j != index and (args.links=='triangle' or abs(j - index) == 1)]
+            full_mode = index != 2 or args.three_kvm_peers
             lines = [f'node={json.dumps(node)}', 'hub_url="ws://127.0.0.1:1/ws"', 'token="isolated-unused-hub-token"',
                      'hubless='+str(args.hubless).lower(),
                      f'node_token={json.dumps(tokens[node])}', f'e2e_key={json.dumps(e2e_key)}',
-                     'mode="clipboard_only"' if index == 2 else 'mode="full"',
-                     'kvm_enabled=' + str(index != 2).lower(), 'kvm_capture=' + str(index != 2).lower(),
+                     'mode="full"' if full_mode else 'mode="clipboard_only"',
+                     'kvm_enabled=' + str(full_mode).lower(), 'kvm_capture=' + str(full_mode).lower(),
                      f'peer_listen_port={port}', 'peer_direct_clipboard=true', 'hub_clipboard=false',
                      'clipboard_poll_ms=80', 'pause_clipboard_when_rdp=false', 'input_poll_ms=8',
                      '[screen]', 'width=1600', 'height=900', '[peer_tokens]']
@@ -570,7 +602,7 @@ def main():
                 lines += ['[[neighbors]]', f'node={json.dumps(nodes[j])}',
                           'direction="right"' if j > index else 'direction="left"',
                           f'peer_url="ws://{args.addresses[j]}:{port}/ws"']
-            layout={'revision':1,'origin':'nohub-a','topology':{'nodes':{name:{'x':j*1600,'y':0,'width':1600,'height':900,'kvm_enabled':j!=2} for j,name in enumerate(nodes)}}}
+            layout={'revision':1,'origin':'nohub-a','topology':{'nodes':{name:{'x':j*1600,'y':0,'width':1600,'height':900,'kvm_enabled':j!=2 or args.three_kvm_peers} for j,name in enumerate(nodes)}}}
             images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),lossless_fixture=Path(__file__).with_name('lossless-image-owner.py').read_text(),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
             subprocess.run(['podman', 'cp', str(args.candidate), args.containers[index] + ':' + root + '/candidate-agent'], check=True, capture_output=True)
             subprocess.run(['podman', 'exec', args.containers[index], 'chmod', '755', root + '/candidate-agent'], check=True, capture_output=True)
@@ -763,7 +795,8 @@ def main():
 
         if args.hubless:
             check('All three peers discover each other through the chain',all(len(op(i,'status').get('peers',{}))==3 for i in range(3)))
-            receivers[3]=op(1,'key_window')
+            key_windows[1]=op(1,'key_window')
+            if args.three_kvm_peers:key_windows[2]=op(2,'key_window')
             op(1,'move',x=300,y=250);width,height=op(0,'screen')
             op(0,'move',x=width//2,y=height//2);op(0,'key',key='ctrl+alt+shift+m');time.sleep(.5)
             op(0,'move',x=width-1,y=height//2)
@@ -782,6 +815,107 @@ def main():
             key_started=time.time();op(0,'key',key='z');time.sleep(.4)
             check('A keyboard reaches the real B GTK window',op(1,'received_key').get('keyval')==ord('z'))
             result['native_kvm_key_seconds']=round(op(1,'received_key')['at']-key_started,4)
+            if args.three_kvm_peers:
+                result['native_control_connections']=[op(i,'peer_connections',port=port) for i in range(3)]
+                if args.links=='chain':
+                    check('Relay fixture has no direct candidate TCP connection between A and C',
+                          all(args.addresses[2] not in connection for connection in result['native_control_connections'][0])
+                          and all(args.addresses[0] not in connection for connection in result['native_control_connections'][2]))
+                time.sleep(.65);op(0,'motion',dx=1600,dy=0);wait_lease(0,2,indices=(0,1,2))
+                check('A crosses through B to the actual C desktop without a hub',op(2,'pointer')['x']<100)
+                op(0,'key',key='x');time.sleep(.4)
+                check('A keyboard reaches the real C GTK window through the peer mesh',op(2,'received_key').get('keyval')==ord('x'))
+                before=op(2,'pointer');op(0,'motion',dx=70,dy=25);time.sleep(.4)
+                check('Captured A relative motion moves C through the peer mesh',op(2,'pointer')!=before)
+                if args.kvm_soak_seconds:
+                    resources_before=[op(i,'resources') for i in range(3)]
+                    started=time.monotonic();bursts=0;key_latencies=[]
+                    while time.monotonic()-started<args.kvm_soak_seconds:
+                        op(0,'move',x=30 if bursts%2 else width-30,y=height//2)
+                        op(0,'motion',dx=2,dy=1,steps=124,interval=.008)
+                        leases=[op(i,'status').get('lease',{}) for i in range(3)]
+                        assert all(l.get('owner')==nodes[0] and l.get('focus')==nodes[2] for l in leases), 'Active capture bounced focus during native motion/warp soak'
+                        if bursts%5==0:
+                            key_started=time.time();op(0,'key',key='d');deadline=time.monotonic()+2
+                            while time.monotonic()<deadline:
+                                received=op(2,'received_key')
+                                if received.get('keyval')==ord('d') and received.get('at',0)>=key_started:break
+                                time.sleep(.05)
+                            else:raise AssertionError('C GTK missed fresh input during active capture soak')
+                            key_latencies.append(round(received['at']-key_started,4))
+                        bursts+=1
+                    resources_after=[op(i,'resources') for i in range(3)]
+                    result['active_kvm_soak']={'elapsed_seconds':round(time.monotonic()-started,3),'motion_events':bursts*124,'software_warps':bursts,'native_key_latency_seconds':key_latencies,
+                        'resources':[{'node':node,'cpu_percent':100*(b['cpu_seconds']-a['cpu_seconds'])/(b['at']-a['at']),'rss_start_kib':a['rss_kib'],'rss_end_kib':b['rss_kib'],'pid_preserved':a['pid']==b['pid']} for node,a,b in zip(nodes,resources_before,resources_after)]}
+                    check('Sustained native device motion and software warps retain C focus and GTK input',all(a['pid']==b['pid'] for a,b in zip(resources_before,resources_after)))
+                if args.network_loss:
+                    lease_before_partition=op(0,'status')['lease']
+                    op(0,'key',action='keydown',key='Shift_L');time.sleep(.4)
+                    check('A held modifier reaches the actual C desktop',op(2,'key_state',key='Shift_L'))
+                    network_drop(1,True);time.sleep(5)
+                    if args.links=='chain':
+                        check('Relay partition releases the held modifier on C',not op(2,'key_state',key='Shift_L'))
+                        # The source fixture still physically holds Shift.
+                        # Release it before the lowercase local GTK assertion.
+                        op(0,'key',action='keyup',key='Shift_L')
+                        check('Relay partition recovers native input on both endpoints',op(0,'local_key') and op(2,'local_key'))
+                    else:
+                        wait_lease(0,2,indices=(0,2))
+                        check('Losing B preserves A control of C over the alternate direct path',op(2,'key_state',key='Shift_L'))
+                        op(0,'key',action='keyup',key='Shift_L');time.sleep(.2)
+                        op(0,'key',key='y');time.sleep(.4)
+                        check('C native GTK still receives A input while B is unreachable',op(2,'received_key').get('keyval')==ord('y'))
+                        op(0,'key',action='keydown',key='Shift_L');time.sleep(.2)
+                    network_drop(1,False);time.sleep(4)
+                    if args.links=='chain':
+                        op(0,'move',x=width//2,y=height//2);op(0,'key',key='ctrl+alt+shift+m');time.sleep(.8)
+                        op(0,'move',x=width-1,y=height//2);wait_lease(0,1)
+                        time.sleep(.65);op(0,'motion',dx=1600,dy=0);wait_lease(0,2,indices=(0,1,2))
+                    else:
+                        wait_lease(0,2,indices=(0,1,2))
+                        recovered=[op(i,'status')['lease'] for i in range(3)]
+                        check('Returning B learns the exact ongoing epoch without changing A/C control',all(l==lease_before_partition for l in recovered))
+                        check('Resynchronizing B preserves the held modifier on C',op(2,'key_state',key='Shift_L'))
+                        op(0,'key',action='keyup',key='Shift_L');time.sleep(.2)
+                    check('C control resumes or persists after the relay reconnects',
+                          all((op(i,'status').get('lease') or {}).get('focus')==nodes[2] for i in range(3)))
+                    check('Relay recovery leaves no held modifier on C',not op(2,'key_state',key='Shift_L'))
+                    op(0,'motion',dx=70,dy=0);time.sleep(.65)
+                if args.target_restart:
+                    for stop_op in ('stop','crash'):
+                        label='Target C '+('SIGTERM restart' if stop_op=='stop' else 'SIGKILL restart')
+                        op(0,'key',action='keydown',key='Shift_L')
+                        op(0,'key',action='mousedown',key='1');time.sleep(.4)
+                        check(label+': remote modifier and button are down and recorded',op(2,'key_state',key='Shift_L') and op(2,'button_state',button=1) and op(2,'injected_marker',node=nodes[2]))
+                        op(2,stop_op,pid=agents.pop(2));time.sleep(5)
+                        op(0,'key',action='keyup',key='Shift_L')
+                        op(0,'key',action='mouseup',key='1')
+                        check(label+': source native keyboard recovers locally',op(0,'local_key'))
+                        # This other client's held key is absent from PoolSync's
+                        # marker and must survive its recovery.
+                        op(2,'key',action='keydown',key='Control_R')
+                        op(2,'move',x=400,y=300);pointer_before=op(2,'pointer')
+                        agents[2]=op(2,'start');time.sleep(4)
+                        check(label+': old injected modifier/button are released',not op(2,'key_state',key='Shift_L') and not op(2,'button_state',button=1))
+                        check(label+': recovery marker clears after acknowledged releases',not op(2,'injected_marker',node=nodes[2]))
+                        check(label+': unrelated held key and local pointer are preserved',op(2,'key_state',key='Control_R') and op(2,'pointer')==pointer_before)
+                        op(2,'key',action='keyup',key='Control_R')
+                        check(label+': target native keyboard is usable',op(2,'local_key'))
+                        op(0,'move',x=width//2,y=height//2);op(0,'key',key='ctrl+alt+shift+m');time.sleep(.8)
+                        op(0,'move',x=width-1,y=height//2);wait_lease(0,1)
+                        time.sleep(.65);op(0,'motion',dx=1600,dy=0);wait_lease(0,2,indices=(0,1,2))
+                        op(0,'motion',dx=70,dy=0);time.sleep(.65)
+                        op(2,'stop',pid=key_windows.pop(2));key_windows[2]=op(2,'key_window')
+                        op(0,'key',key='v');time.sleep(.2)
+                        check(label+': fresh remote input resumes in native GTK',op(2,'received_key').get('keyval')==ord('v'))
+                        check(label+': normal key release leaves no recovery marker',not op(2,'injected_marker',node=nodes[2]))
+                op(0,'motion',dx=-200,dy=0);wait_lease(0,1,indices=(0,1,2))
+                check('A can return from C to B without changing controller')
+                time.sleep(.65);op(0,'motion',dx=-70,dy=0);time.sleep(.2)
+                op(0,'motion',dx=-1600,dy=0);wait_lease(0,0,indices=(0,1,2))
+                check('A can return through B to its own native desktop',op(0,'local_key'))
+                op(0,'move',x=width//2,y=height//2);time.sleep(.8)
+                op(0,'move',x=width-1,y=height//2);wait_lease(0,1)
             op(0,'key',key='ctrl+alt+shift+m');wait_lease(0,0)
             check('Emergency shortcut returns captured input to A',op(0,'local_key'))
             check('Emergency return releases remote modifiers',all(not op(1,'key_state',key=k) for k in ('Shift_L','Control_L','Alt_L')))
@@ -988,11 +1122,7 @@ def main():
         for pid in (() if retained else browser_workers.values()):
             try:op(1,'stop',pid=pid)
             except Exception as error:restoration['browser-stop-error']=str(error)
-        # The remote keyboard receiver lives on B, independently of its key.
-        if not retained and 3 in receivers:
-            try:op(1,'stop',pid=receivers.pop(3))
-            except Exception as error:restoration['key-window-stop-error']=str(error)
-        for processes in (() if retained else (receivers, agents, buses, xservers)):
+        for processes in (() if retained else (receivers, key_windows, agents, buses, xservers)):
             for index, pid in list(processes.items()):
                 try:op(index, 'stop', pid=pid)
                 except Exception as error:restoration[str(index) + '-stop-error']=str(error)

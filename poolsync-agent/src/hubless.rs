@@ -5,7 +5,7 @@ use crate::state::AgentState;
 use anyhow::{Context, Result};
 use poolsync_core::{
     infer_neighbors,
-    mesh::{self, Control, Event, Packet, Presence},
+    mesh::{self, Control, Event, LeaseAnswer, LeaseQuery, Packet, Presence},
     Direction, InputKind, Message, PoolTopology, TopologyNode, DEFAULT_EDGE_TOLERANCE_PX,
 };
 use serde::{Deserialize, Serialize};
@@ -66,6 +66,7 @@ pub struct Hubless {
     held_keys: HashSet<u32>,
     held_buttons: HashSet<u8>,
     applied_session: Option<(String, u64, String)>,
+    lease_queries: HashMap<String, (String, LeaseQuery)>,
 }
 
 impl Hubless {
@@ -76,6 +77,10 @@ impl Hubless {
         );
         mesh::validate_key(state.config.e2e_key.as_deref().unwrap_or_default())
             .context("invalid pool E2E key for hubless mode")?;
+        if !crate::kvm_wayland::active() && std::env::var_os("DISPLAY").is_some() {
+            crate::kvm_x11::recover_injected_state(&state.config.node)
+                .context("recovering abandoned remote inputs")?;
+        }
         let mut allowed: HashSet<String> = state.config.peer_tokens.keys().cloned().collect();
         allowed.extend(state.config.neighbors.iter().map(|n| n.node.clone()));
         allowed.insert(state.config.node.clone());
@@ -121,6 +126,7 @@ impl Hubless {
             held_keys: HashSet::new(),
             held_buttons: HashSet::new(),
             applied_session: None,
+            lease_queries: HashMap::new(),
         })
     }
 
@@ -161,6 +167,38 @@ impl Hubless {
             // presence, but honor the persisted pool permission.
             kvm: self.state.kvm_enabled() && self.layout_allows(&self.state.config.node),
             control_clock: self.control.clock,
+            lease_query: self.control.lease_query(),
+            lease_answers: self
+                .control
+                .lease
+                .as_ref()
+                .filter(|l| l.owner == self.state.config.node)
+                .map(|lease| {
+                    self.lease_queries
+                        .iter()
+                        .filter_map(|(recipient, (boot, query))| {
+                            if query.owner == lease.owner
+                                && query.min_term <= lease.term
+                                && self
+                                    .control
+                                    .members
+                                    .get(recipient)
+                                    .is_some_and(|m| m.boot == *boot && m.presence.active)
+                            {
+                                Some(LeaseAnswer {
+                                    recipient: recipient.clone(),
+                                    recipient_boot: boot.clone(),
+                                    nonce: query.nonce.clone(),
+                                    term: lease.term,
+                                    focus: lease.focus.clone(),
+                                })
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
         }
     }
 
@@ -171,6 +209,7 @@ impl Hubless {
             presence: self.presence(),
         });
         self.control.accept(&p, now);
+        self.lease_queries.clear();
         let mut out = vec![self.wire(&p)?];
         if let Some(l) = self
             .control
@@ -287,8 +326,29 @@ impl Hubless {
             packet.sent_ms.abs_diff(wall) <= 5_000,
             "stale peer control or peer clock outside five-second tolerance"
         );
-        if !self.allowed.contains(&packet.origin) || !self.control.accept(&packet, self.now()) {
+        if !self.allowed.contains(&packet.origin) {
             return Ok(false);
+        }
+        let now = self.now();
+        if !self.control.accept(&packet, now) {
+            if matches!(&packet.event, Event::Renew { .. }) {
+                self.control.request_lease(
+                    &packet,
+                    &self.state.config.node,
+                    &self.boot,
+                    uuid::Uuid::new_v4().to_string(),
+                    now,
+                );
+            }
+            return Ok(false);
+        }
+        if let Event::Presence { presence } = &packet.event {
+            if let Some(query) = &presence.lease_query {
+                if query.owner == self.state.config.node && presence.active {
+                    self.lease_queries
+                        .insert(packet.origin.clone(), (packet.boot.clone(), query.clone()));
+                }
+            }
         }
         self.apply(&packet).await?;
         Ok(true)
@@ -348,23 +408,57 @@ impl Hubless {
                 if target == &self.state.config.node && self.state.kvm_effective() =>
             {
                 self.state.note_kvm_inject(kind);
-                crate::kvm::inject_input(kind).await?;
+                if let InputKind::Key { keycode, .. } = kind {
+                    if !crate::kvm_wayland::active() {
+                        anyhow::ensure!((8..=255).contains(keycode), "invalid remote X11 keycode");
+                    }
+                }
+                // Confirm the recovery marker before sending any down event.
+                // Confirm the up event before clearing its marker. A process
+                // dying between these steps leaves an idempotent release.
                 match kind {
-                    InputKind::Key { keycode, pressed } => {
-                        if *pressed {
-                            self.held_keys.insert(*keycode);
-                        } else {
-                            self.held_keys.remove(keycode);
-                        }
+                    InputKind::Key {
+                        keycode,
+                        pressed: true,
+                    } => {
+                        self.held_keys.insert(*keycode);
+                        self.store_held()?;
                     }
                     InputKind::MouseButton {
-                        button, pressed, ..
+                        button,
+                        pressed: true,
+                        ..
                     } => {
-                        if *pressed {
-                            self.held_buttons.insert(*button);
-                        } else {
-                            self.held_buttons.remove(button);
-                        }
+                        anyhow::ensure!(*button != 0, "invalid remote mouse button");
+                        self.held_buttons.insert(*button);
+                        self.store_held()?;
+                    }
+                    InputKind::MouseWheel { delta, .. } => {
+                        self.held_buttons.insert(if *delta > 0 { 4 } else { 5 });
+                        self.store_held()?;
+                    }
+                    _ => {}
+                }
+                crate::kvm::inject_input(kind).await?;
+                match kind {
+                    InputKind::Key {
+                        keycode,
+                        pressed: false,
+                    } => {
+                        self.held_keys.remove(keycode);
+                        self.store_held()?;
+                    }
+                    InputKind::MouseButton {
+                        button,
+                        pressed: false,
+                        ..
+                    } => {
+                        self.held_buttons.remove(button);
+                        self.store_held()?;
+                    }
+                    InputKind::MouseWheel { delta, .. } => {
+                        self.held_buttons.remove(&(if *delta > 0 { 4 } else { 5 }));
+                        self.store_held()?;
                     }
                     _ => {}
                 }
@@ -431,7 +525,7 @@ impl Hubless {
             .as_ref()
             .map(|l| (l.owner.clone(), l.term, l.focus.clone()));
         if session != self.applied_session {
-            self.release_held().await;
+            self.release_held().await?;
             self.applied_session = session;
         }
         if let Some(l) = &self.control.lease {
@@ -446,24 +540,46 @@ impl Hubless {
         Ok(())
     }
 
-    async fn release_held(&mut self) {
-        for keycode in self.held_keys.drain() {
-            let _ = crate::kvm::inject_input(&InputKind::Key {
+    fn store_held(&self) -> Result<()> {
+        if crate::kvm_wayland::active() {
+            return Ok(());
+        }
+        crate::kvm_x11::store_injected_state(
+            &self.state.config.node,
+            &self.held_keys,
+            &self.held_buttons,
+        )
+    }
+
+    async fn release_held(&mut self) -> Result<()> {
+        for keycode in self.held_keys.clone() {
+            crate::kvm::inject_input(&InputKind::Key {
                 keycode,
                 pressed: false,
             })
-            .await;
+            .await?;
+            self.held_keys.remove(&keycode);
+            self.store_held()?;
         }
-        let (x, y) = crate::kvm_x11::mouse_location().unwrap_or((0, 0));
-        for button in self.held_buttons.drain() {
-            let _ = crate::kvm::inject_input(&InputKind::MouseButton {
-                button,
-                pressed: false,
-                x,
-                y,
-            })
-            .await;
+        for button in self.held_buttons.clone() {
+            if crate::kvm_wayland::active() {
+                let (x, y) = crate::kvm_x11::mouse_location().unwrap_or((0, 0));
+                crate::kvm::inject_input(&InputKind::MouseButton {
+                    button,
+                    pressed: false,
+                    x,
+                    y,
+                })
+                .await?;
+            } else {
+                // A release does not need coordinates and must not warp an
+                // already recovered local pointer.
+                crate::kvm_x11::mouse_button(button, false)?;
+            }
+            self.held_buttons.remove(&button);
+            self.store_held()?;
         }
+        Ok(())
     }
 }
 

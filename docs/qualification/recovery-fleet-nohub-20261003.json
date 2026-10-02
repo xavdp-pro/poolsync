@@ -1,0 +1,150 @@
+{
+  "observed_at_utc": "2026-10-02T23:04:41.987031+00:00",
+  "candidate_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+  "candidate_version": "2.1.0-dev.3",
+  "source_file_sha256": {
+    "poolsync-agent/src/hubless.rs": "ffe627068f35d934aadf8783cf545b3db203586ddf7d2f4ed0316227d6cb1ba1",
+    "poolsync-agent/src/kvm_x11.rs": "1bf7a22263e1ea5c16fb48cbc41d45077cffcf649796e37db82407b6d93cb981",
+    "poolsync-core/src/mesh.rs": "cf9a408c74d613e105f303e43bc6e800fe3556a2b061cc8bd3831ffdb54e93e4"
+  },
+  "devices": [
+    {
+      "node": "zaza-desktop",
+      "mode": "clipboard_only",
+      "runtime": {
+        "pid": 1002061,
+        "running_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+        "display": ":10",
+        "uid": 1000
+      },
+      "configuration_preserved": true,
+      "saved_layout_preserved": true,
+      "five_fresh_active_direct_members": true,
+      "authorized_kvm_permissions_preserved": true,
+      "backup": "/home/zaza/.local/state/poolsync/deployment-backups/20261003-recovery-1591699f",
+      "old_virtual_inputs_released_before_stop": null,
+      "original_participation_restored": null,
+      "physical_kvm_screen_acceptance": "not a KVM target",
+      "backup_verification": {
+        "previous_binary": true,
+        "current_and_saved_config_toml": true,
+        "original_participation": true,
+        "private_permissions": true
+      }
+    },
+    {
+      "node": "acer",
+      "mode": "full",
+      "runtime": {
+        "pid": 1497815,
+        "running_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+        "display": ":0",
+        "uid": 1001
+      },
+      "configuration_preserved": true,
+      "saved_layout_preserved": true,
+      "five_fresh_active_direct_members": true,
+      "authorized_kvm_permissions_preserved": true,
+      "backup": "/home/zaza/.local/state/poolsync/deployment-backups/20261003-recovery-1591699f",
+      "old_virtual_inputs_released_before_stop": true,
+      "original_participation_restored": true,
+      "physical_kvm_screen_acceptance": "pending human verification",
+      "backup_verification": {
+        "previous_binary": true,
+        "current_and_saved_config_toml": true,
+        "original_participation": true,
+        "private_permissions": true
+      }
+    },
+    {
+      "node": "asus",
+      "mode": "full",
+      "runtime": {
+        "pid": 362820,
+        "running_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+        "display": ":0",
+        "uid": 1000
+      },
+      "configuration_preserved": true,
+      "saved_layout_preserved": true,
+      "five_fresh_active_direct_members": true,
+      "authorized_kvm_permissions_preserved": true,
+      "backup": "/home/zaza/.local/state/poolsync/deployment-backups/20261003-recovery-1591699f",
+      "old_virtual_inputs_released_before_stop": true,
+      "original_participation_restored": true,
+      "physical_kvm_screen_acceptance": "pending human verification",
+      "backup_verification": {
+        "previous_binary": true,
+        "current_and_saved_config_toml": true,
+        "original_participation": true,
+        "private_permissions": true
+      }
+    },
+    {
+      "node": "gbs-p2",
+      "mode": "clipboard_only",
+      "runtime": {
+        "pid": 811410,
+        "running_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+        "display": ":10",
+        "uid": 1000
+      },
+      "configuration_preserved": true,
+      "saved_layout_preserved": true,
+      "five_fresh_active_direct_members": true,
+      "authorized_kvm_permissions_preserved": true,
+      "backup": "/home/zaza/.local/state/poolsync/deployment-backups/20261003-recovery-1591699f",
+      "old_virtual_inputs_released_before_stop": null,
+      "original_participation_restored": null,
+      "physical_kvm_screen_acceptance": "not a KVM target",
+      "backup_verification": {
+        "previous_binary": true,
+        "current_and_saved_config_toml": true,
+        "original_participation": true,
+        "private_permissions": true
+      }
+    },
+    {
+      "node": "gbs-p3",
+      "mode": "clipboard_only",
+      "runtime": {
+        "pid": 1040307,
+        "running_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+        "display": ":10",
+        "uid": 1000
+      },
+      "configuration_preserved": true,
+      "saved_layout_preserved": true,
+      "five_fresh_active_direct_members": true,
+      "authorized_kvm_permissions_preserved": true,
+      "backup": "/home/zaza/.local/state/poolsync/deployment-backups/20261003-recovery-1591699f",
+      "old_virtual_inputs_released_before_stop": null,
+      "original_participation_restored": null,
+      "physical_kvm_screen_acceptance": "not a KVM target",
+      "backup_verification": {
+        "previous_binary": true,
+        "current_and_saved_config_toml": true,
+        "original_participation": true,
+        "private_permissions": true
+      }
+    }
+  ],
+  "legacy_hub": {
+    "active": false,
+    "enabled": false,
+    "port_listening": false,
+    "backup_binary_matches": true,
+    "backup_unit_exists": true,
+    "backup_configuration_and_state_preserved": true,
+    "unit_file_exists": true,
+    "vpn_changes": false
+  },
+  "existing_vpn_preserved": true,
+  "native_clipboard_proof": "recovery-native-three-hub-stopped-20261003.json",
+  "remaining_gates": [
+    "Asus/Acer physical reverse crossing and local emergency shortcut",
+    "Asus/Acer physical monitor attachment/removal",
+    "Asus/Acer native GTK/browser paste after safe RDP closure"
+  ],
+  "goal_complete": false
+}

@@ -1,13 +1,19 @@
 use anyhow::{Context, Result};
 use poolsync_core::ScreenInfo;
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashSet,
+};
 use tracing::warn;
 use x11rb::connection::Connection;
 use x11rb::protocol::randr;
 use x11rb::protocol::xfixes;
-use x11rb::protocol::xproto::{ChangeWindowAttributesAux, ConnectionExt as XprotoExt, EventMask};
+use x11rb::protocol::xproto::{
+    AtomEnum, ChangeWindowAttributesAux, ConnectionExt as XprotoExt, EventMask, PropMode,
+};
 use x11rb::protocol::xtest;
 use x11rb::protocol::Event;
+use x11rb::wrapper::ConnectionExt as _;
 
 thread_local! {
     static XDO: RefCell<Option<libxdo::XDo>> = const { RefCell::new(None) };
@@ -160,13 +166,10 @@ pub fn move_mouse_relative(dx: i32, dy: i32) -> Result<()> {
 }
 
 pub fn mouse_button(button: u8, pressed: bool) -> Result<()> {
-    let b = i32::from(button);
-    with_xdo(|xdo| {
-        if pressed {
-            xdo.mouse_down(b)
-        } else {
-            xdo.mouse_up(b)
-        }
+    with_x11_conn(|conn, screen_num| {
+        let root = conn.setup().roots[screen_num].root;
+        xtest::fake_input(conn, if pressed { 4 } else { 5 }, button, 0, root, 0, 0, 0)?.check()?;
+        Ok(())
     })
 }
 
@@ -178,14 +181,129 @@ pub fn key_event(keycode: u32, pressed: bool) -> Result<()> {
     with_x11_conn(|conn, screen_num| {
         let root = conn.setup().roots[screen_num].root;
         let event_type = if pressed { 2u8 } else { 3u8 };
-        xtest::fake_input(conn, event_type, code, 0, root, 0, 0, 0)?;
-        conn.flush()?;
+        xtest::fake_input(conn, event_type, code, 0, root, 0, 0, 0)?.check()?;
         Ok(())
     })
 }
 
 pub fn click_wheel_button(button: i32) -> Result<()> {
-    with_xdo(|xdo| xdo.click(button))
+    mouse_button(button as u8, true)?;
+    mouse_button(button as u8, false)
+}
+
+const HELD_MAGIC: u32 = 0x50534b31;
+const HELD_MAX_WORDS: u32 = 4 + 248 + 255;
+
+fn held_words(keys: &HashSet<u32>, buttons: &HashSet<u8>) -> Result<Vec<u32>> {
+    anyhow::ensure!(
+        keys.iter().all(|k| (8..=255).contains(k)) && !buttons.contains(&0),
+        "invalid injected input state"
+    );
+    let mut keys: Vec<_> = keys.iter().copied().collect();
+    let mut buttons: Vec<_> = buttons.iter().map(|b| u32::from(*b)).collect();
+    keys.sort_unstable();
+    buttons.sort_unstable();
+    let mut words = vec![HELD_MAGIC, 1, keys.len() as u32];
+    words.extend(keys);
+    words.push(buttons.len() as u32);
+    words.extend(buttons);
+    Ok(words)
+}
+
+fn parse_held_words(words: &[u32]) -> Result<(HashSet<u32>, HashSet<u8>)> {
+    anyhow::ensure!(
+        words.len() >= 4
+            && words.len() <= HELD_MAX_WORDS as usize
+            && words[0] == HELD_MAGIC
+            && words[1] == 1,
+        "invalid injected input property header"
+    );
+    let count = words[2] as usize;
+    anyhow::ensure!(
+        count <= 248 && words.len() >= 4 + count,
+        "invalid injected key count"
+    );
+    let buttons = words[3 + count] as usize;
+    anyhow::ensure!(
+        buttons <= 255 && words.len() == 4 + count + buttons,
+        "invalid injected button count"
+    );
+    let key_words = &words[3..3 + count];
+    let button_words = &words[4 + count..];
+    anyhow::ensure!(
+        key_words.iter().all(|k| (8..=255).contains(k))
+            && button_words.iter().all(|b| (1..=255).contains(b)),
+        "invalid injected input code"
+    );
+    let keys: HashSet<_> = key_words.iter().copied().collect();
+    let buttons: HashSet<_> = button_words.iter().map(|b| *b as u8).collect();
+    anyhow::ensure!(
+        keys.len() == count && buttons.len() == button_words.len(),
+        "duplicate injected input code"
+    );
+    Ok((keys, buttons))
+}
+
+/// Only currently held remote inputs live in X server memory. A root property
+/// outlives the injecting process, but disappears with the graphical session.
+/// It contains no text, completed input history or physical-device state.
+pub fn store_injected_state(node: &str, keys: &HashSet<u32>, buttons: &HashSet<u8>) -> Result<()> {
+    let words = held_words(keys, buttons)?;
+    with_x11_conn(|conn, screen_num| {
+        let root = conn.setup().roots[screen_num].root;
+        let atom = conn
+            .intern_atom(false, format!("_POOLSYNC_INJECTED_V1_{node}").as_bytes())?
+            .reply()?
+            .atom;
+        if keys.is_empty() && buttons.is_empty() {
+            conn.delete_property(root, atom)?.check()?;
+        } else {
+            conn.change_property32(PropMode::REPLACE, root, atom, AtomEnum::CARDINAL, &words)?
+                .check()?;
+        }
+        Ok(())
+    })
+}
+
+/// Recover this node's abandoned virtual inputs without moving the pointer or
+/// clearing arbitrary physical/other-client input. Keep the property on error
+/// so a subsequent restart can retry the idempotent releases.
+pub fn recover_injected_state(node: &str) -> Result<()> {
+    with_x11_conn(|conn, screen_num| {
+        let root = conn.setup().roots[screen_num].root;
+        let atom = conn
+            .intern_atom(true, format!("_POOLSYNC_INJECTED_V1_{node}").as_bytes())?
+            .reply()?
+            .atom;
+        if atom == 0 {
+            return Ok(());
+        }
+        let reply = conn
+            .get_property(false, root, atom, AtomEnum::ANY, 0, HELD_MAX_WORDS)?
+            .reply()?;
+        if reply.type_ == u32::from(AtomEnum::NONE) {
+            return Ok(());
+        }
+        anyhow::ensure!(
+            reply.type_ == u32::from(AtomEnum::CARDINAL)
+                && reply.format == 32
+                && reply.bytes_after == 0,
+            "invalid injected input property format"
+        );
+        let words: Vec<_> = reply
+            .value32()
+            .context("missing injected input property values")?
+            .collect();
+        let (keys, buttons) = parse_held_words(&words)?;
+        for key in keys {
+            xtest::fake_input(conn, 3, key as u8, 0, root, 0, 0, 0)?.check()?;
+        }
+        for button in buttons {
+            xtest::fake_input(conn, 5, button, 0, root, 0, 0, 0)?.check()?;
+        }
+        conn.delete_property(root, atom)?.check()?;
+        Ok(())
+    })
 }
 
 pub fn set_cursor_visible(visible: bool) -> Result<()> {
@@ -462,6 +580,52 @@ pub fn kvm_layout_snapshot() -> Result<poolsync_core::KvmDesktopInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn held_property_roundtrips_only_current_keys_and_buttons() {
+        let keys = HashSet::from([50, 37, 255]);
+        let buttons = HashSet::from([1, 5, 255]);
+        let words = held_words(&keys, &buttons).unwrap();
+        assert_eq!(parse_held_words(&words).unwrap(), (keys, buttons));
+        assert_eq!(
+            words,
+            held_words(&HashSet::from([255, 37, 50]), &HashSet::from([255, 5, 1])).unwrap()
+        );
+        assert_eq!(
+            parse_held_words(&held_words(&HashSet::new(), &HashSet::new()).unwrap()).unwrap(),
+            (HashSet::new(), HashSet::new())
+        );
+    }
+
+    #[test]
+    fn held_property_rejects_invalid_lengths_versions_codes_and_duplicates() {
+        for words in [
+            vec![],
+            vec![HELD_MAGIC, 2, 0, 0],
+            vec![HELD_MAGIC, 1, u32::MAX, 0],
+            vec![HELD_MAGIC, 1, 1, 50],
+            vec![HELD_MAGIC, 1, 1, 256, 0],
+            vec![HELD_MAGIC, 1, 1, 7, 0],
+            vec![HELD_MAGIC, 1, 0, 1, 0],
+            vec![HELD_MAGIC, 1, 0, 1, 256],
+            vec![HELD_MAGIC, 1, 2, 50, 50, 0],
+            vec![HELD_MAGIC, 1, 0, 2, 1, 1],
+            vec![HELD_MAGIC, 1, 0, 0, 50],
+        ] {
+            assert!(parse_held_words(&words).is_err());
+        }
+        assert!(held_words(&HashSet::from([256]), &HashSet::new()).is_err());
+        assert!(held_words(&HashSet::new(), &HashSet::from([0])).is_err());
+    }
+
+    #[test]
+    fn held_property_accepts_the_bounded_maximum_state() {
+        let keys = (8..=255).collect();
+        let buttons = (1..=255).collect();
+        let words = held_words(&keys, &buttons).unwrap();
+        assert_eq!(words.len(), HELD_MAX_WORDS as usize);
+        assert_eq!(parse_held_words(&words).unwrap(), (keys, buttons));
+    }
 
     #[test]
     fn kvm_display_local_root_roundtrip() {
