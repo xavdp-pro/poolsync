@@ -20,6 +20,7 @@ thread_local! {
 pub enum PhysicalInput {
     Key,
     Button,
+    Motion,
 }
 
 pub fn set_injecting(active: bool) {
@@ -28,6 +29,9 @@ pub fn set_injecting(active: bool) {
 
 /// Détecte une touche ou un clic physique (pour reprendre le rôle master sur un nœud esclave).
 pub fn poll_physical_input() -> Option<PhysicalInput> {
+    if let Some(physical) = crate::physical_input::poll() {
+        return physical;
+    }
     if INJECTING.with(|c| c.get()) {
         return None;
     }
@@ -42,14 +46,15 @@ pub fn poll_physical_input() -> Option<PhysicalInput> {
             conn.flush()?;
             PASSIVE_EVENTS.with(|c| c.set(true));
         }
+        let mut physical = None;
         loop {
             match conn.poll_for_event() {
                 Ok(Some(Event::KeyPress(ev))) if ev.detail != 0 => {
-                    return Ok(Some(PhysicalInput::Key));
+                    physical = Some(PhysicalInput::Key);
                 }
-                Ok(Some(Event::ButtonPress(_))) => return Ok(Some(PhysicalInput::Button)),
+                Ok(Some(Event::ButtonPress(_))) => physical = Some(PhysicalInput::Button),
                 Ok(Some(_)) => continue,
-                Ok(None) => return Ok(None),
+                Ok(None) => return Ok(physical),
                 Err(err) => return Err(err.into()),
             }
         }
@@ -412,10 +417,14 @@ pub fn kvm_desktop() -> Result<KvmDisplay> {
 }
 
 /// Repousse le curseur a l'interieur du moniteur pool apres un SwitchTo (evite rebond immediat).
-pub fn nudge_kvm_enter(x: i32, y: i32, edge: i32) -> Result<(i32, i32)> {
+pub fn nudge_kvm_enter(x: i32, y: i32, edge: i32, whole_desktop: bool) -> Result<(i32, i32)> {
     const ENTRY_ARM_PX: i32 = 24;
     let inset = edge + ENTRY_ARM_PX + 1;
-    let pool = kvm_display()?;
+    let pool = if whole_desktop {
+        kvm_desktop()?
+    } else {
+        kvm_display()?
+    };
     let (mut lx, mut ly) = pool.to_local(x, y);
     let w = pool.width as i32;
     let h = pool.height as i32;
@@ -429,7 +438,12 @@ pub fn nudge_kvm_enter(x: i32, y: i32, edge: i32) -> Result<(i32, i32)> {
     } else if ly >= h - edge {
         ly = (h - edge - ENTRY_ARM_PX - 1).max(inset);
     }
-    Ok(pool.to_root(lx, ly))
+    let (x, y) = pool.to_root(lx, ly);
+    Ok(if whole_desktop {
+        poolsync_core::clamp_pointer_to_monitors(&described_monitors()?, x, y)
+    } else {
+        (x, y)
+    })
 }
 
 pub fn kvm_layout_snapshot() -> Result<poolsync_core::KvmDesktopInfo> {

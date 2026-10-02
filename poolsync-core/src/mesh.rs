@@ -201,6 +201,25 @@ impl Control {
                 || presence.screen.height == 0
                 || presence.screen.width > 65535
                 || presence.screen.height > 65535
+                || presence.monitors.len() > 32
+                || presence.monitors.iter().any(|m| {
+                    m.width == 0
+                        || m.height == 0
+                        || m.width > 65535
+                        || m.height > 65535
+                        || m.x.unsigned_abs() >= 10_000_000
+                        || m.y.unsigned_abs() >= 10_000_000
+                })
+                || presence.desktop.desktop_width > 65535
+                || presence.desktop.desktop_height > 65535
+                || [
+                    presence.desktop.monitor_x,
+                    presence.desktop.monitor_y,
+                    presence.desktop.desktop_x,
+                    presence.desktop.desktop_y,
+                ]
+                .iter()
+                .any(|v| v.unsigned_abs() >= 10_000_000)
                 || self
                     .retired
                     .get(&packet.origin)

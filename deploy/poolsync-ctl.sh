@@ -15,7 +15,9 @@ Commandes:
   start     Démarre PoolSync
   status    État du service + dernières lignes de log
   logs      Journal (alias: poolsync-logs)
-  clear-history Vide l'historique hub + cache local
+  clear-history Vide l'historique partagé ou le cache local en mode sans hub
+  away      Quitte temporairement le pool en conservant la configuration
+  rejoin    Revient dans le pool sans rejouer le presse-papiers privé
   toggle    Active/désactive PoolSync localement (équivalent Ctrl+Alt+Shift+P)
 
 Exemples:
@@ -45,11 +47,11 @@ cmd_stop() {
   ensure_bus
   echo "Arrêt de PoolSync…"
   systemctl --user stop "$UNIT" 2>/dev/null || true
-  if pgrep -x poolsync-agent >/dev/null 2>&1; then
-    pkill -x poolsync-agent 2>/dev/null || true
+  if pgrep -u "$(id -u)" -x poolsync-agent >/dev/null 2>&1; then
+    pkill -u "$(id -u)" -x poolsync-agent 2>/dev/null || true
     sleep 0.5
   fi
-  if pgrep -x poolsync-agent >/dev/null 2>&1; then
+  if pgrep -u "$(id -u)" -x poolsync-agent >/dev/null 2>&1; then
     echo "Impossible d'arrêter poolsync-agent" >&2
     exit 1
   fi
@@ -100,6 +102,11 @@ cmd_clear_history() {
     echo "Config introuvable: $cfg" >&2
     exit 1
   fi
+  if grep -Eq '^hubless[[:space:]]*=[[:space:]]*true([[:space:]]*(#.*)?)?$' "$cfg"; then
+    rm -rf "${HOME}/.cache/poolsync/clipboard"
+    echo "Cache local vidé (communication sans hub)."
+    return
+  fi
   local token hub_url hub_ws node
   node="$(grep -E '^node\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
   token="$(grep -E '^node_token\s*=' "$cfg" | head -1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
@@ -133,6 +140,8 @@ main() {
     logs|log) cmd_logs "$@" ;;
   toggle|t) cmd_toggle ;;
   clear-history|clear) cmd_clear_history ;;
+  away) "$HOME/.local/bin/poolsync-agent" --config "$HOME/.config/poolsync/agent.toml" --away true ;;
+  rejoin) "$HOME/.local/bin/poolsync-agent" --config "$HOME/.config/poolsync/agent.toml" --away false ;;
   -h|--help|help|"") usage ;;
     *)
       echo "Commande inconnue: $cmd" >&2

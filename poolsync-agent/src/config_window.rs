@@ -122,6 +122,7 @@ impl ConfigWindow {
 
             window.add(&notebook);
             window.connect_destroy(|_| {
+                tracing::info!("native configuration window closed");
                 OPEN_WINDOW.with(|slot| *slot.borrow_mut() = None);
             });
 
@@ -155,7 +156,7 @@ impl ConfigWindow {
         let topo = match fetch_topology(&self.state) {
             Ok(topo) => topo,
             Err(err) => {
-                self.set_status(&format!("Hub injoignable : {err}"), true);
+                self.set_status(&format!("Disposition indisponible : {err}"), true);
                 return;
             }
         };
@@ -163,8 +164,8 @@ impl ConfigWindow {
 
         if topo.nodes.is_empty() {
             let empty = Label::new(Some(
-                "Aucun nœud dans la topologie du hub.\n\
-                 Les agents doivent d'abord se connecter au hub.",
+                "Aucun ordinateur dans la disposition du pool.\n\
+                 Ouvrez les agents autorisés pour les retrouver ici.",
             ));
             empty.set_halign(Align::Start);
             self.nodes_box.pack_start(&empty, false, false, 0);
@@ -188,10 +189,7 @@ impl ConfigWindow {
         self.nodes_box.show_all();
         self.mosaic.set_local_node(&self.state.config.node);
         self.mosaic.rebuild(&topo);
-        self.set_status(
-            &format!("{} nœud(s) chargé(s) depuis le hub", ids.len()),
-            false,
-        );
+        self.set_status(&format!("{} ordinateur(s) dans le pool", ids.len()), false);
     }
 
     /// Applique une topologie recalculée depuis la mosaïque (positions + voisins).
@@ -443,7 +441,7 @@ fn build_topology_page(
     let toolbar = toolbar_box();
     let reload_btn = Button::with_label("Recharger");
     let recalc_btn = Button::with_label("Recalculer voisins");
-    let save_btn = Button::with_label("Enregistrer → hub");
+    let save_btn = Button::with_label("Enregistrer dans le pool");
     let status = Label::new(None);
     status.set_halign(Align::Start);
     toolbar.pack_start(&reload_btn, false, false, 0);
@@ -791,7 +789,15 @@ fn fetch_topology(state: &AgentState) -> Result<PoolTopology> {
     if state.config.hubless {
         let mut saved = crate::hubless::load_layout(state).topology;
         if let Some(live) = state.topology() {
-            saved.nodes.extend(live.nodes);
+            for (name, mut node) in live.nodes {
+                if let Some(existing) = saved.nodes.get(&name) {
+                    // Absence is runtime state, not a saved capability change.
+                    // Opening the editor during reconnect must keep the tile
+                    // and must never persist an offline peer as clipboard-only.
+                    node.kvm_enabled = existing.kvm_enabled;
+                }
+                saved.nodes.insert(name, node);
+            }
         }
         return Ok(saved);
     }

@@ -41,7 +41,49 @@ pub enum ClipboardOffer {
     Release,
 }
 
-static GTK_TX: OnceLock<glib::Sender<ClipboardOffer>> = OnceLock::new();
+struct PendingOffer {
+    offer: ClipboardOffer,
+    guard: Option<SelectionGuard>,
+    increment_on_apply: bool,
+}
+
+/// A repair must still refer to the selection inspected before its reads.
+#[derive(Clone, Copy)]
+pub struct SelectionGuard {
+    owner: u32,
+    epoch: Option<u64>,
+    copy_epoch: Option<u64>,
+    generation: u64,
+}
+
+impl SelectionGuard {
+    pub fn capture() -> Self {
+        Self {
+            owner: current_clipboard_owner(),
+            epoch: crate::clipboard_epoch::clipboard_current(),
+            copy_epoch: crate::clipboard_epoch::clipboard_copy_current(),
+            generation: offer_generation(),
+        }
+    }
+
+    pub fn unchanged(self) -> bool {
+        self.owner == current_clipboard_owner()
+            && self.epoch == crate::clipboard_epoch::clipboard_current()
+            && self.generation == offer_generation()
+    }
+
+    /// A closing application may release ownership after SAVE_TARGETS.
+    /// Destruction is allowed; any intervening copy or queued offer is not.
+    pub fn handoff_current(self) -> bool {
+        self.unchanged()
+            || (self.generation == offer_generation()
+                && current_clipboard_owner() == 0
+                && self.copy_epoch.is_some()
+                && self.copy_epoch == crate::clipboard_epoch::clipboard_copy_current())
+    }
+}
+
+static GTK_TX: OnceLock<glib::Sender<PendingOffer>> = OnceLock::new();
 static LAST_PNG: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 static LAST_REOFFER: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_IMAGE_CLAIM_AT: Mutex<Option<Instant>> = Mutex::new(None);
@@ -321,15 +363,49 @@ pub fn attach_gtk_handler() {
     #[allow(deprecated)]
     let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
     let _ = GTK_TX.set(tx);
-    rx.attach(None, |offer| {
-        apply_offer(offer);
+    rx.attach(None, |pending| {
+        if let Some(guard) = pending.guard {
+            if !guard.unchanged() {
+                tracing::debug!("clipboard repair cancelled after a newer selection");
+                return glib::ControlFlow::Continue;
+            }
+            if pending.increment_on_apply {
+                OFFER_GENERATION.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        apply_offer(pending.offer);
         glib::ControlFlow::Continue
     });
 }
 
 pub fn try_offer(offer: ClipboardOffer) -> bool {
     OFFER_GENERATION.fetch_add(1, Ordering::SeqCst);
-    GTK_TX.get().and_then(|tx| tx.send(offer).ok()).is_some()
+    let guard = Some(SelectionGuard::capture());
+    GTK_TX
+        .get()
+        .and_then(|tx| {
+            tx.send(PendingOffer {
+                offer,
+                guard,
+                increment_on_apply: false,
+            })
+            .ok()
+        })
+        .is_some()
+}
+
+pub fn try_offer_if_unchanged(offer: ClipboardOffer, guard: SelectionGuard) -> bool {
+    GTK_TX
+        .get()
+        .and_then(|tx| {
+            tx.send(PendingOffer {
+                offer,
+                guard: Some(guard),
+                increment_on_apply: true,
+            })
+            .ok()
+        })
+        .is_some()
 }
 
 /// Apply immediately when the caller is already running on the GTK main
@@ -341,7 +417,10 @@ pub fn offer_now_from_gtk(offer: ClipboardOffer) {
 }
 
 /// xrdp-chansrv often replaces a PNG offer with empty image/bmp. Put PNG back.
-pub fn reoffer_last_image() -> bool {
+pub fn reoffer_last_image(guard: SelectionGuard) -> bool {
+    if !guard.unchanged() {
+        return false;
+    }
     let min_ms = if recent_image_claim_active() {
         200
     } else {
@@ -362,10 +441,13 @@ pub fn reoffer_last_image() -> bool {
     if let Ok(mut t) = LAST_REOFFER.lock() {
         *t = Some(Instant::now());
     }
-    try_offer(ClipboardOffer::Image {
-        mime: "image/png".into(),
-        bytes: png,
-    })
+    try_offer_if_unchanged(
+        ClipboardOffer::Image {
+            mime: "image/png".into(),
+            bytes: png,
+        },
+        guard,
+    )
 }
 
 fn apply_offer(offer: ClipboardOffer) {

@@ -5,6 +5,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
+type PrivateClipboardEpoch = Option<(u32, Option<u64>)>;
+
 type LayoutRequest = (
     PoolTopology,
     std::sync::mpsc::SyncSender<Result<(), String>>,
@@ -22,17 +24,21 @@ pub struct AgentState {
     /// Optional debug toast when KVM master changes (off by default — noisy).
     notify_master: Arc<AtomicBool>,
     kvm_enabled: Arc<AtomicBool>,
+    layout_kvm_allowed: Arc<AtomicBool>,
     /// Pause locale (raccourci clavier) — n'affecte que cette machine.
     local_active: Arc<AtomicBool>,
     pool_away: Arc<AtomicBool>,
     clipboard_baseline_reset: Arc<AtomicBool>,
+    private_clipboard_epoch: Arc<Mutex<PrivateClipboardEpoch>>,
     /// Ctrl+Alt+Shift+M : la boucle KVM doit reprendre le master sur ce nœud.
     master_claim_requested: Arc<AtomicBool>,
     master_node: Arc<RwLock<String>>,
     kvm_focus: Arc<RwLock<String>>,
     kvm_input_node: Arc<RwLock<String>>,
     topology: Arc<RwLock<Option<PoolTopology>>>,
+    peer_monitors: Arc<RwLock<std::collections::HashMap<String, Vec<poolsync_core::MonitorInfo>>>>,
     pending_layout: Arc<Mutex<Option<LayoutRequest>>>,
+    config_window_requested: Arc<AtomicBool>,
     last_clip_preview: Arc<RwLock<String>>,
     last_clip_at: Arc<RwLock<Option<Instant>>>,
     last_error: Arc<RwLock<Option<String>>>,
@@ -156,15 +162,19 @@ impl AgentState {
             notify_on_receive: Arc::new(AtomicBool::new(true)),
             notify_master: Arc::new(AtomicBool::new(false)),
             kvm_enabled: Arc::new(AtomicBool::new(kvm_default)),
+            layout_kvm_allowed: Arc::new(AtomicBool::new(true)),
             local_active: Arc::new(AtomicBool::new(true)),
             pool_away: Arc::new(AtomicBool::new(away)),
             clipboard_baseline_reset: Arc::new(AtomicBool::new(false)),
+            private_clipboard_epoch: Arc::new(Mutex::new(None)),
             master_claim_requested: Arc::new(AtomicBool::new(false)),
             master_node: Arc::new(RwLock::new(String::from("—"))),
             kvm_focus: Arc::new(RwLock::new(local_node.clone())),
             kvm_input_node: Arc::new(RwLock::new(local_node)),
             topology: Arc::new(RwLock::new(None)),
             pending_layout: Arc::new(Mutex::new(None)),
+            config_window_requested: Arc::new(AtomicBool::new(false)),
+            peer_monitors: Arc::new(RwLock::new(Default::default())),
             last_clip_preview: Arc::new(RwLock::new(String::new())),
             last_clip_at: Arc::new(RwLock::new(None)),
             last_error: Arc::new(RwLock::new(None)),
@@ -527,11 +537,39 @@ impl AgentState {
     pub fn set_pool_away(&self, away: bool) -> std::io::Result<()> {
         crate::participation::set_away(&self.config_path, away)?;
         if !away && self.pool_away() {
+            if let Ok(mut private) = self.private_clipboard_epoch.lock() {
+                *private = Some((
+                    crate::clipboard_gtk::current_clipboard_owner(),
+                    crate::clipboard_epoch::clipboard_copy_current(),
+                ));
+            }
             self.clipboard_baseline_reset.store(true, Ordering::SeqCst);
         }
         self.pool_away.store(away, Ordering::SeqCst);
         self.set_local_poolsync_active(!away);
         Ok(())
+    }
+
+    /// Returning to the pool excludes the private selection itself, including
+    /// a delayed SAVE_TARGETS payload whose owner has already closed. A newly
+    /// copied selection is publishable even when it contains identical bytes.
+    pub fn clipboard_publication_allowed(&self, identity: (u32, Option<u64>)) -> bool {
+        let Ok(mut private) = self.private_clipboard_epoch.lock() else {
+            return false;
+        };
+        let Some((owner, copy_epoch)) = *private else {
+            return true;
+        };
+        let excluded = if copy_epoch.is_some() {
+            identity.1 == copy_epoch
+        } else {
+            identity.0 == owner || identity.0 == 0
+        };
+        if excluded {
+            return false;
+        }
+        *private = None;
+        true
     }
 
     pub fn take_clipboard_baseline_reset(&self) -> bool {
@@ -595,6 +633,14 @@ impl AgentState {
         }
     }
 
+    pub fn request_config_window(&self) {
+        self.config_window_requested.store(true, Ordering::SeqCst);
+    }
+
+    pub fn take_config_window_request(&self) -> bool {
+        self.config_window_requested.swap(false, Ordering::SeqCst)
+    }
+
     pub fn request_layout(&self, topology: PoolTopology) -> anyhow::Result<()> {
         let (ack, received) = std::sync::mpsc::sync_channel(1);
         {
@@ -619,12 +665,39 @@ impl AgentState {
         self.topology.read().ok().and_then(|t| t.clone())
     }
 
+    pub fn set_peer_monitors(
+        &self,
+        monitors: std::collections::HashMap<String, Vec<poolsync_core::MonitorInfo>>,
+    ) {
+        if let Ok(mut current) = self.peer_monitors.write() {
+            *current = monitors;
+        }
+    }
+
+    pub fn clamp_peer_pointer(&self, node: &str, x: i32, y: i32) -> (i32, i32) {
+        self.peer_monitors
+            .read()
+            .ok()
+            .and_then(|peers| {
+                peers
+                    .get(node)
+                    .map(|monitors| poolsync_core::clamp_pointer_to_monitors(monitors, x, y))
+            })
+            .unwrap_or((x, y))
+    }
+
     pub fn topology_node(&self, name: &str) -> Option<TopologyNode> {
         self.topology().and_then(|t| t.nodes.get(name).cloned())
     }
 
+    pub fn set_layout_kvm_allowed(&self, allowed: bool) {
+        self.layout_kvm_allowed.store(allowed, Ordering::SeqCst);
+    }
+
     pub fn kvm_effective(&self) -> bool {
-        self.kvm_enabled() && self.local_poolsync_active()
+        self.kvm_enabled()
+            && self.local_poolsync_active()
+            && self.layout_kvm_allowed.load(Ordering::SeqCst)
     }
 
     pub fn target_kvm_enabled(&self, node: &str) -> bool {

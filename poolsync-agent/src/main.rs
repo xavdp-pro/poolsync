@@ -18,12 +18,14 @@ mod kvm;
 mod kvm_input;
 mod kvm_wayland;
 mod kvm_x11;
+mod local_control;
 mod logs_viewer;
 mod network;
 mod notify_thumb;
 mod notify_util;
 mod participation;
 mod peer_mesh;
+mod physical_input;
 mod rdp_detect;
 mod single;
 mod state;
@@ -62,9 +64,13 @@ struct Args {
     #[arg(long)]
     no_tray: bool,
 
-    /// Ouvre directement la fenêtre à onglets (diagnostic, sans systray).
+    /// Open the running agent configuration, or start an agent with it visible.
     #[arg(long)]
     open_window: bool,
+
+    /// Start the actual agent with its configuration window visible.
+    #[arg(long)]
+    show_window: bool,
 }
 
 fn main() -> Result<()> {
@@ -96,7 +102,7 @@ fn main() -> Result<()> {
         )
         .init();
 
-    let args = Args::parse();
+    let mut args = Args::parse();
 
     // Diagnostic : ouvre la fenêtre à onglets sans systray ni verrou d'instance,
     // pour pouvoir la tester pendant que l'agent principal tourne.
@@ -107,20 +113,19 @@ fn main() -> Result<()> {
         return Ok(());
     }
     if args.open_window {
-        let raw = std::fs::read_to_string(&args.config)
-            .with_context(|| format!("read config {}", args.config.display()))?;
-        let cfg: AgentConfig = toml::from_str(&raw).context("parse agent config")?;
-        let state = Arc::new(AgentState::new(cfg.clone(), args.config.clone()));
-        gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
-        clipboard_gtk::attach_gtk_handler();
-        config_window::show(state);
-        gtk::main();
-        return Ok(());
+        if local_control::request_window(&args.config).is_ok() {
+            return Ok(());
+        }
+        args.show_window = true;
     }
 
     let _instance = match single::InstanceLock::acquire() {
         Ok(lock) => lock,
-        Err(_) => {
+        Err(error) => {
+            if args.open_window {
+                return Err(error)
+                    .context("restart the running agent to enable native window control");
+            }
             tracing::info!("poolsync-agent déjà actif — sortie");
             return Ok(());
         }
@@ -199,8 +204,9 @@ fn main() -> Result<()> {
     let show_tray = !args.no_tray
         && (std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok());
     if show_tray {
+        local_control::spawn(state.clone())?;
         info!("starting systray");
-        if let Err(err) = tray::run_tray(state.clone()) {
+        if let Err(err) = tray::run_tray(state.clone(), args.show_window) {
             tracing::error!("systray failed ({err:#}), agent continues without tray");
             rt.block_on(async { std::future::pending::<()>().await });
         }

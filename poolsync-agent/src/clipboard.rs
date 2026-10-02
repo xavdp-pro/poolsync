@@ -153,7 +153,7 @@ pub async fn maintain_xrdp_clipboard_fixup() {
             return;
         }
         let clip_targets = clipboard_targets("clipboard").await.unwrap_or_default();
-        if image_recovery_allowed(&clip_targets) && crate::clipboard_gtk::reoffer_last_image() {
+        if recover_stripped_image(&clip_targets).await {
             tracing::info!("clipboard keepalive: chansrv stripped PNG — reoffer");
         }
         return;
@@ -253,8 +253,7 @@ fn clipboard_owner_is_chromium_based() -> bool {
 
 /// An image repair may follow a stripped/empty image, never a genuine text copy.
 pub fn image_recovery_allowed(targets: &[String]) -> bool {
-    !targets_have_pasteable_image(targets)
-        && (is_rdp_bmp_only(targets) || !targets_advertise_text(targets))
+    !targets_have_pasteable_image(targets) && !targets_advertise_text(targets)
 }
 
 fn primary_owner_is_chromium_based() -> bool {
@@ -508,27 +507,71 @@ async fn mirror_primary_image_if_needed() {
     }
 }
 
+/// Only the actual XRDP clipboard bridge may recover a stripped offer.
+/// A BMP target is read first: it can be a genuinely new screenshot.
+pub async fn recover_stripped_image(targets: &[String]) -> bool {
+    if !image_recovery_allowed(targets) || !clipboard_owner_is_chansrv() {
+        return false;
+    }
+    let guard = crate::clipboard_gtk::SelectionGuard::capture();
+    if is_rdp_bmp_only(targets) {
+        // Probe without the image deduplication cache: a prior successful BMP
+        // read is not evidence that this selection has become broken.
+        if read_selection_bytes("clipboard", "image/bmp")
+            .await
+            .ok()
+            .is_some_and(|bytes| image_payload_from_bytes(&bytes).is_ok())
+        {
+            return false;
+        }
+    }
+    crate::clipboard_gtk::recent_image_claim_active()
+        && crate::clipboard_gtk::reoffer_last_image(guard)
+}
+
+fn clipboard_owner_is_chansrv() -> bool {
+    use x11rb::protocol::xproto::{AtomEnum, ConnectionExt};
+    let Ok((conn, _)) = x11rb::connect(None) else {
+        return false;
+    };
+    let owner = crate::clipboard_gtk::current_clipboard_owner();
+    if owner == 0 {
+        return false;
+    }
+    // chansrv sets this property on its otherwise unnamed clipboard window.
+    let Ok(atom) = conn.intern_atom(true, b"XRDP_GET_TIME_ATOM") else {
+        return false;
+    };
+    let Ok(atom) = atom.reply() else {
+        return false;
+    };
+    if atom.atom == 0 {
+        return false;
+    }
+    conn.get_property(false, owner, atom.atom, AtomEnum::ANY, 0, 0)
+        .ok()
+        .and_then(|cookie| cookie.reply().ok())
+        .is_some_and(|property| property.type_ != u32::from(AtomEnum::NONE))
+}
+
 async fn fix_local_clipboard_image() {
+    let guard = crate::clipboard_gtk::SelectionGuard::capture();
     let targets = clipboard_targets("clipboard").await.unwrap_or_default();
-    // PNG/JPEG already offered — never xclip-read (deadlocks when we own CLIPBOARD via GTK).
-    if targets_have_pasteable_image(&targets) {
+    if !is_rdp_bmp_only(&targets) {
         return;
     }
-    if is_rdp_bmp_only(&targets) {
-        tracing::warn!("clipboard xrdp bmp-only stall — tentative reoffer PNG");
-        if crate::clipboard_gtk::reoffer_last_image() {
-            tracing::info!("clipboard bmp-only: reoffer PNG OK");
-            return;
+    if let Some(payload) = read_image_payload(&targets).await {
+        if let Ok(bytes) = B64.decode(&payload.wire_data) {
+            crate::clipboard_gtk::try_offer_if_unchanged(
+                crate::clipboard_gtk::ClipboardOffer::Image {
+                    mime: payload.mime,
+                    bytes,
+                },
+                guard,
+            );
         }
-        tracing::warn!("clipboard bmp-only: reoffer PNG failed, essai GTK read");
-        if gtk_read_allowed() {
-            if let Ok(bytes) = read_image_via_gtk().await {
-                if !bytes.is_empty() {
-                    let hash = hash_bytes(&bytes);
-                    offer_local_image_if_needed("image/png", bytes, &hash);
-                }
-            }
-        }
+    } else {
+        recover_stripped_image(&targets).await;
     }
 }
 
@@ -649,6 +692,22 @@ fn estimated_server_clock() -> Option<u64> {
 }
 
 async fn clipboard_timestamp() -> Option<String> {
+    if let Some(timestamp) = crate::clipboard_epoch::selection_timestamp() {
+        let value = timestamp.to_string();
+        note_server_clock(&value);
+        return Some(value);
+    }
+    // Some native owners return their PNG for unsupported targets. A timed
+    // metadata probe can then abandon an INCR transfer and strand subsequent
+    // reads. Ask only for metadata the owner actually advertises.
+    if !clipboard_targets("clipboard")
+        .await
+        .ok()?
+        .iter()
+        .any(|t| t == "TIMESTAMP")
+    {
+        return None;
+    }
     let output = xclip_read_timeout(
         &["-selection", "clipboard", "-t", "TIMESTAMP", "-o"],
         Duration::from_millis(400),
@@ -952,7 +1011,26 @@ pub async fn read_clipboard_payload_filtered(
         }
     }
 
-    let payload = read_clipboard_payload_uncached(allow_images, keep_formatting).await?;
+    let read = read_clipboard_payload_uncached(allow_images, keep_formatting);
+    tokio::pin!(read);
+    let payload = loop {
+        tokio::select! {
+            payload = &mut read => break payload?,
+            _ = tokio::time::sleep(Duration::from_millis(40)) => {
+                if identity != (
+                    crate::clipboard_gtk::current_clipboard_owner(),
+                    crate::clipboard_epoch::current(),
+                ) {
+                    // Dropping the read also kills its pending xclip child.
+                    // A hung owner cannot delay a fresh native selection.
+                    invalidate_payload_cache();
+                    if let Ok(mut last) = LAST_IMAGE_READ_KEY.lock() { *last = None; }
+                    tracing::debug!("clipboard read cancelled after a newer selection");
+                    return Ok(None);
+                }
+            }
+        }
+    };
     // A native copy may replace the selection while an asynchronous read is
     // running. Do not publish an older image under the newer copy's identity.
     if identity
@@ -996,6 +1074,20 @@ pub async fn read_clipboard_payload_filtered(
         .is_some_and(|p| p.mime.starts_with("image/"))
     {
         remember_payload(ts, payload.clone());
+        let guard = crate::clipboard_gtk::SelectionGuard::capture();
+        if is_rdp_bmp_only(&clipboard_targets("clipboard").await.unwrap_or_default()) {
+            if let Some(p) = &payload {
+                if let Ok(bytes) = B64.decode(&p.wire_data) {
+                    crate::clipboard_gtk::try_offer_if_unchanged(
+                        crate::clipboard_gtk::ClipboardOffer::Image {
+                            mime: p.mime.clone(),
+                            bytes,
+                        },
+                        guard,
+                    );
+                }
+            }
+        }
     }
     Ok(payload)
 }
@@ -1138,11 +1230,19 @@ pub fn local_write_text(data: &str, mime: &str, keep_formatting: bool) -> (Strin
 /// symptôme classique — fermer une application fait perdre ce qu'on y avait
 /// copié. Garder une copie ici permet de la resservir quand le propriétaire
 /// disparaît, sans jamais avoir à lui voler la sélection de son vivant.
-static LAST_KNOWN_PAYLOAD: Mutex<Option<ClipboardPayload>> = Mutex::new(None);
+#[derive(Clone)]
+struct RememberedSelection {
+    payload: ClipboardPayload,
+    copy_epoch: Option<u64>,
+}
+
+static LAST_KNOWN_PAYLOAD: Mutex<Option<RememberedSelection>> = Mutex::new(None);
 /// Copie confiée explicitement par une application au `CLIPBOARD_MANAGER`.
 /// Elle doit entrer dans le chemin réseau même si l'application disparaît
 /// avant le prochain sondage (cas reproductible avec XFCE Screenshooter).
-static MANAGER_PENDING_PAYLOAD: Mutex<Option<ClipboardPayload>> = Mutex::new(None);
+static MANAGER_PENDING_PAYLOAD: Mutex<
+    Option<(ClipboardPayload, crate::clipboard_gtk::SelectionGuard)>,
+> = Mutex::new(None);
 /// Le sondage du propriétaire ouvre une connexion X11 : ne pas le faire à
 /// chaque tour de boucle (jusqu'à 20 fois par seconde sur certains nœuds).
 static LAST_ORPHAN_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
@@ -1151,23 +1251,34 @@ const ORPHAN_CHECK_INTERVAL: Duration = Duration::from_millis(1_000);
 /// Mémorise le contenu courant, quelle que soit son origine (locale ou réseau).
 pub fn remember_clipboard_content(mime: &str, wire_data: &str, hash: &str) {
     if let Ok(mut g) = LAST_KNOWN_PAYLOAD.lock() {
-        *g = Some(ClipboardPayload {
-            mime: mime.to_string(),
-            wire_data: wire_data.to_string(),
-            hash: hash.to_string(),
+        *g = Some(RememberedSelection {
+            payload: ClipboardPayload {
+                mime: mime.to_string(),
+                wire_data: wire_data.to_string(),
+                hash: hash.to_string(),
+            },
+            copy_epoch: crate::clipboard_epoch::clipboard_copy_current(),
         });
     }
 }
 
-fn remember_clipboard_manager_payload(payload: ClipboardPayload) {
-    remember_clipboard_content(&payload.mime, &payload.wire_data, &payload.hash);
+fn remember_clipboard_manager_payload(
+    payload: ClipboardPayload,
+    guard: crate::clipboard_gtk::SelectionGuard,
+) {
+    if !guard.handoff_current() {
+        return;
+    }
     if let Ok(mut pending) = MANAGER_PENDING_PAYLOAD.lock() {
-        *pending = Some(payload);
+        *pending = Some((payload, guard));
     }
 }
 
 /// Sauvegarde une image remise par une application qui va se fermer.
-pub(crate) fn remember_clipboard_manager_image(bytes: &[u8]) -> Result<(&'static str, String)> {
+pub(crate) fn remember_clipboard_manager_image(
+    bytes: &[u8],
+    guard: crate::clipboard_gtk::SelectionGuard,
+) -> Result<(&'static str, String)> {
     let payload = image_payload_from_bytes(bytes)?;
     let mime = if payload.mime == "image/jpeg" {
         "image/jpeg"
@@ -1175,18 +1286,21 @@ pub(crate) fn remember_clipboard_manager_image(bytes: &[u8]) -> Result<(&'static
         "image/png"
     };
     let hash = payload.hash.clone();
-    remember_clipboard_manager_payload(payload);
+    remember_clipboard_manager_payload(payload, guard);
     Ok((mime, hash))
 }
 
 /// Sauvegarde un texte remis par une application qui va se fermer.
-pub(crate) fn remember_clipboard_manager_text(text: String) {
+pub(crate) fn remember_clipboard_manager_text(
+    text: String,
+    guard: crate::clipboard_gtk::SelectionGuard,
+) {
     let payload = ClipboardPayload {
         hash: hash_text(&text),
         mime: "text/plain".into(),
         wire_data: text,
     };
-    remember_clipboard_manager_payload(payload);
+    remember_clipboard_manager_payload(payload, guard);
 }
 
 /// Retire la copie confiée au gestionnaire pour qu'elle soit diffusée une fois.
@@ -1195,6 +1309,7 @@ pub(crate) fn take_clipboard_manager_payload() -> Option<ClipboardPayload> {
         .lock()
         .ok()
         .and_then(|mut pending| pending.take())
+        .and_then(|(payload, guard)| guard.handoff_current().then_some(payload))
 }
 
 /// Reprend la sélection quand son propriétaire a disparu.
@@ -1223,9 +1338,17 @@ pub async fn reclaim_orphaned_selection() -> bool {
     if crate::clipboard_gtk::current_clipboard_owner() != 0 {
         return false;
     }
-    let Some(payload) = LAST_KNOWN_PAYLOAD.lock().ok().and_then(|g| g.clone()) else {
+    let Some(remembered) = LAST_KNOWN_PAYLOAD.lock().ok().and_then(|g| g.clone()) else {
         return false;
     };
+    // A newer application may have copied and closed before its data was read.
+    // Empty is safer than restoring the previously remembered capture.
+    if remembered.copy_epoch.is_none()
+        || remembered.copy_epoch != crate::clipboard_epoch::clipboard_copy_current()
+    {
+        return false;
+    }
+    let payload = remembered.payload;
     match write_clipboard(&payload.wire_data, &payload.mime).await {
         Ok(()) => {
             tracing::info!(
@@ -1332,29 +1455,12 @@ async fn read_clipboard_payload_uncached(
         return Ok(None);
     }
     if is_rdp_bmp_only(&targets) {
-        tracing::warn!("clipboard read: xrdp bmp-only stall");
-        if crate::clipboard_gtk::reoffer_last_image() {
-            tracing::info!("clipboard read: bmp-only → reoffer PNG OK");
-            return Ok(None);
-        }
-        if allow_images && gtk_read_allowed() {
-            note_gtk_read_attempt();
-            if let Ok(bytes) = read_image_via_gtk().await {
-                if !bytes.is_empty() {
-                    match image_payload_from_bytes(&bytes) {
-                        Ok(p) => {
-                            tracing::info!(
-                                "clipboard read: bmp-only → gtk image OK ({} bytes)",
-                                bytes.len()
-                            );
-                            return Ok(Some(p));
-                        }
-                        Err(err) => tracing::warn!("screenshot/image gtk after bmp-only: {err:#}"),
-                    }
-                }
+        if allow_images {
+            if let Some(payload) = read_image_payload(&targets).await {
+                return Ok(Some(payload));
             }
         }
-        tracing::warn!("clipboard read: bmp-only — aucune image récupérable");
+        recover_stripped_image(&targets).await;
         return Ok(None);
     }
     let has_image = targets_have_pasteable_image(&targets);
@@ -1436,28 +1542,8 @@ async fn read_clipboard_payload_uncached(
                     }
                 }
             }
-            if should_ignore_text_after_image(
-                xrdp_session_active(),
-                crate::clipboard_gtk::recent_image_claim_active(),
-                &targets,
-            ) {
-                if let Some(text) = primary_user_text_override()
-                    .await
-                    .filter(|text| primary_differs_from_applied(text))
-                {
-                    crate::clipboard_gtk::clear_image_claim();
-                    clear_image_clipboard_epoch();
-                    tracing::debug!("clipboard read source=gtk-after-bmp");
-                    return Ok(Some(ClipboardPayload {
-                        mime: "text/plain".into(),
-                        wire_data: text.clone(),
-                        hash: hash_text(&text),
-                    }));
-                }
-                tracing::warn!("clipboard read: ignore chansrv text after image strip");
-                let _ = crate::clipboard_gtk::reoffer_last_image();
-                return Ok(None);
-            }
+            // A valid text copy always supersedes the previous image, including
+            // text published by the XRDP bridge. Session type proves no staleness.
             tracing::debug!("clipboard read source=primary-mirror");
             return Ok(Some(ClipboardPayload {
                 mime: "text/plain".into(),
@@ -1556,17 +1642,6 @@ async fn read_primary_image_payload() -> Option<ClipboardPayload> {
     None
 }
 
-fn should_ignore_text_after_image(
-    xrdp_active: bool,
-    recent_image_claim: bool,
-    targets: &[String],
-) -> bool {
-    xrdp_active
-        && recent_image_claim
-        && !targets_have_pasteable_image(targets)
-        && !targets_have_image(targets)
-}
-
 async fn read_image_payload(targets: &[String]) -> Option<ClipboardPayload> {
     // xrdp-chansrv takes ownership about 10s after our GTK offer, while
     // preserving exactly the same PNG and often exposing no TIMESTAMP. Read
@@ -1592,7 +1667,7 @@ async fn read_image_payload(targets: &[String]) -> Option<ClipboardPayload> {
         .collect();
     image_mimes.retain(|m| {
         let l = m.to_ascii_lowercase();
-        l == "image/png" || l == "image/jpeg" || l == "image/jpg"
+        l == "image/png" || l == "image/jpeg" || l == "image/jpg" || l == "image/bmp"
     });
     image_mimes.sort_by_key(|m| match m.to_ascii_lowercase().as_str() {
         "image/png" => 0,
@@ -2514,8 +2589,8 @@ mod tests {
             .unwrap()
             .clone()
             .expect("mémorisé");
-        assert_eq!(kept.wire_data, "contenu à conserver");
-        assert_eq!(kept.mime, "text/plain");
+        assert_eq!(kept.payload.wire_data, "contenu à conserver");
+        assert_eq!(kept.payload.mime, "text/plain");
 
         // Une copie plus récente remplace la précédente.
         remember_clipboard_content("text/plain", "plus récent", "h2");
@@ -2525,6 +2600,7 @@ mod tests {
                 .unwrap()
                 .clone()
                 .unwrap()
+                .payload
                 .wire_data,
             "plus récent"
         );
@@ -2900,11 +2976,15 @@ mod tests {
     }
 
     #[test]
-    fn real_text_after_image_is_never_rejected_outside_xrdp() {
-        let text_targets = targets(&["UTF8_STRING", "text/plain"]);
-        assert!(!should_ignore_text_after_image(true, false, &text_targets));
-        assert!(!should_ignore_text_after_image(false, true, &text_targets));
-        assert!(should_ignore_text_after_image(true, true, &text_targets));
+    fn even_bmp_bridge_targets_cannot_replace_a_valid_new_text_copy() {
+        assert!(!image_recovery_allowed(&targets(&[
+            "image/bmp",
+            "UTF8_STRING"
+        ])));
+        assert!(!image_recovery_allowed(&targets(&[
+            "UTF8_STRING",
+            "text/plain"
+        ])));
     }
 
     #[test]

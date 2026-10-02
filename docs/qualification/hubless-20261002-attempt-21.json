@@ -1,0 +1,39 @@
+{
+  "candidate_sha256": "e8efc920a24b1e040d66c1de5195f887d3cecb1d9f43b2753ec2599d74fff656",
+  "functional_checks_passed": true,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Native drag/save persists and gossips",
+      "passed": true
+    },
+    {
+      "name": "Native layout survives restart",
+      "passed": true
+    },
+    {
+      "name": "Native permission edit disables B in persisted and live layouts",
+      "passed": true
+    },
+    {
+      "name": "Pool-disabled B cannot claim control and keeps its native keyboard",
+      "passed": true
+    },
+    {
+      "name": "Native permission restore enables B without changing its position",
+      "passed": true
+    }
+  ],
+  "checks_passed": 6,
+  "paste_convergence_seconds": [],
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "attempt": 21
+}

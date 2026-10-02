@@ -9,10 +9,21 @@ condition; it is the qualified startup condition. No production machine has
 been migrated by the qualification described here. This is not a release or
 physical daily-use acceptance report.
 
-The full native qualification candidate is SHA-256
+The existing WireGuard VPN is retained by explicit user choice. Hubless here
+means no PoolSync hub process or indispensable PoolSync computer. It does not
+claim independence from the existing cross-site VPN gateway.
+
+The first full native qualification candidate is SHA-256
 `1ac3a6e1ad0fed7f3d4da4c25520c97cbc57b03b60bbf3bec559928be9e3b1eb`.
 Its package version remains 2.0.3; that version alone cannot identify the
 development build. Later source changes must receive their own qualification.
+
+The current development candidate is version **2.1.0-dev.3**, SHA-256
+`c1c38e2f957e32a8e2a5e35d533c82a2f414f2ed1234dedba8e4f2e421090b93`.
+Its 124 Rust tests, workspace Clippy checks and release build pass. Attempt 27
+is qualifying GTK native copy providers, real Flameshot captures and a planned
+20-minute paste soak. That campaign is still running; its earlier passing
+checks are not a complete endurance qualification.
 
 ## Protocol and recovery
 
@@ -59,7 +70,12 @@ relay traffic. Pending writes preserve total clipboard ordering; a local
 copy or newer remote copy invalidates an older deferred write. Delayed text
 checks are tied to the current GTK offer rather than awaited inline.
 
-Image repair does not overwrite a native text selection. XFixes selection
+Image repair does not overwrite a native text selection. The actual XRDP owner
+must be recognized before recovering a stripped offer. A BMP is read before
+recovery: a valid new BMP is normalized to PNG, never replaced by cached pixels.
+Queued GTK offers and repair callbacks retain selection owner, XFixes epoch and
+offer generation guards. A superseded native read is cancelled within its next
+40 ms selection check, killing its pending xclip child. XFixes selection
 epochs distinguish fresh native images when an application reuses its owner
 window and provides no TIMESTAMP target. A failed or superseded image read
 does not permanently poison the read cache. The source pointer stays centered
@@ -108,6 +124,51 @@ operations. It includes receiver sampling and orchestration, not just transport
 latency. During that run, a one-time lifetime CPU sample was 2.1–10.0% and RSS
 33,300–34,768 KiB; this is not an idle/resource endurance qualification.
 
+## Expanded native campaign
+
+The later candidate SHA-256
+`4d8dc5411f750171f6ef444f272c0c1df364bdefa7095afe2137b61b38a57f69`
+passes **57 checks** on the original dedicated desktops, with their existing
+agents, configurations and participation preserved. Its package version is
+still 2.0.3. The subsequently named 2.1.0-dev.1 candidate and visible startup
+window require separate qualification; do not identify them by this result.
+
+| Added scenario | Observed result |
+|---|---|
+| Candidate TCP partition | Held remote Shift released; native source and target keyboards usable; KVM resumes after reconnect |
+| Two local displays | Presence advertises both; internal monitor boundary remains local; outer edge crosses to B |
+| Unplug during a grab | Remote modifier released and source native input recovered |
+| Different resolutions | 1600×900 source enters 1366×768 target at `(30,384)` |
+| Concurrent claims | Ten rounds converge on one eligible controller; both native keyboards remain usable |
+| Valid new BMP | Two different BMP copies supersede the old PNG, with exact RGBA checks and native Firefox Ctrl+V |
+| Delayed image owner | Fresh text converges in 1.834 seconds before the six-second image reply; no stale capture after another seven seconds |
+
+The campaign records 62 native paste operations, **0.991–2.307 seconds** to
+convergence including receiver sampling and orchestration. Native GTK KVM key
+receipt takes 0.2863 seconds including command launch and orchestration. These
+are not isolated wire latency or a full-day resource qualification.
+
+XI2.1 raw keyboard, button and motion source devices distinguish physical
+activity from XTEST remote injection. Queues are drained while locally owning
+input, preventing old events from reclaiming it after handoff. Device hierarchy
+changes refresh the injection-device inventory. Compatibility core events keep
+a conservative fallback when XI2 is unavailable; real hardware acceptance
+remains required.
+
+Runtime geometry follows the full desktop and clamps coordinates to real
+monitors, including holes between staggered outputs. Saved positions remain
+unchanged by docking. A changed source desktop drops a stale grab and parks a
+clamped edge cursor locally before another edge crossing can strand input.
+
+The session watchdog skips all hub probes and hub/VPN-triggered restarts in
+hubless mode. Graphical-session attachment remains active. Agent replacement
+no longer kills copying applications' independent xclip workers. CLI departure,
+rejoin and local history clearing preserve the absence of a central service.
+An isolated command-fixture check verifies four watchdog passes issue neither
+hub requests nor healthy-agent restarts, local history clearing makes no hub
+request, and a graphical-session mismatch still requests attachment. Run
+`python3 deploy/tests/hubless-scripts-test.py` to reproduce it.
+
 ## Retained failures
 
 Private raw reports and desktop logs retain failed attempts as well as the
@@ -123,17 +184,104 @@ environments and credentials remain private.
 | `1ac3a6e1…`, 5 | KVM/return pass; fixture keydown argument conflicted with the operation parameter; corrected harness |
 | `1ac3a6e1…`, 6 | Native KVM recovery subset passes |
 | `1ac3a6e1…`, 7 | Full 33-check campaign passes; original agents preserved |
+| `db6bef5a…`, 8 | Second full 33-check campaign passes |
+| `4f02a696…`, 9 | Dock/network recovery pass; undock-clamped edge cursor crosses unintentionally before the mixed-resolution assertion |
+| `3e27b315…`, 10 | Unplugging during a grab exposes false ownership from queued synthetic core events |
+| `3e27b315…`, 11 | Two complete container restart orders and native clipboard/browser pass; local key fixture searches before its GTK window appears |
+| `2c3d87af…`, 12 | Unplug recovery passes; injected entry motion races takeover on the resized target |
+| `4d8dc541…`, 13 | Full 57-check expanded campaign passes with XTEST raw motion excluded |
+| `cdba2f1e…`, 14 | Cold starts, complete container restart orders and expanded scenarios pass. Planned 20-minute soak fails after about 620 seconds: source selection has no owner and receivers retain old text. UI drag also fails because RefCell clones separate motion/release state; shared Rc state fixes that defect. Neither failure is counted as a passing endurance result. |
+| `fb472898…`, 15 | Native layout save propagates but reconnect-time presence changes an offline peer's saved KVM flag and the intended tile is missing. Preserve saved permissions while overlaying live geometry. |
+| `2be588a1…`, 16 | Expanded native clipboard/KVM scenarios pass; the full campaign cannot find the configuration window after recovery scenarios. |
+| `2be588a1…`, 17 | Isolated native layout drag/save, gossip and restart persistence pass. |
+| `e8efc920…`, 18 | Full 62-check original-desktop campaign passes, including native layout opening through local IPC and SAVE_TARGETS close/supersession tests. |
+| `e8efc920…`, 19 | Two complete cold-start orders pass; optional TIMESTAMP instrumentation blocks on a full-HD native owner. Bound the harness probe. |
+| `e8efc920…`, 20 | First distinct full-HD PNG pastes through GTK and native Firefox. Second full-HD PNG fails on all receivers; small-image campaign success does not cover this. Unsupported metadata requests can strand the native owner's INCR transfer. Replaced owner TIMESTAMP probes with XFixes timestamps; new qualification is pending. |
+| `e8efc920…`, 21 | Six native layout/permission checks pass. Disabling B persists and prevents its KVM claim while its local keyboard works; re-enabling preserves saved positions. |
+| `28eb5f05…`, 22 | Full cold starts, direct alternate paths, two full-HD pastes and expanded KVM checks pass. The sustained paste campaign fails after 102 observed paste operations. The new image owner exists, so this failure cannot be dismissed as the earlier owner-close fixture issue. Resource samples are partial, not a passing 20-minute result. |
+| Launch only, 23 | Candidate fingerprint differs before functional qualification begins. Transfer had not completed; the launcher rejects the mismatch. No behavior is qualified by this attempt. |
+| `28eb5f05…`, 24 | Large images and a real XFCE screenshot pass. Browser instrumentation later cannot find its window by transient title; capture and retain the native window identifier instead. |
+| `28eb5f05…`, 25 | Full 67-check original-desktop campaign passes, including two different full-HD images, a real XFCE capture, native Firefox paste, screen changes, claims and layout editing. Maximum measured convergence is 4.162 seconds including orchestration. No prolonged soak is included. |
+| `20b65773…`, 26 | Complete cold starts and nine native checks pass, then the first browser image check fails on all three desktops. Retained live sessions prove an old local GTK selection is promoted with a fresh sequence while a newer incoming offer is being applied. This is a PoolSync race, not a passing run. |
+| `c1c38e2f…`, 27 | Qualification in progress with native GTK copy providers, actual Flameshot capture, cold starts, repeated full-HD images, a planned 20-minute soak and concurrent private rejoin checks. Do not count this row as a completed pass. |
+
+## Further clipboard and permission corrections
+
+SAVE_TARGETS application handoffs retain owner, copy epoch and GTK offer
+generation guards. Closing an application may destroy its owner, but any newer
+copy invalidates the handoff. The local poll consumes a handoff before orphan
+recovery. Orphan recovery checks the copy epoch associated with remembered
+data and declines to restore a previous capture after an uncaptured newer copy.
+
+Unsupported TIMESTAMP probes use the XFixes selection timestamp instead. Some
+native owners answer unknown targets with the entire image; cancelling that
+unexpected INCR exchange can obstruct subsequent image reads.
+
+Local intent is tracked independently from the last shared clipboard hash.
+Receiving a new remote copy can update that shared hash before GTK replaces the
+old native owner. An unchanged, already observed native selection must not then
+be republished with a fresh clock. The current candidate records both the
+native copy epoch and its content hash to reject that stale promotion. Incoming
+ordering still protects deferred writes from newer local copies.
+
+Rejoin also excludes the specific selection copied while absent, including a
+delayed SAVE_TARGETS handoff after its owner closes. The exclusion is bound to
+the X11 copy epoch before participation resumes. A subsequent real copy may
+publish identical bytes. This exclusion is being tested against concurrent
+office copies; Wayland bridge behavior is not established by the X11 fixtures.
+
+Saved layout permissions now constrain advertised KVM capability, runtime
+edges and input leases. Disabling a controller or focus releases held remote
+input; enabling a clipboard-only machine in the map cannot override its mode.
+Opening a native configuration window uses a user-owned runtime socket to
+open the running agent, rather than a disconnected state unable to persist edits.
+The local socket is mode 0600 and accepts only its agent's configuration path.
+
+The 62-check campaign on SHA-256
+`e8efc920a24b1e040d66c1de5195f887d3cecb1d9f43b2753ec2599d74fff656`
+records 65 native paste observations, with a maximum of 4.376 seconds including
+sampling and a deliberately delayed source. Its complete restore checks pass.
+It does not establish full-HD repeatability, interval resource endurance,
+actual XRDP bridge behavior or physical device acceptance.
+
+A separate native-copy baseline with no PoolSync process passes 450 alternating
+copies. It does not reproduce the source-owner loss in attempt 14 and therefore
+does not establish that the earlier failure was only a harness defect.
+
+Migration rendering is now explicit and checked: it preserves all existing
+identity, TLS, encryption and unrelated settings, retains existing LAN/VPN
+fallbacks, fills missing peer authorization from the already enrolled identities,
+and adds alternate direct routes. Four migration fixture checks and the native
+watchdog command fixture pass. Rendered production configurations remain private;
+no production installation has occurred in this report.
+
+`deploy/apply-hubless-upgrade.py` checks the live configuration and candidate
+fingerprints, linked runtime dependencies and preservation of identity, modes,
+permissions and existing routes before installation. It saves the complete
+configuration, changed files and active service state in a private archive.
+Atomic replacement restores the archive automatically on failure. Three
+isolated filesystem integration checks pass: check-only does not modify live
+files, explicit rollback restores the originals, and failure after replacing
+the executable restores the originals. Service commands are fixture mocks;
+actual running executable and graphical checks remain deployment requirements.
+Check-only also passed on all five physical targets with the earlier
+`28eb5f05…` bundle. Staging files is not deployment and must be repeated with
+the final qualified candidate.
 
 ## Remaining qualification and deployment gates
 
 The goal remains open. Required work not proved by this campaign includes:
 
-1. Multi-monitor outer edges, different resolutions, layouts and hotplug,
-   including topology edits and persistence without the hub.
-2. Real network loss, alternate direct paths, simultaneous runtime claims,
-   suspended peers and complete container cold boots in different orders.
-3. Longer repeatability, bounded latency/resource measurements and delayed
-   write races; native BMP and actual XRDP recovery require specific coverage.
+1. Native container layout edits, permissions, gossip and persistence pass on
+   their recorded candidates. Repeat relevant regression checks on the final
+   candidate before promotion.
+2. Cold starts in different orders, alternate direct paths, suspended peers,
+   TCP loss and simultaneous claims pass before later clipboard failures.
+   They do not turn those failed complete campaigns into passing campaigns.
+3. A completed sustained native-copy campaign and interval resource measurements.
+   Native BMP, SAVE_TARGETS and superseded image-read races pass on the recorded
+   candidates; the current native-intent race fix and actual XRDP bridge recovery
+   still require qualification.
 4. Physical keyboard/mouse takeover, docks and real screen changes on Asus and
    Acer. Synthetic X11 events cannot establish physical-device acceptance.
 5. Backed-up staged production migration, running executable/version checks

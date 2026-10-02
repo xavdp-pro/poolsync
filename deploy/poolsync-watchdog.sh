@@ -18,6 +18,13 @@ if [[ ! -f "$CFG" ]]; then
 fi
 mkdir -p "$CACHE_DIR"
 
+# Direct peers reconnect themselves. A retired hub must neither be probed nor
+# cause periodic restarts of healthy hubless agents; keep session attachment.
+HUBLESS=0
+if grep -Eq '^hubless[[:space:]]*=[[:space:]]*true([[:space:]]*(#.*)?)?$' "$CFG"; then
+  HUBLESS=1
+fi
+
 NODE="$(grep -E '^node\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
 HUB_URL="$(grep -E '^hub_url\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
 TOKEN="$(grep -E '^node_token\s*=' "$CFG" | head -1 | sed -E 's/.*=\s*"([^"]+)".*/\1/' || true)"
@@ -68,7 +75,9 @@ read_prev() {
 wg_now=0
 hub_now=0
 wg_bs1_up && wg_now=1
-hub_tcp_up && hub_now=1
+if [[ "$HUBLESS" != "1" ]]; then
+  hub_tcp_up && hub_now=1
+fi
 
 wg_prev="$(read_prev "$WG_STATE")"
 hub_prev="$(read_prev "$HUB_STATE")"
@@ -76,7 +85,7 @@ hub_prev="$(read_prev "$HUB_STATE")"
 RDP_MISS="${CACHE_DIR}/rdp-display-misses"
 RDP_MISS_THRESHOLD="${POOLSYNC_RDP_MISS_THRESHOLD:-2}"
 PICK_BIN="${HOME}/.local/bin/poolsync-pick-session.sh"
-SKIP_HUB=0
+SKIP_HUB="$HUBLESS"
 
 reconnect_agent() {
   log "$1"

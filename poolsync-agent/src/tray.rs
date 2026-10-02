@@ -27,11 +27,11 @@ thread_local! {
 /// n'est pas thread-safe, et les fenêtres ouvertes depuis le menu (historique,
 /// configuration, logs) construisent des widgets et des `Pixbuf` qui segfaultent
 /// si la boucle GTK ne tourne pas sur le thread qui a fait `gtk::init()`.
-pub fn run_tray(state: Arc<AgentState>) -> Result<()> {
-    run_tray_gtk(state)
+pub fn run_tray(state: Arc<AgentState>, show_window: bool) -> Result<()> {
+    run_tray_gtk(state, show_window)
 }
 
-fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
+fn run_tray_gtk(state: Arc<AgentState>, show_window: bool) -> Result<()> {
     gtk::init().map_err(|e| anyhow::anyhow!("gtk init: {e}"))?;
     crate::clipboard_gtk::attach_gtk_handler();
 
@@ -365,6 +365,16 @@ fn run_tray_gtk(state: Arc<AgentState>) -> Result<()> {
         "systray ready — clic gauche=buffer, clic droit=options ({})",
         state.config.node
     );
+    if show_window {
+        crate::config_window::show(state.clone());
+    }
+    let window_state = state.clone();
+    glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+        if window_state.take_config_window_request() {
+            crate::config_window::show(window_state.clone());
+        }
+        glib::ControlFlow::Continue
+    });
     gtk::main();
     Ok(())
 }

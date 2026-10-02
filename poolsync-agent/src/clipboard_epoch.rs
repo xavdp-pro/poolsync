@@ -18,6 +18,8 @@ struct Tracker {
     epoch: u64,
     clipboard: u32,
     clipboard_epoch: u64,
+    clipboard_copy_epoch: u64,
+    clipboard_timestamp: Option<u32>,
 }
 
 impl Tracker {
@@ -56,13 +58,15 @@ impl Tracker {
             epoch: 0,
             clipboard,
             clipboard_epoch: 0,
+            clipboard_copy_epoch: 0,
+            clipboard_timestamp: None,
         })
     }
 }
 
 static TRACKER: OnceLock<Mutex<Option<Tracker>>> = OnceLock::new();
 
-fn epochs() -> Option<(u64, u64)> {
+fn epochs() -> Option<(u64, u64, u64, Option<u32>)> {
     let mut guard = TRACKER
         .get_or_init(|| Mutex::new(Tracker::new().ok()))
         .lock()
@@ -73,10 +77,19 @@ fn epochs() -> Option<(u64, u64)> {
             tracker.epoch = tracker.epoch.wrapping_add(1);
             if event.selection == tracker.clipboard {
                 tracker.clipboard_epoch = tracker.clipboard_epoch.wrapping_add(1);
+                if event.subtype == xfixes::SelectionEvent::SET_SELECTION_OWNER {
+                    tracker.clipboard_copy_epoch = tracker.clipboard_copy_epoch.wrapping_add(1);
+                    tracker.clipboard_timestamp = Some(event.selection_timestamp);
+                }
             }
         }
     }
-    Some((tracker.epoch, tracker.clipboard_epoch))
+    Some((
+        tracker.epoch,
+        tracker.clipboard_epoch,
+        tracker.clipboard_copy_epoch,
+        tracker.clipboard_timestamp,
+    ))
 }
 
 pub fn current() -> Option<u64> {
@@ -84,4 +97,13 @@ pub fn current() -> Option<u64> {
 }
 pub fn clipboard_current() -> Option<u64> {
     epochs().map(|e| e.1)
+}
+
+pub fn clipboard_copy_current() -> Option<u64> {
+    epochs().map(|e| e.2)
+}
+
+/// Server timestamp from XFixes, without requesting data from the owner.
+pub fn selection_timestamp() -> Option<u32> {
+    epochs().and_then(|e| e.3)
 }

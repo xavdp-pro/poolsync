@@ -1,0 +1,27 @@
+{
+  "candidate_sha256": "2be588a14ae9fb8fff062928f455443e6a2f92a943f76c29621392e267183336",
+  "functional_checks_passed": true,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Native drag/save persists and gossips",
+      "passed": true
+    },
+    {
+      "name": "Native layout survives restart",
+      "passed": true
+    }
+  ],
+  "checks_passed": 3,
+  "paste_convergence_seconds": [],
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "attempt": 17
+}

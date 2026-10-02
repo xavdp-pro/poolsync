@@ -314,8 +314,11 @@ pub(crate) async fn handle_incoming(
                     return Ok(());
                 }
                 let edge = state.config.edge_px as i32;
+                let whole_desktop = state.config.hubless;
+                // Protect the warp before another thread can observe its result.
+                state.mark_kvm_switch_enter();
                 let (x, y) = tokio::task::spawn_blocking(move || {
-                    let (x, y) = kvm_x11::nudge_kvm_enter(x, y, edge)?;
+                    let (x, y) = kvm_x11::nudge_kvm_enter(x, y, edge, whole_desktop)?;
                     kvm_x11::move_mouse_absolute(x, y)?;
                     Ok::<_, anyhow::Error>((x, y))
                 })
@@ -428,10 +431,16 @@ pub(crate) async fn clipboard_poll_loop(
     // lui donnerait une horloge fraîche, donc prioritaire, et il écraserait sur
     // tout le pool une copie réellement plus récente (observé sur gbs-p3 après
     // un redémarrage). On l'adopte comme référence, sans rien émettre.
+    let mut observed_native_epoch = crate::clipboard_epoch::clipboard_copy_current();
     if !state.pool_away() {
         crate::clipboard::seed_local_baseline(&last_clip_hash, state.keep_formatting()).await;
     }
 
+    let mut observed_native_hash = last_clip_hash
+        .lock()
+        .ok()
+        .map(|h| h.clone())
+        .filter(|h| !h.is_empty());
     let mut participation_probe = std::time::Instant::now();
     loop {
         if participation_probe.elapsed() >= Duration::from_secs(1) {
@@ -445,7 +454,13 @@ pub(crate) async fn clipboard_poll_loop(
         }
         // Returning a laptop must not promote a private copy made while away.
         if state.take_clipboard_baseline_reset() {
+            observed_native_epoch = crate::clipboard_epoch::clipboard_copy_current();
             crate::clipboard::seed_local_baseline(&last_clip_hash, state.keep_formatting()).await;
+            observed_native_hash = last_clip_hash
+                .lock()
+                .ok()
+                .map(|h| h.clone())
+                .filter(|h| !h.is_empty());
         }
         if crate::clipboard::xrdp_session_active_sync() {
             crate::clipboard_diag::log_owner_transition();
@@ -458,9 +473,12 @@ pub(crate) async fn clipboard_poll_loop(
         let rdp_paused = state.config.pause_clipboard_when_rdp && rdp_client_active().await;
         if state.clipboard_sync_enabled() && state.local_poolsync_active() && !rdp_paused {
             crate::clipboard::maintain_xrdp_clipboard_fixup().await;
-            // Une application fermée emporte avec elle ce qu'elle avait copié :
-            // reprendre alors la sélection avec le contenu gardé en mémoire.
-            crate::clipboard::reclaim_orphaned_selection().await;
+            // Consume explicit application handoffs before orphan recovery
+            // can change their selection generation.
+            let manager_payload = crate::clipboard::take_clipboard_manager_payload();
+            if manager_payload.is_none() {
+                crate::clipboard::reclaim_orphaned_selection().await;
+            }
 
             let skip_echo = state.incoming_offer_settling()
                 || ((state.incoming_poll_suppress_active()
@@ -471,7 +489,6 @@ pub(crate) async fn clipboard_poll_loop(
             // CLIPBOARD_MANAGER puis disparaître avant le prochain sondage.
             // Ce contenu est une vraie copie locale et doit être traité même
             // pendant une courte fenêtre anti-écho.
-            let manager_payload = crate::clipboard::take_clipboard_manager_payload();
             // GTK/X11 transfers clipboard ownership asynchronously.  Reading
             // during this short settle window can still return the previous
             // text; treating it as a local copy creates an old-text echo that
@@ -482,6 +499,10 @@ pub(crate) async fn clipboard_poll_loop(
             }
             // Always read images: a local screenshot must enter the queue even
             // on clipboard_only (incoming images still skip X11 write).
+            let publication_identity = (
+                crate::clipboard_gtk::current_clipboard_owner(),
+                crate::clipboard_epoch::clipboard_copy_current(),
+            );
             let payload = match manager_payload {
                 Some(payload) => Some(payload),
                 None => read_clipboard_payload_filtered(true, state.keep_formatting())
@@ -490,6 +511,20 @@ pub(crate) async fn clipboard_poll_loop(
                     .flatten(),
             };
             if let Some(payload) = payload {
+                // An incoming copy can update the shared hash before its GTK
+                // offer replaces the native owner. The unchanged previously
+                // observed selection is not a new local copy in that interval.
+                let fresh_native = publication_identity.1.is_none()
+                    || observed_native_epoch != publication_identity.1
+                    || observed_native_hash
+                        .as_ref()
+                        .is_some_and(|h| h != &payload.hash);
+                if !fresh_native || !state.clipboard_publication_allowed(publication_identity) {
+                    sleep(poll).await;
+                    continue;
+                }
+                observed_native_epoch = publication_identity.1;
+                observed_native_hash = Some(payload.hash.clone());
                 if prepare_local_clipboard(&payload, &last_clip_hash) {
                     // Ne jamais journaliser le contenu : un presse-papiers peut
                     // contenir un mot de passe, un jeton ou une clef privée.

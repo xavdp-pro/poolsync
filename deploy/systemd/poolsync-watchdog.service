@@ -1,5 +1,5 @@
 [Unit]
-Description=PoolSync watchdog (VPN/réseau → reconnexion hub)
+Description=PoolSync graphical-session attachment and legacy network recovery
 After=network-online.target
 
 [Service]

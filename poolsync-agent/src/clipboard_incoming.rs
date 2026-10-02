@@ -2,7 +2,7 @@
 
 use crate::clip_cache;
 use crate::clipboard::{
-    clipboard_targets, image_recovery_allowed, local_write_text, write_clipboard_if,
+    clipboard_targets, local_write_text, recover_stripped_image, write_clipboard_if,
 };
 use crate::state::{clip_preview_mime, AgentState};
 use tracing::info;
@@ -143,8 +143,7 @@ pub async fn apply_incoming_clipboard(
                             break;
                         }
                         let targets = clipboard_targets("clipboard").await.unwrap_or_default();
-                        let reoffered = image_recovery_allowed(&targets)
-                            && crate::clipboard_gtk::reoffer_last_image();
+                        let reoffered = recover_stripped_image(&targets).await;
                         tracing::info!(
                             "clipboard incoming image: xrdp check after {delay_ms}ms claim={} cached_png={} targets={} reoffered={}",
                             claim_active,

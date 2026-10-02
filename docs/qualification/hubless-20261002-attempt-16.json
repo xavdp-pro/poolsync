@@ -1,0 +1,215 @@
+{
+  "candidate_sha256": "2be588a14ae9fb8fff062928f455443e6a2f92a943f76c29621392e267183336",
+  "functional_checks_passed": false,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "A genuine new second BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the fresh converted second BMP",
+      "passed": true
+    },
+    {
+      "name": "A genuine new first BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the fresh converted first BMP",
+      "passed": true
+    },
+    {
+      "name": "The delayed native image owner has received a real read request",
+      "passed": true
+    },
+    {
+      "name": "Fresh text converges before the six-second image response",
+      "passed": true
+    },
+    {
+      "name": "A late image response cannot restore the previous capture",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Emergency shortcut returns captured input to A",
+      "passed": true
+    },
+    {
+      "name": "Emergency return releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "A held modifier is injected on B",
+      "passed": true
+    },
+    {
+      "name": "Network loss releases the remote held modifier",
+      "passed": true
+    },
+    {
+      "name": "Source native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Target native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Direct KVM resumes after the network partition",
+      "passed": true
+    },
+    {
+      "name": "Controller disappearance releases the held modifier on B",
+      "passed": true
+    },
+    {
+      "name": "B native keyboard is usable after the controller disappears",
+      "passed": true
+    },
+    {
+      "name": "B takes control and crosses to A after A restarts",
+      "passed": true
+    },
+    {
+      "name": "A temporary departure returns B input locally",
+      "passed": true
+    },
+    {
+      "name": "B local GTK keyboard works after its remote target leaves",
+      "passed": true
+    },
+    {
+      "name": "Two local monitors are announced directly",
+      "passed": true
+    },
+    {
+      "name": "Docking keeps the saved neighboring computer adjacent",
+      "passed": true
+    },
+    {
+      "name": "The internal monitor edge keeps input local",
+      "passed": true
+    },
+    {
+      "name": "The added local monitor remains directly usable",
+      "passed": true
+    },
+    {
+      "name": "The external desktop edge reaches the other computer",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab returns native input locally",
+      "passed": true
+    },
+    {
+      "name": "Undocking restores the neighbor and advertises a different resolution",
+      "passed": true
+    },
+    {
+      "name": "Crossing scales coordinates between different resolutions",
+      "passed": true
+    },
+    {
+      "name": "Original desktop dimensions return after screen restoration",
+      "passed": true
+    },
+    {
+      "name": "Ten concurrent claim rounds converge on one eligible controller",
+      "passed": true
+    },
+    {
+      "name": "Concurrent claims leave both native keyboards available",
+      "passed": true
+    }
+  ],
+  "checks_passed": 46,
+  "error": "neko-desk-a: ui_click failed",
+  "paste_convergence_seconds": [
+    1.96,
+    1.732,
+    1.573,
+    1.444,
+    1.594,
+    1.427,
+    1.711,
+    1.005,
+    1.887,
+    1.442,
+    1.58,
+    1.538,
+    3.995
+  ],
+  "native_browser_paste": true,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "direct_links": "chain",
+  "fresh_desktops": false,
+  "attempt": 16
+}

@@ -66,6 +66,70 @@ pub fn infer_neighbors(topology: &PoolTopology, tolerance_px: i32) -> PoolTopolo
     PoolTopology { nodes }
 }
 
+/// Adapt a live desktop's footprint while preserving saved edge relationships.
+/// Positions in the saved document stay unchanged. Each connected component
+/// keeps its leftmost anchor; explicit gaps and perpendicular offsets survive
+/// a dock/undock or resolution change. Traversal is deterministic for cycles.
+pub fn adapt_layout_geometry(saved: &PoolTopology, live: &PoolTopology) -> PoolTopology {
+    let mut base = saved.clone();
+    for (name, node) in &mut base.nodes {
+        node.kvm_enabled = live.nodes.get(name).is_some_and(|n| n.kvm_enabled);
+    }
+    let edges = infer_neighbors(&base, DEFAULT_EDGE_TOLERANCE_PX);
+    let mut result = live.clone();
+    let mut roots: Vec<_> = base.nodes.keys().cloned().collect();
+    roots.sort_by_key(|name| (base.nodes[name].x, base.nodes[name].y, name.clone()));
+    let mut visited = std::collections::HashSet::new();
+    for root in roots {
+        if !visited.insert(root.clone()) {
+            continue;
+        }
+        let mut queue = std::collections::VecDeque::from([root]);
+        while let Some(name) = queue.pop_front() {
+            let Some(current) = result.nodes.get(&name).cloned() else {
+                continue;
+            };
+            let original = &base.nodes[&name];
+            for direction in ["left", "right", "up", "down"] {
+                let Some(next) = edges.nodes[&name].neighbors.get(direction) else {
+                    continue;
+                };
+                if !visited.insert(next.clone()) {
+                    continue;
+                }
+                let old = &base.nodes[next];
+                let Some(node) = result.nodes.get_mut(next) else {
+                    continue;
+                };
+                let dx = old.x as i64 - original.x as i64;
+                let dy = old.y as i64 - original.y as i64;
+                let (x, y) = match direction {
+                    "right" => (
+                        current.x as i64 + current.width as i64 + dx - original.width as i64,
+                        current.y as i64 + dy,
+                    ),
+                    "left" => (
+                        current.x as i64 + dx + old.width as i64 - node.width as i64,
+                        current.y as i64 + dy,
+                    ),
+                    "down" => (
+                        current.x as i64 + dx,
+                        current.y as i64 + current.height as i64 + dy - original.height as i64,
+                    ),
+                    _ => (
+                        current.x as i64 + dx,
+                        current.y as i64 + dy + old.height as i64 - node.height as i64,
+                    ),
+                };
+                node.x = x.clamp(i32::MIN as i64, i32::MAX as i64) as i32;
+                node.y = y.clamp(i32::MIN as i64, i32::MAX as i64) as i32;
+                queue.push_back(next.clone());
+            }
+        }
+    }
+    result
+}
+
 struct Candidate {
     a: String,
     b: String,
@@ -190,6 +254,60 @@ mod tests {
             desktop_width: w,
             desktop_height: h,
         }
+    }
+
+    #[test]
+    fn docking_expands_the_pool_footprint_without_rewriting_saved_positions() {
+        let saved = PoolTopology {
+            nodes: HashMap::from([
+                ("laptop".into(), node(0, 0, 1600, 900)),
+                ("neighbor".into(), node(1600, 120, 1366, 768)),
+            ]),
+        };
+        let mut live = saved.clone();
+        live.nodes.get_mut("laptop").unwrap().width = 3520;
+        let expanded = infer_neighbors(&adapt_layout_geometry(&saved, &live), 48);
+        assert_eq!(expanded.nodes["neighbor"].x, 3520);
+        assert_eq!(expanded.nodes["neighbor"].y, 120);
+        assert_eq!(expanded.nodes["laptop"].neighbors["right"], "neighbor");
+        assert_eq!(saved.nodes["neighbor"].x, 1600);
+        let restored = adapt_layout_geometry(&saved, &saved);
+        assert_eq!(restored.nodes["neighbor"].x, 1600);
+    }
+
+    #[test]
+    fn resolution_changes_keep_vertical_edges_and_negative_offsets() {
+        let saved = PoolTopology {
+            nodes: HashMap::from([
+                ("top".into(), node(-20, -900, 1600, 900)),
+                ("bottom".into(), node(0, 0, 1600, 900)),
+            ]),
+        };
+        let mut live = saved.clone();
+        live.nodes.get_mut("top").unwrap().height = 768;
+        let adapted = infer_neighbors(&adapt_layout_geometry(&saved, &live), 48);
+        assert_eq!(adapted.nodes["top"].y, -900);
+        assert_eq!(adapted.nodes["bottom"].y, -132);
+        assert_eq!(adapted.nodes["bottom"].x, 0);
+        assert_eq!(adapted.nodes["top"].neighbors["down"], "bottom");
+    }
+
+    #[test]
+    fn clipboard_only_positions_are_not_reflowed_with_a_docked_laptop() {
+        let mut private = node(1600, 0, 1600, 900);
+        private.kvm_enabled = false;
+        let saved = PoolTopology {
+            nodes: HashMap::from([
+                ("laptop".into(), node(0, 0, 1600, 900)),
+                ("clipboard".into(), private),
+            ]),
+        };
+        let mut live = saved.clone();
+        live.nodes.get_mut("laptop").unwrap().width = 3520;
+        assert_eq!(
+            adapt_layout_geometry(&saved, &live).nodes["clipboard"].x,
+            1600
+        );
     }
 
     #[test]

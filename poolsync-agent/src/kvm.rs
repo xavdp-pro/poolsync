@@ -71,6 +71,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
         if out_tx.is_closed() {
             return;
         }
+        let physical = kvm_x11::poll_physical_input();
         if !state.is_connected() {
             last_announced = None;
             last_hello_kvm = None;
@@ -156,6 +157,46 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                         );
                         local_primary = primary;
                         local_kvm_info = info;
+                        let bounds = info.desktop_bounds(primary);
+                        let at_new_edge = kvm_x11::mouse_location().is_ok_and(|(x, y)| {
+                            let (x, y) = bounds.to_local(x, y);
+                            let edge = state.config.edge_px as i32;
+                            x <= edge
+                                || y <= edge
+                                || x >= bounds.width as i32 - edge
+                                || y >= bounds.height as i32 - edge
+                        });
+                        if state.config.hubless
+                            && (input_grab.is_some()
+                                || (state.is_input_owner()
+                                    && state.kvm_focus() == local
+                                    && at_new_edge))
+                        {
+                            // The grab window and recenter coordinates were
+                            // created for the previous root size. Return input
+                            // locally before a dock change can strand it.
+                            input_grab = None;
+                            relay_motion = (0, 0);
+                            set_cursor_visible_best_effort(true);
+                            let (cx, cy) =
+                                kvm_x11::center_pointer_on_current_monitor().unwrap_or((0, 0));
+                            state.mark_kvm_inject_at(cx, cy);
+                            do_switch(
+                                &local,
+                                &local,
+                                cx,
+                                cy,
+                                state,
+                                &local_kvm_info,
+                                &mut blocked_edges,
+                                &out_tx,
+                                &mut focus,
+                                &mut remote_x,
+                                &mut remote_y,
+                            );
+                            state.set_kvm_focus(&local);
+                            last_switch = Instant::now();
+                        }
                         if last_announced
                             .map(|(s, d)| s != primary || d != info)
                             .unwrap_or(true)
@@ -176,7 +217,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
         focus = state.kvm_focus();
         let edge = state.config.edge_px as i32;
-        let pool = local_display_from_info(&local_kvm_info, local_primary);
+        let pool = local_display_from_info(&local_kvm_info, local_primary, state.config.hubless);
         let pool_w = pool.width as i32;
         let pool_h = pool.height as i32;
 
@@ -252,11 +293,14 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 let focus_primary = target_screen(state, &focus);
                 let focus_layout = kvm_layout_for(state, &focus, &local_kvm_info);
                 let focus_desktop = focus_layout.desktop_bounds(focus_primary);
-                let focus_pool = focus_layout.primary_bounds(focus_primary);
+                let focus_pool = pool_bounds(&focus_layout, focus_primary, state.config.hubless);
 
                 remote_x += relay_motion.0;
                 remote_y += relay_motion.1;
                 (remote_x, remote_y) = focus_desktop.clamp(remote_x, remote_y);
+                if state.config.hubless {
+                    (remote_x, remote_y) = state.clamp_peer_pointer(&focus, remote_x, remote_y);
+                }
                 if (remote_x, remote_y) != last_sent {
                     send_mouse_absolute(&focus, remote_x, remote_y, &out_tx);
                     last_sent = (remote_x, remote_y);
@@ -264,17 +308,23 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 relay_motion = (0, 0);
 
                 let (plx, ply) = focus_pool.to_local(remote_x, remote_y);
-                let on_primary = focus_pool.contains(remote_x, remote_y);
+                let on_pool = focus_pool.contains(remote_x, remote_y);
 
-                if on_primary && plx > edge + EDGE_ARM_PX {
+                if on_pool && plx > edge + EDGE_ARM_PX {
                     unblock(&mut blocked_edges, BlockedEdge::Left);
                 }
-                if on_primary && plx < focus_pool.width as i32 - edge - EDGE_ARM_PX {
+                if on_pool && plx < focus_pool.width as i32 - edge - EDGE_ARM_PX {
                     unblock(&mut blocked_edges, BlockedEdge::Right);
+                }
+                if on_pool && ply > edge + EDGE_ARM_PX {
+                    unblock(&mut blocked_edges, BlockedEdge::Up);
+                }
+                if on_pool && ply < focus_pool.height as i32 - edge - EDGE_ARM_PX {
+                    unblock(&mut blocked_edges, BlockedEdge::Down);
                 }
 
                 if last_switch.elapsed() >= Duration::from_millis(SWITCH_COOLDOWN_MS) {
-                    if on_primary && plx <= edge && !is_blocked(&blocked_edges, BlockedEdge::Left) {
+                    if on_pool && plx <= edge && !is_blocked(&blocked_edges, BlockedEdge::Left) {
                         if let Some(back) = neighbor_of(&focus, Direction::Left, state) {
                             let bs = target_screen(state, &back);
                             let ty = map_coord(ply, focus_pool.height, bs.height);
@@ -301,7 +351,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                             }
                             last_switch = Instant::now();
                         }
-                    } else if on_primary
+                    } else if on_pool
                         && plx >= focus_pool.width as i32 - edge
                         && !is_blocked(&blocked_edges, BlockedEdge::Right)
                     {
@@ -335,6 +385,50 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                                 g.recenter(pool.width, pool.height);
                             }
                             last_switch = Instant::now();
+                        }
+                    } else if state.config.hubless && on_pool {
+                        let edge_direction =
+                            if ply <= edge && !is_blocked(&blocked_edges, BlockedEdge::Up) {
+                                Some((Direction::Up, BlockedEdge::Down))
+                            } else if ply >= focus_pool.height as i32 - edge
+                                && !is_blocked(&blocked_edges, BlockedEdge::Down)
+                            {
+                                Some((Direction::Down, BlockedEdge::Up))
+                            } else {
+                                None
+                            };
+                        if let Some((direction, opposite)) = edge_direction {
+                            if let Some(target) = neighbor_of(&focus, direction, state) {
+                                let size = target_screen(state, &target);
+                                let tx = map_coord(plx, focus_pool.width, size.width);
+                                let ty = if direction == Direction::Up {
+                                    entry_inset_from_right(size.height as i32, edge)
+                                } else {
+                                    entry_inset_from_left(edge)
+                                };
+                                let (rx, ry) =
+                                    pool_to_root(state, &target, tx, ty, &local_kvm_info);
+                                do_switch(
+                                    &local,
+                                    &target,
+                                    rx,
+                                    ry,
+                                    state,
+                                    &local_kvm_info,
+                                    &mut blocked_edges,
+                                    &out_tx,
+                                    &mut focus,
+                                    &mut remote_x,
+                                    &mut remote_y,
+                                );
+                                block_edge(&mut blocked_edges, opposite);
+                                if target == local {
+                                    input_grab = None;
+                                } else if let Some(g) = input_grab.as_mut() {
+                                    g.recenter(pool.width, pool.height);
+                                }
+                                last_switch = Instant::now();
+                            }
                         }
                     }
                 }
@@ -372,15 +466,23 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 input_grab = None;
                 set_cursor_visible_best_effort(true);
             }
-            let instant = kvm_x11::poll_physical_input();
-            let reason = match instant {
-                Some(kvm_x11::PhysicalInput::Key) if !state.inject_blocks_key_claim() => {
+            let reason = match physical {
+                Some(kvm_x11::PhysicalInput::Key)
+                    if crate::physical_input::active() || !state.inject_blocks_key_claim() =>
+                {
                     Some(PhysicalClaimReason::Key)
                 }
-                Some(kvm_x11::PhysicalInput::Button) if !state.inject_blocks_button_claim() => {
+                Some(kvm_x11::PhysicalInput::Button)
+                    if crate::physical_input::active() || !state.inject_blocks_button_claim() =>
+                {
                     Some(PhysicalClaimReason::Button)
                 }
-                _ if state.motion_claim_allowed(&local, px, py) => {
+                Some(kvm_x11::PhysicalInput::Motion) if crate::physical_input::active() => {
+                    Some(PhysicalClaimReason::Motion)
+                }
+                _ if !crate::physical_input::active()
+                    && state.motion_claim_allowed(&local, px, py) =>
+                {
                     Some(PhysicalClaimReason::Motion)
                 }
                 _ => None,
@@ -415,6 +517,7 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
                 lx < edge || lx >= pool_w - edge || ly < edge || ly >= pool_h - edge
             };
             if focus == local
+                && (!crate::physical_input::active() || physical.is_some())
                 && (!state.remote_drive_active() || at_pool_edge)
                 && last_switch.elapsed() >= Duration::from_millis(SWITCH_COOLDOWN_MS)
                 && try_pool_edge_switch(
@@ -773,7 +876,11 @@ fn block_entry_edge(
 ) {
     let edge = state.config.edge_px as i32;
     let primary = target_screen(state, target);
-    let pool = kvm_layout_for(state, target, local_info).primary_bounds(primary);
+    let pool = pool_bounds(
+        &kvm_layout_for(state, target, local_info),
+        primary,
+        state.config.hubless,
+    );
     if !pool.contains(x, y) {
         return;
     }
@@ -926,8 +1033,24 @@ fn kvm_layout_for(state: &AgentState, node: &str, local_info: &KvmDesktopInfo) -
         .unwrap_or_default()
 }
 
-fn local_display_from_info(info: &KvmDesktopInfo, primary: ScreenInfo) -> KvmDisplay {
-    let r = info.primary_bounds(primary);
+fn pool_bounds(
+    info: &KvmDesktopInfo,
+    primary: ScreenInfo,
+    hubless: bool,
+) -> poolsync_core::KvmDisplayRect {
+    if hubless {
+        info.desktop_bounds(primary)
+    } else {
+        info.primary_bounds(primary)
+    }
+}
+
+fn local_display_from_info(
+    info: &KvmDesktopInfo,
+    primary: ScreenInfo,
+    hubless: bool,
+) -> KvmDisplay {
+    let r = pool_bounds(info, primary, hubless);
     KvmDisplay {
         x: r.x,
         y: r.y,
@@ -945,11 +1068,16 @@ fn pool_to_root(
 ) -> (i32, i32) {
     let primary = target_screen(state, node);
     let layout = kvm_layout_for(state, node, local_info);
-    let pool = layout.primary_bounds(primary);
-    pool.to_root(
-        lx.clamp(0, primary.width as i32 - 1),
-        ly.clamp(0, primary.height as i32 - 1),
-    )
+    let pool = pool_bounds(&layout, primary, state.config.hubless);
+    let (x, y) = pool.to_root(
+        lx.clamp(0, pool.width as i32 - 1),
+        ly.clamp(0, pool.height as i32 - 1),
+    );
+    if state.config.hubless {
+        state.clamp_peer_pointer(node, x, y)
+    } else {
+        (x, y)
+    }
 }
 fn local_screen_from_config(state: &AgentState) -> ScreenInfo {
     state

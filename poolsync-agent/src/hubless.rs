@@ -103,7 +103,7 @@ impl Hubless {
                 };
                 layout.topology.nodes.insert(
                     n.node.clone(),
-                    node_for(state.config.screen, Default::default(), x, y, false),
+                    node_for(state.config.screen, Default::default(), x, y, true),
                 );
             }
             layout.revision = 1;
@@ -157,7 +157,9 @@ impl Hubless {
             desktop: crate::kvm_x11::kvm_layout_snapshot().unwrap_or_default(),
             monitors: crate::kvm_x11::described_monitors().unwrap_or_default(),
             active: self.state.local_poolsync_active(),
-            kvm: self.state.kvm_effective(),
+            // Advertise local capability independently of received runtime
+            // presence, but honor the persisted pool permission.
+            kvm: self.state.kvm_enabled() && self.layout_allows(&self.state.config.node),
             control_clock: self.control.clock,
         }
     }
@@ -372,7 +374,32 @@ impl Hubless {
         Ok(())
     }
 
+    fn layout_allows(&self, node: &str) -> bool {
+        self.layout
+            .topology
+            .nodes
+            .get(node)
+            .is_none_or(|n| n.kvm_enabled)
+    }
+
     async fn sync(&mut self) -> Result<()> {
+        self.state
+            .set_layout_kvm_allowed(self.layout_allows(&self.state.config.node));
+        if self
+            .control
+            .lease
+            .as_ref()
+            .is_some_and(|l| !self.layout_allows(&l.owner) || !self.layout_allows(&l.focus))
+        {
+            self.control.lease = None;
+        }
+        self.state.set_peer_monitors(
+            self.control
+                .members
+                .iter()
+                .map(|(name, m)| (name.clone(), m.presence.monitors.clone()))
+                .collect(),
+        );
         let mut topology = self.layout.topology.clone();
         for node in topology.nodes.values_mut() {
             node.kvm_enabled = false;
@@ -390,12 +417,14 @@ impl Hubless {
                     m.presence.desktop,
                     x,
                     y,
-                    m.presence.can_kvm(),
+                    m.presence.can_kvm() && self.layout_allows(name),
                 ),
             );
         }
-        self.state
-            .set_topology(infer_neighbors(&topology, DEFAULT_EDGE_TOLERANCE_PX));
+        self.state.set_topology(infer_neighbors(
+            &poolsync_core::adapt_layout_geometry(&self.layout.topology, &topology),
+            DEFAULT_EDGE_TOLERANCE_PX,
+        ));
         let session = self
             .control
             .lease
@@ -445,11 +474,12 @@ fn node_for(
     y: i32,
     kvm_enabled: bool,
 ) -> TopologyNode {
+    let size = d.desktop_size(screen);
     TopologyNode {
         x,
         y,
-        width: screen.width,
-        height: screen.height,
+        width: size.width,
+        height: size.height,
         kvm_enabled,
         neighbors: HashMap::new(),
         monitor_x: d.monitor_x,

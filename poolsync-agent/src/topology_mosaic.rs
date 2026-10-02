@@ -19,7 +19,8 @@ pub struct TopologyMosaic {
     canvas: Fixed,
     scale: RefCell<f64>,
     origin: RefCell<(i32, i32)>,
-    canvas_pos: RefCell<HashMap<String, (i32, i32)>>,
+    // Press, motion and release callbacks must observe the same positions.
+    canvas_pos: Rc<RefCell<HashMap<String, (i32, i32)>>>,
     on_layout: Rc<dyn Fn(PoolTopology)>,
     /// Écran en cours de déplacement, pour le mettre en évidence au dessin.
     dragging: Rc<RefCell<Option<String>>>,
@@ -33,7 +34,7 @@ impl TopologyMosaic {
         let hint = Label::new(None);
         hint.set_markup(
             "<small>Faites <b>glisser</b> une vignette pour placer l'écran. \
-             Les voisins sont recalculés au relâchement, puis <b>Enregistrer → hub</b>.</small>",
+             Les voisins sont recalculés au relâchement, puis <b>Enregistrer</b>.</small>",
         );
         hint.set_halign(gtk::Align::Start);
         hint.set_margin_start(4);
@@ -54,7 +55,7 @@ impl TopologyMosaic {
             canvas,
             scale: RefCell::new(0.2),
             origin: RefCell::new((0, 0)),
-            canvas_pos: RefCell::new(HashMap::new()),
+            canvas_pos: Rc::new(RefCell::new(HashMap::new())),
             on_layout,
             dragging: Rc::new(RefCell::new(None)),
             local_node: RefCell::new(None),

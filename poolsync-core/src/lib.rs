@@ -12,7 +12,8 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 pub use topology::{
-    infer_neighbors, layout_scale, snap_position, DEFAULT_EDGE_TOLERANCE_PX, DEFAULT_SNAP_GRID_PX,
+    adapt_layout_geometry, infer_neighbors, layout_scale, snap_position, DEFAULT_EDGE_TOLERANCE_PX,
+    DEFAULT_SNAP_GRID_PX,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -309,6 +310,35 @@ pub struct MonitorInfo {
     pub primary: bool,
 }
 
+/// Keep a remote pointer on a real output, including staggered displays with
+/// empty regions inside their bounding rectangle. Ties use stable coordinates.
+pub fn clamp_pointer_to_monitors(monitors: &[MonitorInfo], x: i32, y: i32) -> (i32, i32) {
+    monitors
+        .iter()
+        .filter(|m| {
+            m.width > 0
+                && m.height > 0
+                && m.width <= 65535
+                && m.height <= 65535
+                && m.x.unsigned_abs() < 10_000_000
+                && m.y.unsigned_abs() < 10_000_000
+        })
+        .map(|m| {
+            let px = (x as i64).clamp(m.x as i64, m.x as i64 + m.width as i64 - 1) as i32;
+            let py = (y as i64).clamp(m.y as i64, m.y as i64 + m.height as i64 - 1) as i32;
+            let dx = (x as i64 - px as i64).unsigned_abs();
+            let dy = (y as i64 - py as i64).unsigned_abs();
+            (
+                dx.saturating_mul(dx).saturating_add(dy.saturating_mul(dy)),
+                px,
+                py,
+            )
+        })
+        .min()
+        .map(|(_, px, py)| (px, py))
+        .unwrap_or((x, y))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Message {
@@ -516,6 +546,32 @@ pub fn decode_message(raw: &str) -> anyhow::Result<Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_pointer_in_a_staggered_display_gap_lands_on_a_real_monitor() {
+        let monitors = vec![
+            MonitorInfo {
+                name: "left".into(),
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 400,
+                primary: true,
+            },
+            MonitorInfo {
+                name: "right".into(),
+                x: 800,
+                y: 200,
+                width: 600,
+                height: 600,
+                primary: false,
+            },
+        ];
+        assert_eq!(clamp_pointer_to_monitors(&monitors, 1000, 100), (1000, 200));
+        assert_eq!(clamp_pointer_to_monitors(&monitors, 1000, 300), (1000, 300));
+        assert_eq!(clamp_pointer_to_monitors(&monitors, -1000, 50), (0, 50));
+        assert_eq!(clamp_pointer_to_monitors(&[], 1000, 100), (1000, 100));
+    }
 
     fn cfg(mode: AgentMode, kvm_enabled: Option<bool>, kvm_capture: Option<bool>) -> AgentConfig {
         AgentConfig {

@@ -1,0 +1,82 @@
+{
+  "candidate_sha256": "e8efc920a24b1e040d66c1de5195f887d3cecb1d9f43b2753ec2599d74fff656",
+  "functional_checks_passed": false,
+  "restoration_passed": true,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    }
+  ],
+  "checks_passed": 13,
+  "error": "poolsync-soak-a: copy failed",
+  "paste_convergence_seconds": [
+    2.084,
+    1.209,
+    1.058,
+    1.426,
+    1.962,
+    2.022,
+    1.697,
+    1.544,
+    1.941,
+    1.397,
+    1.252,
+    1.801
+  ],
+  "native_browser_paste": true,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents and complete disposable containers",
+  "direct_links": "triangle",
+  "fresh_desktops": true,
+  "attempt": 19
+}

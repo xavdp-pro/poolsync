@@ -1,0 +1,56 @@
+{
+  "candidate_sha256": "20b657736177f89e314849b145ff4eb51338b84a6770f46101bb97591ea2352a",
+  "functional_checks_passed": false,
+  "restoration_passed": false,
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Clipboard-only node sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from clipboard-only C to A",
+      "passed": true
+    }
+  ],
+  "error": "Native paste did not converge on poolsync-soak-a, poolsync-soak-b, poolsync-soak-c",
+  "paste_convergence_seconds": [
+    1.986,
+    2.06,
+    2.009,
+    1.941,
+    1.991,
+    1.902,
+    1.786,
+    1.604
+  ],
+  "native_copy_application": "gtk",
+  "failed_fresh_sessions_retained": true
+}

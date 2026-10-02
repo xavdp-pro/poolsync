@@ -169,12 +169,16 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
     if owner == x11rb::NONE {
         return Ok(());
     }
+    let guard = crate::clipboard_gtk::SelectionGuard::capture();
     let targets = clipboard_targets_via_xclip();
+    if !guard.handoff_current() {
+        return Ok(());
+    }
     if let Some(mime) = preferred_image_target(&targets) {
         match read_target_via_xclip(mime) {
             Ok(Some(bytes)) => {
                 let (stored_mime, hash) =
-                    crate::clipboard::remember_clipboard_manager_image(&bytes)?;
+                    crate::clipboard::remember_clipboard_manager_image(&bytes, guard)?;
                 tracing::info!(
                     "gestionnaire : image recueillie avant fermeture mime={} bytes={} id={}",
                     stored_mime,
@@ -193,7 +197,7 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
     let text = read_utf8_selection(conn, atoms, owner)?;
     if let Some(text) = text {
         let len = text.len();
-        crate::clipboard::remember_clipboard_manager_text(text);
+        crate::clipboard::remember_clipboard_manager_text(text, guard);
         tracing::info!(
             "gestionnaire : {} octets recueillis d'une application qui se ferme",
             len
@@ -205,7 +209,7 @@ fn absorb_clipboard(conn: &RustConnection, atoms: &Atoms) -> Result<()> {
 fn clipboard_targets_via_xclip() -> Vec<String> {
     let Ok(output) = Command::new("timeout")
         .args([
-            "2",
+            "0.35",
             "xclip",
             "-selection",
             "clipboard",
@@ -236,7 +240,7 @@ fn preferred_image_target(targets: &[String]) -> Option<&str> {
 
 fn read_target_via_xclip(target: &str) -> Result<Option<Vec<u8>>> {
     let output = Command::new("timeout")
-        .args(["12", "xclip", "-selection", "clipboard", "-t", target, "-o"])
+        .args(["2", "xclip", "-selection", "clipboard", "-t", target, "-o"])
         .output()
         .with_context(|| format!("lecture xclip {target}"))?;
     if !output.status.success() || output.stdout.is_empty() {

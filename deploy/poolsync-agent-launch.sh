@@ -89,6 +89,7 @@ if pid="$(pgrep -u "$UID_NUM" -x poolsync-agent | head -1)"; then
   kill "$pid" 2>/dev/null || true
   sleep 0.4
   kill -9 "$pid" 2>/dev/null || true
-  pkill -u "$UID_NUM" -x xclip 2>/dev/null || true
+  # Native copying applications also own xclip workers. Leave their selections
+  # intact when replacing an agent attached to an obsolete graphical session.
 fi
 exec "$HOME/.local/bin/poolsync-agent" "$@"
