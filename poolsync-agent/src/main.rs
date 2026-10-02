@@ -3,6 +3,7 @@ mod clip_cache;
 mod clip_order;
 mod clipboard;
 mod clipboard_diag;
+mod clipboard_epoch;
 mod clipboard_gtk;
 mod clipboard_history;
 mod clipboard_incoming;
@@ -12,6 +13,7 @@ mod crashlog;
 mod cursor_ripple;
 mod edge_flash;
 mod hotkey;
+mod hubless;
 mod kvm;
 mod kvm_input;
 mod kvm_wayland;
@@ -147,7 +149,14 @@ fn main() -> Result<()> {
         .build()
         .context("tokio runtime")?;
 
-    let peer_tx = rt.block_on(async { peer_mesh::spawn(state.clone()) });
+    let peer_tx = rt.block_on(async { peer_mesh::spawn(state.clone()) })?;
+    if state.config.hubless && state.config.kvm_active() {
+        let tx = peer_tx
+            .clone()
+            .context("hubless KVM requires direct peers")?;
+        let kvm_state = state.clone();
+        rt.spawn_blocking(move || crate::kvm::kvm_poll_loop(&kvm_state, tx));
+    }
 
     // Le presse-papiers local appartient à l'agent, pas à la session hub. Le
     // hub n'est qu'un transport facultatif : lorsqu'il est absent, le sender
@@ -164,26 +173,28 @@ fn main() -> Result<()> {
 
     let state_agent = state.clone();
     let hub_clip_tx_agent = hub_clip_tx.clone();
-    rt.spawn(async move {
-        let mut backoff = RECONNECT_INITIAL;
-        loop {
-            match run_agent(state_agent.clone(), hub_clip_tx_agent.clone()).await {
-                Ok(()) => {
-                    state_agent.set_error(None);
-                    backoff = RECONNECT_INITIAL;
-                    warn!("session hub terminée — reconnexion…");
+    if !state.config.hubless {
+        rt.spawn(async move {
+            let mut backoff = RECONNECT_INITIAL;
+            loop {
+                match run_agent(state_agent.clone(), hub_clip_tx_agent.clone()).await {
+                    Ok(()) => {
+                        state_agent.set_error(None);
+                        backoff = RECONNECT_INITIAL;
+                        warn!("session hub terminée — reconnexion…");
+                    }
+                    Err(err) => {
+                        state_agent.set_connected(false);
+                        state_agent.set_error(Some(err.to_string()));
+                        tracing::error!("agent session ended: {err:#}");
+                    }
                 }
-                Err(err) => {
-                    state_agent.set_connected(false);
-                    state_agent.set_error(Some(err.to_string()));
-                    tracing::error!("agent session ended: {err:#}");
-                }
+                info!("nouvelle tentative hub dans {}s", backoff.as_secs());
+                sleep(backoff).await;
+                backoff = std::cmp::min(backoff * 2, RECONNECT_MAX);
             }
-            info!("nouvelle tentative hub dans {}s", backoff.as_secs());
-            sleep(backoff).await;
-            backoff = std::cmp::min(backoff * 2, RECONNECT_MAX);
-        }
-    });
+        });
+    }
 
     let show_tray = !args.no_tray
         && (std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok());

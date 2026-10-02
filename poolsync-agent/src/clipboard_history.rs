@@ -759,6 +759,10 @@ fn format_time(at: u64) -> String {
 }
 
 fn http_base(state: &AgentState) -> Result<String> {
+    anyhow::ensure!(
+        !state.config.hubless,
+        "history is stored locally in hubless mode"
+    );
     crate::network::hub_http_base(&state.config.hub_url)
 }
 
@@ -820,6 +824,13 @@ fn fetch_item(state: &AgentState, hash: &str) -> Result<ItemResponse> {
 }
 
 pub fn clear_history(state: &AgentState) -> Result<()> {
+    if state.config.hubless {
+        crate::clip_cache::clear_all();
+        state.clear_optimistic_tray_all();
+        state.mark_history_cleared();
+        state.notify_tray_history_changed();
+        return Ok(());
+    }
     let url = format!("{}/api/clipboard/clear", http_base(state)?);
     ureq::post(&url)
         .timeout(HTTP_TIMEOUT)
@@ -838,6 +849,11 @@ pub fn clear_history(state: &AgentState) -> Result<()> {
 }
 
 pub fn delete_hashes(state: &AgentState, hashes: &[String]) -> Result<()> {
+    if state.config.hubless {
+        crate::clip_cache::remove_hashes(hashes);
+        state.notify_tray_history_changed();
+        return Ok(());
+    }
     if hashes.is_empty() {
         return Ok(());
     }
@@ -957,7 +973,7 @@ pub fn pick_and_paste(state: &AgentState, hash: &str) -> Result<()> {
     if item.mime.starts_with("image/") {
         crate::clipboard::mark_image_clipboard_epoch();
     }
-    if !state.config.hub_clipboard {
+    if state.config.hubless || !state.config.hub_clipboard {
         return Ok(());
     }
     let hash = hash.to_string();

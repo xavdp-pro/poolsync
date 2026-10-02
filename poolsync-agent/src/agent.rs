@@ -216,7 +216,7 @@ fn send_hello(state: &AgentState, out_tx: &mpsc::UnboundedSender<String>) {
     }
 }
 
-async fn handle_incoming(
+pub(crate) async fn handle_incoming(
     state: &AgentState,
     text: &str,
     _last_clip_hash: &Mutex<String>,
@@ -462,8 +462,10 @@ pub(crate) async fn clipboard_poll_loop(
             // reprendre alors la sélection avec le contenu gardé en mémoire.
             crate::clipboard::reclaim_orphaned_selection().await;
 
-            let skip_echo = state.incoming_poll_suppress_active()
-                || state.incoming_duplicate_suppress_active()
+            let skip_echo = state.incoming_offer_settling()
+                || ((state.incoming_poll_suppress_active()
+                    || state.incoming_duplicate_suppress_active())
+                    && crate::clipboard_gtk::owns_clipboard())
                 || state.history_clear_suppress_active();
             // Une application qui se ferme peut confier son contenu au
             // CLIPBOARD_MANAGER puis disparaître avant le prochain sondage.

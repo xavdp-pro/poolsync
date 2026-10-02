@@ -1,5 +1,10 @@
 # No-hub desktop qualification — 2026-10-02
 
+This report records the clipboard-only direct mesh at commit `19a15fd`.
+Subsequent peer-control implementation and its separate qualification are
+tracked in [HUBLESS-IMPLEMENTATION-2026-10-02.md](HUBLESS-IMPLEMENTATION-2026-10-02.md).
+The historical limitations below must not be read as a test of that newer code.
+
 ## Scope
 
 This development test creates a private dummy Xorg display inside each of the

@@ -39,6 +39,14 @@ hash. Files and text remain in the page; there is no upload endpoint.
 A browser automation virtual clipboard is a separate path. Passing a virtual
 paste test does not prove the desktop X11 clipboard or ChatGPT paste works.
 
+For the isolated automated Firefox fixture, `browser-paste-server.py` serves
+the same page on loopback port 19580. Its lab-only hook records the result of
+the actual **Ctrl+V paste event**. It posts hashes, dimensions and text lengths
+to its own loopback server, never image or text payloads. The manual HTML page
+keeps its original behavior and has no upload endpoint. Each browser uses a
+separate profile, HOME and X11 display; neither the in-app browser's virtual
+clipboard nor `navigator.clipboard.write` is used to fabricate delivery.
+
 ## Regression sequence
 
 1. Copy an image, paste it, and compare the pixel hash with the source.

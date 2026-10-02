@@ -226,6 +226,15 @@ pub fn kvm_poll_loop(state: &AgentState, out_tx: mpsc::UnboundedSender<String>) 
 
             for ev in events {
                 match ev {
+                    GrabEvent::LocalReturn => {
+                        input_grab = None;
+                        set_cursor_visible_best_effort(true);
+                        focus = local.clone();
+                        relay_motion = (0, 0);
+                        state.set_kvm_focus(&local);
+                        state.request_master_claim();
+                        break;
+                    }
                     GrabEvent::Motion { dx, dy } => {
                         relay_motion.0 += dx;
                         relay_motion.1 += dy;
@@ -551,8 +560,13 @@ fn try_pool_edge_switch(
                 remote_y,
             );
             block_edge(blocked_edges, BlockedEdge::Left);
-            let (rx, ry) = pool.to_root(entry_inset_from_right(pool_w, edge), ly);
-            let _ = warp_mouse(rx, ry);
+            // InputGrab already centered the source pointer. Warping it back
+            // to the source edge here becomes a captured motion and makes the
+            // remote pointer jump across half its screen on entry.
+            if target == local {
+                let (rx, ry) = pool.to_root(entry_inset_from_right(pool_w, edge), ly);
+                let _ = warp_mouse(rx, ry);
+            }
             return true;
         }
     } else if lx < edge && !is_blocked(blocked_edges, BlockedEdge::Left) {
@@ -583,8 +597,10 @@ fn try_pool_edge_switch(
                 remote_y,
             );
             block_edge(blocked_edges, BlockedEdge::Right);
-            let (rx, ry) = pool.to_root(entry_inset_from_left(edge), ly);
-            let _ = warp_mouse(rx, ry);
+            if target == local {
+                let (rx, ry) = pool.to_root(entry_inset_from_left(edge), ly);
+                let _ = warp_mouse(rx, ry);
+            }
             return true;
         }
     } else if ly < edge && !is_blocked(blocked_edges, BlockedEdge::Up) {
@@ -620,8 +636,10 @@ fn try_pool_edge_switch(
                 remote_y,
             );
             block_edge(blocked_edges, BlockedEdge::Down);
-            let (rx, ry) = pool.to_root(lx, entry_inset_from_left(edge));
-            let _ = warp_mouse(rx, ry);
+            if target == local {
+                let (rx, ry) = pool.to_root(lx, entry_inset_from_left(edge));
+                let _ = warp_mouse(rx, ry);
+            }
             return true;
         }
     } else if ly >= pool_h - edge && !is_blocked(blocked_edges, BlockedEdge::Down) {
@@ -656,8 +674,10 @@ fn try_pool_edge_switch(
                 remote_y,
             );
             block_edge(blocked_edges, BlockedEdge::Up);
-            let (rx, ry) = pool.to_root(lx, entry_inset_from_right(pool_h, edge));
-            let _ = warp_mouse(rx, ry);
+            if target == local {
+                let (rx, ry) = pool.to_root(lx, entry_inset_from_right(pool_h, edge));
+                let _ = warp_mouse(rx, ry);
+            }
             return true;
         }
     }

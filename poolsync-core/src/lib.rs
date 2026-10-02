@@ -1,3 +1,4 @@
+pub mod mesh;
 mod topology;
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
@@ -58,6 +59,9 @@ pub enum Direction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     pub node: String,
+    /// Use direct peers for presence, topology and KVM; never contact a hub.
+    #[serde(default)]
+    pub hubless: bool,
     pub hub_url: String,
     pub token: String,
     /// Identité secrète propre à ce nœud. Vide = jeton partagé historique.
@@ -516,6 +520,7 @@ mod tests {
     fn cfg(mode: AgentMode, kvm_enabled: Option<bool>, kvm_capture: Option<bool>) -> AgentConfig {
         AgentConfig {
             node: "n".into(),
+            hubless: false,
             hub_url: "ws://x/ws".into(),
             token: "t".into(),
             node_token: None,

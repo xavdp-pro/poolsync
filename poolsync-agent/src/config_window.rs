@@ -322,7 +322,14 @@ impl ConfigWindow {
         }
 
         match post_topology(&self.state, &topo) {
-            Ok(()) => self.set_status("Topologie enregistrée et diffusée aux agents ✓", false),
+            Ok(()) => self.set_status(
+                if self.state.config.hubless {
+                    "Topologie enregistrée ; diffusion directe en cours ✓"
+                } else {
+                    "Topologie enregistrée et diffusée aux agents ✓"
+                },
+                false,
+            ),
             Err(err) => self.set_status(&format!("Échec enregistrement : {err}"), true),
         }
     }
@@ -510,10 +517,16 @@ fn build_agent_page(state: &AgentState, weak: &std::rc::Weak<ConfigWindow>) -> (
     grid.attach(&node_label, 0, 0, 2, 1);
 
     let hub_url = Entry::new();
-    attach_field(&grid, 1, "Hub URL", &hub_url);
     let token = Entry::new();
     token.set_visibility(false);
-    attach_field(&grid, 2, "Token", &token);
+    if state.config.hubless {
+        let direct = Label::new(Some("Communication directe chiffrée — sans hub"));
+        direct.set_halign(Align::Start);
+        grid.attach(&direct, 0, 1, 2, 1);
+    } else {
+        attach_field(&grid, 1, "Hub URL", &hub_url);
+        attach_field(&grid, 2, "Token", &token);
+    }
 
     let mode = ComboBoxText::new();
     mode.append(Some("full"), "Complet (clip + KVM)");
@@ -683,6 +696,7 @@ fn escape_markup(s: &str) -> String {
 fn render_agent_toml(cfg: &AgentConfig) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "node = {:?}", cfg.node);
+    let _ = writeln!(s, "hubless = {}", cfg.hubless);
     let _ = writeln!(s, "hub_url = {:?}", cfg.hub_url);
     let _ = writeln!(s, "token = {:?}", cfg.token);
     if let Some(token) = &cfg.node_token {
@@ -774,6 +788,13 @@ fn http_base(state: &AgentState) -> Result<String> {
 }
 
 fn fetch_topology(state: &AgentState) -> Result<PoolTopology> {
+    if state.config.hubless {
+        let mut saved = crate::hubless::load_layout(state).topology;
+        if let Some(live) = state.topology() {
+            saved.nodes.extend(live.nodes);
+        }
+        return Ok(saved);
+    }
     let url = format!("{}/api/topology", http_base(state)?);
     let body = ureq::get(&url)
         .timeout(HTTP_TIMEOUT)
@@ -789,6 +810,9 @@ fn fetch_topology(state: &AgentState) -> Result<PoolTopology> {
 }
 
 fn post_topology(state: &AgentState, topo: &PoolTopology) -> Result<()> {
+    if state.config.hubless {
+        return state.request_layout(topo.clone());
+    }
     let url = format!("{}/api/topology", http_base(state)?);
     let body = serde_json::to_string(topo)?;
     ureq::post(&url)

@@ -5,7 +5,7 @@
 use gtk::gdk;
 use gtk::{Clipboard, TargetEntry, TargetFlags};
 use poolsync_core::hash_bytes;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -49,6 +49,16 @@ static IMAGE_OWNER: AtomicU32 = AtomicU32::new(0);
 /// Fenêtre X11 propriétaire de CLIPBOARD après *notre* offre de texte.
 /// Symétrique de `IMAGE_OWNER` : sans elle, l'agent relit son propre texte.
 static TEXT_OWNER: AtomicU32 = AtomicU32::new(0);
+// Delayed verification must never restore an offer superseded by a new copy.
+static OFFER_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+pub fn offer_generation() -> u64 {
+    OFFER_GENERATION.load(Ordering::SeqCst)
+}
+
+pub fn text_offer_is_current(generation: u64) -> bool {
+    offer_generation() == generation && owns_text_clipboard()
+}
 /// Dernière fois qu'une application nous a *demandé* le contenu de la
 /// sélection. C'est le seul signal fiable qu'un collage est en cours : X11 ne
 /// dit pas « je colle », mais il vient chercher la donnée chez le propriétaire.
@@ -139,6 +149,13 @@ pub fn owns_text_clipboard() -> bool {
     expected != 0 && current_clipboard_owner() == expected
 }
 
+pub fn owns_clipboard() -> bool {
+    let owner = current_clipboard_owner();
+    owner != 0
+        && (owner == TEXT_OWNER.load(Ordering::SeqCst)
+            || owner == IMAGE_OWNER.load(Ordering::SeqCst))
+}
+
 pub fn mark_image_claim() {
     if let Ok(mut t) = LAST_IMAGE_CLAIM_AT.lock() {
         *t = Some(Instant::now());
@@ -168,6 +185,7 @@ pub fn discard_last_image() {
 /// A native screenshot can already be pasteable, while the previous GTK image
 /// is still cached. Recovering from a later BMP-only callback must use this copy.
 pub fn remember_native_image(mime: &str, bytes: &[u8]) {
+    OFFER_GENERATION.fetch_add(1, Ordering::SeqCst);
     if let Ok(mut last) = LAST_PNG.lock() {
         *last = Some(ensure_png(mime, bytes));
     }
@@ -310,6 +328,7 @@ pub fn attach_gtk_handler() {
 }
 
 pub fn try_offer(offer: ClipboardOffer) -> bool {
+    OFFER_GENERATION.fetch_add(1, Ordering::SeqCst);
     GTK_TX.get().and_then(|tx| tx.send(offer).ok()).is_some()
 }
 
@@ -317,6 +336,7 @@ pub fn try_offer(offer: ClipboardOffer) -> bool {
 /// thread (the tray/history menu).  Queuing from that same thread lets the
 /// click handler report success before X11 ownership actually changes.
 pub fn offer_now_from_gtk(offer: ClipboardOffer) {
+    OFFER_GENERATION.fetch_add(1, Ordering::SeqCst);
     apply_offer(offer);
 }
 

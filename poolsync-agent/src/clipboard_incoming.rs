@@ -2,7 +2,7 @@
 
 use crate::clip_cache;
 use crate::clipboard::{
-    clipboard_targets, local_write_text, targets_have_pasteable_image, write_clipboard,
+    clipboard_targets, image_recovery_allowed, local_write_text, write_clipboard_if,
 };
 use crate::state::{clip_preview_mime, AgentState};
 use tracing::info;
@@ -104,10 +104,15 @@ pub async fn apply_incoming_clipboard(
     };
     // Garder aussi en mémoire ce qui vient du réseau : si l'application qui
     // l'affiche est fermée ensuite, on pourra le resservir.
-    crate::clipboard::remember_clipboard_content(&write_mime, &write_data, hash);
     let context = format!("incoming-{source_node}");
-    match write_clipboard(&write_data, &write_mime).await {
-        Ok(()) => {
+    match write_clipboard_if(&write_data, &write_mime, || {
+        !state.pool_away() && state.clip_order().is_current(origin, seq)
+    })
+    .await
+    {
+        Ok(false) => return Ok(()),
+        Ok(true) => {
+            crate::clipboard::remember_clipboard_content(&write_mime, &write_data, hash);
             if write_mime.starts_with("image/") {
                 info!(
                     "image-trace APPLY id={} source={} mime={}",
@@ -122,9 +127,13 @@ pub async fn apply_incoming_clipboard(
                 // offer, then expose only text targets. Re-offer while the
                 // same image claim is still active; a later text copy clears
                 // that claim, so it is never overwritten by an old image.
-                tokio::spawn(async {
+                let generation = crate::clipboard_gtk::offer_generation();
+                tokio::spawn(async move {
                     for delay_ms in [200_u64, 700, 1_500] {
                         tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                        if crate::clipboard_gtk::offer_generation() != generation {
+                            break;
+                        }
                         let (claim_active, cached_png_bytes) =
                             crate::clipboard_gtk::image_claim_debug_state();
                         if !claim_active {
@@ -134,7 +143,7 @@ pub async fn apply_incoming_clipboard(
                             break;
                         }
                         let targets = clipboard_targets("clipboard").await.unwrap_or_default();
-                        let reoffered = !targets_have_pasteable_image(&targets)
+                        let reoffered = image_recovery_allowed(&targets)
                             && crate::clipboard_gtk::reoffer_last_image();
                         tracing::info!(
                             "clipboard incoming image: xrdp check after {delay_ms}ms claim={} cached_png={} targets={} reoffered={}",

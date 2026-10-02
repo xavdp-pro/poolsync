@@ -5,6 +5,11 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
+type LayoutRequest = (
+    PoolTopology,
+    std::sync::mpsc::SyncSender<Result<(), String>>,
+);
+
 #[derive(Clone)]
 pub struct AgentState {
     pub config: AgentConfig,
@@ -27,6 +32,7 @@ pub struct AgentState {
     kvm_focus: Arc<RwLock<String>>,
     kvm_input_node: Arc<RwLock<String>>,
     topology: Arc<RwLock<Option<PoolTopology>>>,
+    pending_layout: Arc<Mutex<Option<LayoutRequest>>>,
     last_clip_preview: Arc<RwLock<String>>,
     last_clip_at: Arc<RwLock<Option<Instant>>>,
     last_error: Arc<RwLock<Option<String>>>,
@@ -158,6 +164,7 @@ impl AgentState {
             kvm_focus: Arc::new(RwLock::new(local_node.clone())),
             kvm_input_node: Arc::new(RwLock::new(local_node)),
             topology: Arc::new(RwLock::new(None)),
+            pending_layout: Arc::new(Mutex::new(None)),
             last_clip_preview: Arc::new(RwLock::new(String::new())),
             last_clip_at: Arc::new(RwLock::new(None)),
             last_error: Arc::new(RwLock::new(None)),
@@ -400,6 +407,10 @@ impl AgentState {
         })
     }
 
+    pub fn incoming_offer_settling(&self) -> bool {
+        incoming_grace_elapsed_less_than(self, |_| std::time::Duration::from_millis(100))
+    }
+
     /// Hub + peer livrent parfois la même image deux fois (hash différent).
     pub fn incoming_duplicate_suppress_active(&self) -> bool {
         incoming_grace_elapsed_less_than(self, |mime| {
@@ -584,6 +595,26 @@ impl AgentState {
         }
     }
 
+    pub fn request_layout(&self, topology: PoolTopology) -> anyhow::Result<()> {
+        let (ack, received) = std::sync::mpsc::sync_channel(1);
+        {
+            let mut pending = self
+                .pending_layout
+                .lock()
+                .map_err(|_| anyhow::anyhow!("layout queue unavailable"))?;
+            anyhow::ensure!(pending.is_none(), "a layout edit is already pending");
+            *pending = Some((topology, ack));
+        }
+        received
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .map_err(|_| anyhow::anyhow!("layout save not confirmed; check the agent status"))?
+            .map_err(anyhow::Error::msg)
+    }
+
+    pub fn take_layout_request(&self) -> Option<LayoutRequest> {
+        self.pending_layout.lock().ok().and_then(|mut p| p.take())
+    }
+
     pub fn topology(&self) -> Option<PoolTopology> {
         self.topology.read().ok().and_then(|t| t.clone())
     }
@@ -724,6 +755,19 @@ impl AgentState {
         };
         if !self.local_poolsync_active() {
             format!("● Suspendu localement ({clip})")
+        } else if self.config.hubless {
+            let count = self
+                .topology()
+                .map(|t| t.nodes.values().filter(|n| n.kvm_enabled).count())
+                .unwrap_or(0);
+            format!(
+                "● Sans hub — {} — {count} postes KVM ({clip})",
+                if self.is_connected() {
+                    "pairs connectés"
+                } else {
+                    "local"
+                }
+            )
         } else if self.is_connected() {
             format!("● Connecté — {clip}")
         } else if self.config.peer_direct_clipboard {

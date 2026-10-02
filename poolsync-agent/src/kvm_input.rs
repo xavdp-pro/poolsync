@@ -23,6 +23,7 @@ pub enum GrabEvent {
     Motion { dx: i32, dy: i32 },
     Button { button: u8, pressed: bool },
     Key { keycode: u8, pressed: bool },
+    LocalReturn,
 }
 
 pub struct InputGrab {
@@ -36,6 +37,7 @@ pub struct InputGrab {
     last_x: i16,
     last_y: i16,
     active: bool,
+    return_keys: std::collections::HashSet<u8>,
 }
 
 impl InputGrab {
@@ -43,6 +45,16 @@ impl InputGrab {
         let (conn, screen_num) = x11rb::connect(None).context("X11 grab")?;
         let root = conn.setup().roots[screen_num].root;
         let setup = &conn.setup().roots[screen_num];
+        let min = conn.setup().min_keycode;
+        let count = conn.setup().max_keycode - min + 1;
+        let mapping = conn.get_keyboard_mapping(min, count)?.reply()?;
+        let return_keys = mapping
+            .keysyms
+            .chunks(mapping.keysyms_per_keycode as usize)
+            .enumerate()
+            .filter(|(_, syms)| syms.contains(&0x6d) || syms.contains(&0x4d))
+            .map(|(i, _)| min + i as u8)
+            .collect();
         let w = setup.width_in_pixels.max(1);
         let h = setup.height_in_pixels.max(1);
         let cx = (w / 2) as i16;
@@ -83,6 +95,7 @@ impl InputGrab {
             last_x: cx,
             last_y: cy,
             active: true,
+            return_keys,
         })
     }
 
@@ -152,10 +165,17 @@ impl InputGrab {
                     });
                 }
                 Event::KeyPress(e) => {
-                    out.push(GrabEvent::Key {
-                        keycode: e.detail,
-                        pressed: true,
-                    });
+                    let modifiers = x11rb::protocol::xproto::KeyButMask::SHIFT
+                        | x11rb::protocol::xproto::KeyButMask::CONTROL
+                        | x11rb::protocol::xproto::KeyButMask::MOD1;
+                    if e.state.contains(modifiers) && self.return_keys.contains(&e.detail) {
+                        out.push(GrabEvent::LocalReturn);
+                    } else {
+                        out.push(GrabEvent::Key {
+                            keycode: e.detail,
+                            pressed: true,
+                        });
+                    }
                 }
                 Event::KeyRelease(e) => {
                     out.push(GrabEvent::Key {

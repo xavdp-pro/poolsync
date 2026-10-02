@@ -24,6 +24,10 @@ use std::sync::Mutex;
 /// Cette borne empêche un pair compromis de bloquer durablement les copies.
 const MAX_FUTURE_SKEW_MS: u64 = 5 * 60 * 1_000;
 
+pub(crate) fn remote_seq_is_plausible(seq: u64) -> bool {
+    seq <= now_ms().saturating_add(MAX_FUTURE_SKEW_MS)
+}
+
 fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -65,7 +69,7 @@ impl ClipOrder {
         if seq == 0 || origin.is_empty() {
             return true;
         }
-        if seq > now_ms().saturating_add(MAX_FUTURE_SKEW_MS) {
+        if !remote_seq_is_plausible(seq) {
             return false;
         }
         // Lamport : notre horloge dépasse tout ce que l'on a observé, donc la
@@ -98,6 +102,15 @@ impl ClipOrder {
                 Err(actual) => current = actual,
             }
         }
+    }
+
+    pub fn is_current(&self, origin: &str, seq: u64) -> bool {
+        if seq == 0 || origin.is_empty() {
+            return true;
+        }
+        self.last
+            .lock()
+            .is_ok_and(|last| last.0 == seq && last.1 == origin)
     }
 }
 
@@ -179,5 +192,14 @@ mod tests {
         let a = order.next_local_seq();
         let b = order.next_local_seq();
         assert!(b > a);
+    }
+
+    #[test]
+    fn a_delayed_write_is_cancelled_when_a_local_copy_supersedes_it() {
+        let order = ClipOrder::new("a");
+        assert!(order.accept_incoming("b", 100));
+        assert!(order.is_current("b", 100));
+        order.next_local_seq();
+        assert!(!order.is_current("b", 100));
     }
 }

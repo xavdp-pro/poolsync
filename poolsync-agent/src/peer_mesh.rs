@@ -5,7 +5,7 @@ use crate::state::AgentState;
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use poolsync_core::{decode_message, decrypt_clipboard, AgentConfig, Message, Neighbor};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
@@ -29,22 +29,63 @@ const PEER_RECONNECT_INITIAL: Duration = Duration::from_secs(2);
 const PEER_RECONNECT_MAX: Duration = Duration::from_secs(20);
 
 /// Lance l'écoute + connexions sortantes ; retourne un canal pour diffuser le clipboard local.
-pub fn spawn(state: Arc<AgentState>) -> Option<mpsc::UnboundedSender<String>> {
+pub fn spawn(state: Arc<AgentState>) -> Result<Option<mpsc::UnboundedSender<String>>> {
     if !state.config.peer_direct_clipboard {
-        return None;
+        anyhow::ensure!(!state.config.hubless, "hubless mode requires direct peers");
+        return Ok(None);
     }
     let has_peer = state
         .config
         .neighbors
         .iter()
         .any(|n| n.peer_url.is_some() || n.peer_url_vpn.is_some());
-    if !has_peer {
-        return None;
+    if !has_peer && !state.config.hubless {
+        return Ok(None);
     }
+    let mut controller = state
+        .config
+        .hubless
+        .then(|| crate::hubless::Hubless::new(state.clone()))
+        .transpose()?;
 
     let (local_tx, mut local_rx) = mpsc::unbounded_channel::<String>();
     let (peer_reg_tx, mut peer_reg_rx) = mpsc::unbounded_channel::<PeerLink>();
     let (peer_in_tx, mut peer_in_rx) = mpsc::unbounded_channel::<PeerInbound>();
+    // Local selection application is serialized and coalesced independently of
+    // control/forwarding. Slow X11/RDP owners cannot stall input lease renewals.
+    let (clip_tx, mut clip_rx) = tokio::sync::watch::channel::<Option<(String, String)>>(None);
+    let clip_state = state.clone();
+    tokio::spawn(async move {
+        while clip_rx.changed().await.is_ok() {
+            let clip = clip_rx.borrow_and_update().clone();
+            if let Some((source, wire)) = clip {
+                if let Some(Message::Clipboard {
+                    hash,
+                    data,
+                    mime,
+                    origin,
+                    seq,
+                    ..
+                }) = decode_peer_clipboard(&wire, &clip_state.config)
+                {
+                    if let Err(err) = apply_incoming_clipboard(
+                        &clip_state,
+                        &hash,
+                        &data,
+                        &mime,
+                        &source,
+                        false,
+                        &origin,
+                        seq,
+                    )
+                    .await
+                    {
+                        debug!("peer clipboard apply: {err:#}");
+                    }
+                }
+            }
+        }
+    });
 
     let state_listen = state.clone();
     let reg_listen = peer_reg_tx.clone();
@@ -79,42 +120,121 @@ pub fn spawn(state: Arc<AgentState>) -> Option<mpsc::UnboundedSender<String>> {
     }
 
     tokio::spawn(async move {
-        let mut peers: HashMap<String, mpsc::UnboundedSender<String>> = HashMap::new();
+        let mut peers: HashMap<String, mpsc::Sender<String>> = HashMap::new();
         let mut seen_messages: HashSet<String> = HashSet::new();
+        let mut seen_order = VecDeque::new();
+        let mut queued_clipboard: Option<(u64, String)> = None;
+        let mut heartbeat = tokio::time::interval(Duration::from_secs(1));
         loop {
             tokio::select! {
                 Some(payload) = local_rx.recv() => {
+                    let payload = if let Some(controller) = controller.as_mut() {
+                        if clipboard_message_id(&payload).is_some() {
+                            if state.pool_away() { continue; }
+                            payload
+                        } else {
+                            match decode_message(&payload) {
+                                Ok(message) => match controller.local(message).await {
+                                    Ok(Some(wire)) => wire,
+                                    Ok(None) => continue,
+                                    Err(err) => { warn!("peer control local: {err:#}"); continue; }
+                                },
+                                Err(_) => continue,
+                            }
+                        }
+                    } else { payload };
                     if let Some(id) = clipboard_message_id(&payload) {
-                        remember_message(&mut seen_messages, id);
+                        remember_bounded(&mut seen_messages, &mut seen_order, id);
+                        advance_clipboard_queue(&mut queued_clipboard,&payload,&state.config);
                     }
-                    for tx in peers.values() {
-                        let _ = tx.send(payload.clone());
-                    }
+                    peers.retain(|_,tx| tx.try_send(payload.clone()).is_ok());
                 }
                 Some(incoming) = peer_in_rx.recv() => {
-                    if state.pool_away() { continue; }
-                    let Some(id) = clipboard_message_id(&incoming.payload) else {
-                        continue;
-                    };
-                    if !seen_messages.insert(id) {
-                        continue;
-                    }
-                    trim_seen_messages(&mut seen_messages);
-                    for (node, tx) in &peers {
-                        if node != &incoming.source {
-                            let _ = tx.send(incoming.payload.clone());
+                    let clip_id = clipboard_message_id(&incoming.payload);
+                    let id = clip_id.clone().unwrap_or_else(|| poolsync_core::hash_text(&incoming.payload));
+                    if seen_messages.contains(&id) { continue; }
+                    if let Some(controller) = controller.as_mut() {
+                        if clip_id.is_some() {
+                            if state.pool_away() { continue; }
+                            // Validate before forwarding, but apply only after the relay.
+                            if decode_peer_clipboard(&incoming.payload, &state.config).is_none() { continue; }
+                        } else {
+                            match controller.incoming(&incoming.payload).await {
+                                Ok(true) => {},
+                                Ok(false) => continue,
+                                Err(err) => { debug!("peer control rejected: {err:#}"); continue; }
+                            }
                         }
+                    } else if state.pool_away() || clip_id.is_none() { continue; }
+                    remember_bounded(&mut seen_messages, &mut seen_order, id);
+                    peers.retain(|node,tx| node == &incoming.source || tx.try_send(incoming.payload.clone()).is_ok());
+                    if controller.is_some() && clip_id.is_some()
+                        && advance_clipboard_queue(&mut queued_clipboard,&incoming.payload,&state.config) {
+                        let _ = clip_tx.send(Some((incoming.source,incoming.payload)));
                     }
                 }
                 Some(link) = peer_reg_rx.recv() => {
                     info!("peer mesh connecté: {}", link.node);
                     peers.insert(link.node, link.tx);
                 }
+                _ = heartbeat.tick() => {
+                    peers.retain(|_,tx| !tx.is_closed());
+                    if let Some(controller) = controller.as_mut() {
+                        state.set_connected(!peers.is_empty());
+                        match controller.tick().await {
+                            Ok(messages) => for payload in messages { peers.retain(|_,tx| tx.try_send(payload.clone()).is_ok()); },
+                            Err(err) => warn!("peer heartbeat: {err:#}"),
+                        }
+                    }
+                }
             }
         }
     });
 
-    Some(local_tx)
+    Ok(Some(local_tx))
+}
+
+fn decode_peer_clipboard(payload: &str, config: &AgentConfig) -> Option<Message> {
+    let message = decode_message(payload).ok()?;
+    match (&message, config.e2e_key.as_deref()) {
+        (Message::EncryptedClipboard { .. }, Some(key)) => decrypt_clipboard(&message, key).ok(),
+        (Message::Clipboard { .. }, None) => Some(message),
+        _ => None,
+    }
+}
+
+fn advance_clipboard_queue(
+    last: &mut Option<(u64, String)>,
+    wire: &str,
+    config: &AgentConfig,
+) -> bool {
+    let Some(Message::Clipboard { origin, seq, .. }) = decode_peer_clipboard(wire, config) else {
+        return false;
+    };
+    if seq == 0 || origin.is_empty() {
+        return true;
+    }
+    if !crate::clip_order::remote_seq_is_plausible(seq) {
+        return false;
+    }
+    let candidate = (seq, origin);
+    if last.as_ref().is_some_and(|old| old >= &candidate) {
+        return false;
+    }
+    *last = Some(candidate);
+    true
+}
+
+fn remember_bounded(seen: &mut HashSet<String>, order: &mut VecDeque<String>, id: String) {
+    if !seen.insert(id.clone()) {
+        return;
+    }
+    order.push_back(id);
+    while order.len() > MAX_SEEN_MESSAGES {
+        if let Some(old) = order.pop_front() {
+            seen.remove(&old);
+        }
+    }
 }
 
 fn should_initiate_link(local: &str, remote: &str) -> bool {
@@ -123,7 +243,7 @@ fn should_initiate_link(local: &str, remote: &str) -> bool {
 
 struct PeerLink {
     node: String,
-    tx: mpsc::UnboundedSender<String>,
+    tx: mpsc::Sender<String>,
 }
 
 struct PeerInbound {
@@ -139,17 +259,6 @@ fn clipboard_message_id(payload: &str) -> Option<String> {
         Message::EncryptedClipboard { msg_id, .. } if !msg_id.is_empty() => Some(msg_id),
         _ => None,
     }
-}
-
-fn trim_seen_messages(seen: &mut HashSet<String>) {
-    if seen.len() > MAX_SEEN_MESSAGES {
-        seen.clear();
-    }
-}
-
-fn remember_message(seen: &mut HashSet<String>, id: String) {
-    seen.insert(id);
-    trim_seen_messages(seen);
 }
 
 async fn run_listener(
@@ -372,7 +481,7 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let (mut write, mut read) = ws.split();
-    let (peer_tx, mut peer_rx) = mpsc::unbounded_channel::<String>();
+    let (peer_tx, mut peer_rx) = mpsc::channel::<String>(128);
     let node_name = remote_node.clone().unwrap_or_else(|| label.clone());
     // Inbound handshakes include their node name.  With one deterministic
     // dialer per pair, both endpoints may register this single channel.
@@ -398,7 +507,7 @@ where
             maybe = peer_rx.recv() => {
                 match maybe {
                     Some(payload) => {
-                        if state_read.pool_away() { continue; }
+                        if state_read.pool_away() && !state_read.config.hubless { continue; }
                         let decoded = decode_message(&payload).ok().and_then(|message| {
                             if matches!(message, Message::EncryptedClipboard { .. }) {
                                 state
@@ -423,7 +532,7 @@ where
                                 );
                             }
                         }
-                        if write.send(WsMessage::Text(payload.into())).await.is_err() {
+                        if !matches!(timeout(Duration::from_secs(1), write.send(WsMessage::Text(payload.into()))).await, Ok(Ok(()))) {
                             break;
                         }
                     }
@@ -433,6 +542,10 @@ where
             msg = read.next() => {
                 match msg {
                     Some(Ok(WsMessage::Text(text))) => {
+                        if state_read.config.hubless {
+                            let _ = incoming.send(PeerInbound { source: node_name.clone(), payload: text.to_string() });
+                            continue;
+                        }
                         let wire = decode_message(&text);
                         let decoded = wire.as_ref().ok().and_then(|message| {
                             if matches!(message, Message::EncryptedClipboard { .. }) {
@@ -450,6 +563,12 @@ where
                         if let Some(Message::Clipboard {
                             hash, data, mime, origin, seq, ..
                         }) = decoded {
+                            // Forward before touching the local X11 selection. A
+                            // slow paste owner must not stall downstream peers.
+                            let _ = incoming.send(PeerInbound {
+                                source: node_name.clone(),
+                                payload: text.to_string(),
+                            });
                             let source = remote.as_deref().unwrap_or("peer");
                             // Toujours relayer : `(origin, seq)` voyage avec le
                             // message, donc chaque nœud tranche lui-même. Filtrer
@@ -460,10 +579,6 @@ where
                             ).await {
                                 debug!("peer clipboard apply: {err:#}");
                             }
-                            let _ = incoming.send(PeerInbound {
-                                source: node_name.clone(),
-                                payload: text.to_string(),
-                            });
                         } else if matches!(wire, Ok(Message::EncryptedClipboard { .. })) {
                             warn!("peer clipboard chiffré rejeté depuis {node_name}: clef absente ou invalide");
                         }
@@ -486,6 +601,31 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reordered_copies_cannot_replace_the_newest_pending_clipboard() {
+        let config: AgentConfig = toml::from_str("node='a'\nhub_url='ws://localhost/ws'\ntoken='t'\nmode='full'\n[screen]\nwidth=800\nheight=600").unwrap();
+        let mut last = None;
+        for (seq, expected) in [
+            (20, true),
+            (10, false),
+            (21, true),
+            (u64::MAX, false),
+            (22, true),
+        ] {
+            let wire = poolsync_core::encode_message(&Message::Clipboard {
+                msg_id: seq.to_string(),
+                hash: "hash".into(),
+                mime: "text/plain".into(),
+                data: "fixture".into(),
+                origin: "b".into(),
+                seq,
+            })
+            .unwrap();
+            assert_eq!(advance_clipboard_queue(&mut last, &wire, &config), expected);
+        }
+        assert_eq!(last, Some((22, "b".into())));
+    }
 
     #[test]
     fn exactly_one_endpoint_dials_each_pair() {
