@@ -22,6 +22,9 @@ import time
 import uuid
 
 
+HARNESS_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
 XORG_CONFIG = '''Section "ServerFlags"
   Option "DontVTSwitch" "true"
   Option "AllowMouseOpenFail" "true"
@@ -84,6 +87,11 @@ def spawn(args,log):
     environment=env()
     if log=='agent.log' and (root/'bounded-allocator').exists():
         environment.update(MALLOC_ARENA_MAX='2',MALLOC_MMAP_THRESHOLD_='131072')
+    if log=='browser.log' and (root/'browser-engine').read_text()=='firefox':
+        # Private synthetic-data trace distinguishes a browser clipboard
+        # request timeout/cache rejection from an image-decoder failure.
+        environment['MOZ_LOG']='WidgetClipboard:5'
+        environment.pop('MOZ_LOG_FILE',None)
     with (root/log).open('ab') as stream:
         process=subprocess.Popen(['python3','-c',guardian,str(pid_file),*args],env=environment,stdout=stream,stderr=stream,start_new_session=True)
     for _ in range(40):
@@ -149,9 +157,14 @@ elif op=='prepare':
     (root/'agent.toml').write_text(request['config']);(root/'agent.toml').chmod(0o600)
     if request.get('show_window'):(root/'show-window').touch()
     if request.get('native_owner')=='gtk':(root/'gtk-native-owner').touch()
+    if request.get('browser_x11_trace'):(root/'browser-x11-trace').touch()
+    if request.get('browser_syscall_trace'):(root/'browser-syscall-trace').touch()
     if request.get('bounded_allocator'):(root/'bounded-allocator').touch()
     if request.get('bandwidth_proxy'):(root/'peer-bandwidth-proxy.py').write_text(request['bandwidth_proxy'])
     if request.get('browser_fixtures'):
+        (root/'browser-engine').write_text(request.get('browser_engine','firefox'))
+        browser_port=int(request.get('browser_port',19580));assert 1024<=browser_port<=65535
+        (root/'browser-port').write_text(str(browser_port))
         for name,contents in request['browser_fixtures'].items():
             assert name in ('browser-paste-server.py','clipboard-paste.html')
             (root/name).write_text(contents)
@@ -320,13 +333,40 @@ elif op=='resources':
     pids=user(['pgrep','-f','^'+str(root)+'/candidate-agent ']).stdout.decode().split();assert len(pids)==1
     stat=Path('/proc/'+pids[0]+'/stat').read_text().rsplit(')',1)[1].split()
     output={'at':time.monotonic(),'cpu_seconds':(int(stat[11])+int(stat[12]))/os.sysconf('SC_CLK_TCK'),'rss_kib':int(stat[21])*os.sysconf('SC_PAGE_SIZE')//1024,'pid':int(pids[0])}
+elif op=='private_configuration_hash':output=digest(root/'agent.toml')
+elif op=='install_private_candidate':
+    assert str(root).startswith('/tmp/poolsync-no-hub-')
+    assert not user(['pgrep','-f','^'+str(root)+'/candidate-agent ']).stdout
+    assert digest(root/'candidate-agent')==request['previous_sha256']
+    assert digest(root/'candidate-agent-next')==request['candidate_sha256']
+    (root/'candidate-agent-next').chmod(0o755)
+    os.replace(root/'candidate-agent-next',root/'candidate-agent');output=True
 elif op=='browser':
     profile=root/'browser-profile';profile.mkdir(mode=0o700)
     (profile/'user.js').write_text('user_pref("browser.shell.checkDefaultBrowser",false);user_pref("browser.startup.homepage_override.mstone","ignore");user_pref("browser.aboutwelcome.enabled",false);user_pref("datareporting.policy.firstRunURL","");')
     subprocess.run(['chown','-R','zaza:zaza',str(profile)],check=True)
-    server=spawn(['python3',str(root/'browser-paste-server.py'),'--html',str(root/'clipboard-paste.html'),'--log',str(root/'browser-pastes.json')],'browser-server.log')
+    browser_port=(root/'browser-port').read_text()
+    server=spawn(['python3',str(root/'browser-paste-server.py'),'--html',str(root/'clipboard-paste.html'),'--log',str(root/'browser-pastes.json'),'--port',browser_port],'browser-server.log')
     time.sleep(.3)
-    browser=spawn(['firefox','--no-remote','--profile',str(profile),'--new-window','http://127.0.0.1:19580/'],'browser.log')
+    engine=(root/'browser-engine').read_text()
+    if engine=='firefox':
+        command=['firefox','--no-remote','--profile',str(profile),'--new-window','http://127.0.0.1:'+browser_port+'/']
+    else:
+        assert engine=='chromium'
+        # Chromium runs as the test user inside the disposable desktop only.
+        # Its sandbox flag is private to this lab process, never production.
+        command=['chromium','--no-sandbox','--no-first-run','--disable-background-networking',
+                 '--disable-component-update','--disable-sync','--user-data-dir='+str(profile),
+                 '--new-window','http://127.0.0.1:'+browser_port+'/']
+    if (root/'browser-x11-trace').exists():
+        # Diagnostic proxy only: zero displayed list elements suppress image
+        # bytes. All applications/data remain confined to the private desktop.
+        command=['xtrace','-d',env()['DISPLAY'],'-D',':'+str(int(env()['DISPLAY'][1:])+1),'-n','-m','0','-b','-o',str(root/'browser-x11.log'),'--',*command]
+    if (root/'browser-syscall-trace').exists():
+        # Trace the native main process without proxying its X11 connection.
+        # -s 0 prevents recording any read/write payload, including clipboard.
+        command=['strace','-ttt','-T','-s','0','-e','trace=poll,ppoll,read,write,writev,recvmsg,recvfrom','-o',str(root/'browser-syscall.log'),'--',*command]
+    browser=spawn(command,'browser.log')
     deadline=time.monotonic()+8
     while True:
         r=user(['xdotool','search','--name','PoolSync clipboard paste test'],env=env())
@@ -380,10 +420,20 @@ elif op=='key_window':
         if r.returncode==0:break
         time.sleep(.1)
     assert r.returncode==0
-    r=user(['xdotool','windowfocus','--sync',r.stdout.decode().splitlines()[-1]],env=env());assert r.returncode==0
+    window=r.stdout.decode().splitlines()[-1];(root/'key-window').write_text(window)
+    r=user(['xdotool','windowfocus','--sync',window],env=env());assert r.returncode==0
 elif op=='received_key':
     try:output=json.loads((root/'remote-key.json').read_text())
     except (FileNotFoundError,json.JSONDecodeError):output={}
+elif op=='key_window_focus':
+    # Keep the actual receiver identity across browser window changes. Mapping
+    # it is a native window operation, never a fabricated clipboard event.
+    window=(root/'key-window').read_text()
+    r=user(['xwininfo','-id',window],env=env())
+    if r.returncode:
+        (root/'key-window-failure.log').write_bytes(user(['xwininfo','-root','-tree'],env=env()).stdout)
+    assert r.returncode==0, 'native keyboard receiver window disappeared'
+    r=user(['xdotool','windowmap','--sync',window,'windowraise',window,'windowfocus','--sync',window],env=env());assert r.returncode==0;output=True
 elif op=='input_diagnostics':
     focused=user(['xdotool','getwindowfocus'],env=env())
     output={'focused_window':focused.stdout.decode().strip()}
@@ -489,8 +539,14 @@ def main():
     parser.add_argument('--peer-tls', action='store_true', help='Use private test CA/certificates and process-local trust for native TLS peer connections')
     parser.add_argument('--legacy-peer-c', type=Path, help='Qualify negotiated fallback against an existing legacy C agent binary')
     parser.add_argument('--expected-legacy-sha256', help='Required exact binary hash when --legacy-peer-c is used')
+    parser.add_argument('--rolling-upgrade-from', type=Path, help='Start all three peers on an older binary, pause the whole private pool and replace peers sequentially')
+    parser.add_argument('--expected-starting-sha256', help='Exact starting executable required by --rolling-upgrade-from')
     parser.add_argument('--mixed-workload-seconds', type=int, default=0, help='Keep native captured input active during image/text paste transfers')
+    parser.add_argument('--mixed-browser-pastes', type=int, default=1, help='Repeat native browser image paste with a window change during each mixed round')
+    parser.add_argument('--native-browser-engine', choices=('firefox','chromium'), default='firefox', help='Native browser implementation exercised by real Ctrl+V')
     parser.add_argument('--mixed-diagnostic-only', action='store_true', help='Skip the already qualified clipboard primer and stop after the focused mixed-traffic diagnostic')
+    parser.add_argument('--browser-x11-trace', action='store_true', help='Trace the isolated native browser via xtrace; diagnostic runs only')
+    parser.add_argument('--browser-syscall-trace', action='store_true', help='Trace native main-process I/O without payload bytes; diagnostic runs only')
     parser.add_argument('--fragment-preemption', action='store_true', help='Supersede an observed partial image and leave/rejoin while a source transfer is unfinished')
     parser.add_argument('--screen-changes', action='store_true', help='Qualify private-display docking, resolution changes and undocking')
     parser.add_argument('--network-loss', action='store_true', help='Drop only candidate TCP traffic in its network namespace, then recover')
@@ -521,11 +577,17 @@ def main():
     assert 0<=args.peer_rate_mbit<=1000, '--peer-rate-mbit must be within 0..1000'
     assert not args.peer_rate_mbit or args.hubless, 'bandwidth qualification requires --hubless'
     assert 0<=args.mixed_workload_seconds<=1200
+    assert 1<=args.mixed_browser_pastes<=50
+    assert args.mixed_browser_pastes==1 or (args.mixed_workload_seconds and args.native_browser), 'repeated browser paste requires the mixed native browser workload'
     assert not (args.mixed_workload_seconds or args.fragment_preemption) or (args.three_kvm_peers and args.large_images and not args.kvm_only), 'mixed/fragment qualification requires three hubless KVM peers and large clipboard images'
     assert not args.fragment_preemption or args.peer_rate_mbit, 'fragment preemption requires an observed constrained transfer'
     assert not args.mixed_diagnostic_only or (args.mixed_workload_seconds and args.native_browser), 'focused mixed diagnostic requires native browser and mixed workload'
+    assert not args.browser_x11_trace or args.native_browser, 'X11 browser trace requires the native browser'
+    assert not args.browser_syscall_trace or (args.native_browser and not args.browser_x11_trace), 'syscall trace requires the native browser without an X11 proxy'
+    assert not (args.browser_x11_trace or args.browser_syscall_trace) or args.native_browser_engine=='firefox', 'diagnostic tracing is scoped to Firefox'
     assert not args.legacy_peer_c or args.expected_legacy_sha256, 'legacy peer requires its exact expected hash'
     assert not args.legacy_peer_c or not args.peer_rate_mbit, 'legacy fallback qualification uses the normal link; constrained legacy bulk failure is already retained'
+    assert not args.rolling_upgrade_from or (args.expected_starting_sha256 and args.three_kvm_peers and not args.legacy_peer_c and not args.reboot_desktops), 'cohort upgrade requires three KVM peers, an exact starting hash and no legacy/reboot fixture'
     assert not args.reboot_desktops or args.fresh_desktops, 'Reboots require disposable fresh desktops'
     assert not args.participation_only or args.hubless, '--participation-only requires --hubless'
     assert not args.lossless_only or args.clipboard_races, '--lossless-only requires --clipboard-races'
@@ -535,6 +597,8 @@ def main():
     assert actual == args.expected_sha256, 'Unexpected candidate binary'
     if args.legacy_peer_c:
         assert hashlib.file_digest(args.legacy_peer_c.open('rb'),'sha256').hexdigest()==args.expected_legacy_sha256, 'Unexpected legacy peer binary'
+    if args.rolling_upgrade_from:
+        assert hashlib.file_digest(args.rolling_upgrade_from.open('rb'),'sha256').hexdigest()==args.expected_starting_sha256, 'Unexpected cohort starting binary'
     run_id = uuid.uuid4().hex[:12]
     root = '/tmp/poolsync-no-hub-' + run_id
     artifacts = args.output.parent / ('private-' + run_id)
@@ -554,6 +618,7 @@ def main():
               'isolated_xorg_display': args.display,
               'receiver_mode': 'native GTK paste handler sampled once per second',
               'checks': checks, 'paste_convergence_seconds': latencies, 'native_copy_owners': copies}
+    result['harness_sha256'] = HARNESS_SHA256
     result['direct_links']=args.links
     result['three_kvm_peers']=args.three_kvm_peers
     result['fresh_desktops']=args.fresh_desktops
@@ -561,8 +626,14 @@ def main():
     result['allocator']={'arena_max':2,'mmap_threshold':131072} if args.bounded_allocator else 'system default'
     result['network_fixture']={'per_direction_rate_mbit':args.peer_rate_mbit,'per_peer_disposable_proxy':bool(args.peer_rate_mbit),'central_proxy':False,'partition_ports':sorted({port,peer_wire_port})}
     result['peer_tls']=args.peer_tls
+    result['browser_x11_trace']=args.browser_x11_trace
+    result['browser_syscall_trace']=args.browser_syscall_trace
+    result['native_browser_engine']=args.native_browser_engine if args.native_browser else None
+    browser_name={'firefox':'Firefox','chromium':'Chromium'}[args.native_browser_engine]
     result['qualification_scope']='focused mixed native clipboard/input diagnostic' if args.mixed_diagnostic_only else 'full selected scenarios'
     result['peer_binary_sha256']=[actual,actual,args.expected_legacy_sha256 if args.legacy_peer_c else actual]
+    starting_hashes=[args.expected_starting_sha256]*3 if args.rolling_upgrade_from else result['peer_binary_sha256']
+    result['initial_peer_binary_sha256']=starting_hashes
     browser_fixtures={name:Path(__file__).with_name(name).read_text() for name in ('browser-paste-server.py','clipboard-paste.html')} if args.native_browser else {}
     result['browser_fixture_sha256']={name:hashlib.sha256(contents.encode()).hexdigest() for name,contents in browser_fixtures.items()}
     resource_samples=[]
@@ -651,6 +722,17 @@ def main():
                 else:network_rules.remove(item)
 
     try:
+        # Reject missing native applications before changing any lab session.
+        if args.native_browser:
+            version=subprocess.run(['podman','exec',args.containers[1],args.native_browser_engine,'--version'],capture_output=True,text=True,timeout=10)
+            assert version.returncode==0, 'Selected native browser is unavailable in desktop B'
+            result['native_browser_version']=version.stdout.strip()[:256]
+        if args.large_images and not args.kvm_only:
+            screenshot_application='flameshot' if args.flameshot else 'xfce4-screenshooter'
+            available=subprocess.run(['podman','exec',args.containers[0],'python3','-c',
+                'import shutil,sys;sys.exit(0 if shutil.which(sys.argv[1]) else 1)',screenshot_application],capture_output=True,timeout=10)
+            assert available.returncode==0, screenshot_application+' is unavailable in desktop A'
+            result['native_screenshot_application']=screenshot_application
         tls_material={}
         if args.peer_tls:
             security=artifacts/'tls';security.mkdir(mode=0o700)
@@ -689,8 +771,8 @@ def main():
                           'direction="right"' if j > index else 'direction="left"',
                           f'peer_url="{"wss" if args.peer_tls else "ws"}://{args.addresses[j]}:{peer_wire_port}/ws"']
             layout={'revision':1,'origin':'nohub-a','topology':{'nodes':{name:{'x':j*1600,'y':0,'width':1600,'height':900,'kvm_enabled':j!=2 or args.three_kvm_peers} for j,name in enumerate(nodes)}}}
-            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),lossless_fixture=Path(__file__).with_name('lossless-image-owner.py').read_text(),bandwidth_proxy=Path(__file__).with_name('peer-bandwidth-proxy.py').read_text() if args.peer_rate_mbit else None,browser_fixtures=browser_fixtures,trace_transport=bool(args.peer_rate_mbit or args.mixed_workload_seconds or args.legacy_peer_c),tls=tls_material.get(index),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
-            peer_binary=args.legacy_peer_c if index==2 and args.legacy_peer_c else args.candidate
+            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),lossless_fixture=Path(__file__).with_name('lossless-image-owner.py').read_text(),bandwidth_proxy=Path(__file__).with_name('peer-bandwidth-proxy.py').read_text() if args.peer_rate_mbit else None,browser_fixtures=browser_fixtures,browser_engine=args.native_browser_engine,trace_transport=bool(args.peer_rate_mbit or args.mixed_workload_seconds or args.legacy_peer_c),tls=tls_material.get(index),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,browser_x11_trace=args.browser_x11_trace and index==1,browser_syscall_trace=args.browser_syscall_trace and index==1,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
+            peer_binary=args.rolling_upgrade_from or (args.legacy_peer_c if index==2 and args.legacy_peer_c else args.candidate)
             subprocess.run(['podman', 'cp', str(peer_binary), args.containers[index] + ':' + root + '/candidate-agent'], check=True, capture_output=True)
             subprocess.run(['podman', 'exec', args.containers[index], 'chmod', '755', root + '/candidate-agent'], check=True, capture_output=True)
         for index in range(3):
@@ -705,8 +787,44 @@ def main():
         time.sleep(4)
         health = [op(i, 'health', port=port) for i in range(3)]
         check('Cold start: isolated agents run with hub unreachable', all(h['listener'] and h['isolated_environment'] and not h['hub_reachable'] and not h['hub_connected_logged'] for h in health))
-        check('Every isolated peer executes its expected candidate binary',all(h['executing_sha256']==expected for h,expected in zip(health,result['peer_binary_sha256'])))
+        check('Every isolated peer executes its expected starting binary',all(h['executing_sha256']==expected for h,expected in zip(health,starting_hashes)))
         if args.peer_tls:check('Every private peer listener uses TLS with isolated credentials',all(h['tls_listener'] for h in health))
+        if args.rolling_upgrade_from:
+            config_hashes=[op(i,'private_configuration_hash') for i in range(3)]
+            for index in range(3):op(index,'away',value=True)
+            time.sleep(2)
+            check('Cohort upgrade pauses every old peer before replacing any binary',all(not op(i,'status')['peers'][nodes[i]]['active'] for i in range(3)))
+            check('Every paused old peer retains native local keyboard input',all(op(i,'local_key') for i in range(3)))
+            private_text='Private clipboard during cohort maintenance '+uuid.uuid4().hex
+            op(2,'copy',text=private_text)
+            steps=[];result['rolling_upgrade']={'starting_sha256':args.expected_starting_sha256,'candidate_sha256':actual,'steps':steps}
+            for index in (1,2,0):
+                old_pid=agents.pop(index);op(index,'stop',pid=old_pid)
+                subprocess.run(['podman','cp',str(args.candidate),args.containers[index]+':'+root+'/candidate-agent-next'],check=True,capture_output=True)
+                op(index,'install_private_candidate',previous_sha256=args.expected_starting_sha256,candidate_sha256=actual)
+                agents[index]=op(index,'start');deadline=time.monotonic()+15
+                while time.monotonic()<deadline:
+                    h=op(index,'health',port=port);status=op(index,'status')
+                    if h['executing_sha256']==actual and h['listener'] and status.get('peers',{}).get(nodes[index],{}).get('active') is False:break
+                    time.sleep(.1)
+                else:raise AssertionError('New peer did not start in the maintained absence state')
+                preserved=op(index,'private_configuration_hash')==config_hashes[index]
+                check('Paused '+nodes[index]+' replaces only its private executable',preserved)
+                steps.append({'node':nodes[index],'old_pid':old_pid,'new_pid':agents[index],'running_sha256':actual,'configuration_preserved':preserved,'absence_preserved':True})
+                assert all(not op(i,'status')['peers'][nodes[i]]['active'] for i in range(3)), 'A mixed-version peer resumed during maintenance'
+            check('The full cohort executes the new binary before participation resumes',all(op(i,'health',port=port)['executing_sha256']==actual for i in range(3)))
+            for index in range(3):op(index,'away',value=False)
+            deadline=time.monotonic()+15
+            while time.monotonic()<deadline:
+                if all(op(i,'status')['peers'][nodes[i]]['active'] for i in range(3)):break
+                time.sleep(.1)
+            else:raise AssertionError('Updated cohort participation did not resume')
+            time.sleep(2)
+            check('A private maintenance copy is not replayed when the upgraded cohort rejoins',all(op(i,'text')!=private_text for i in (0,1)))
+            copy_text(0,'Fresh public copy after cohort maintenance')
+            check('Fresh native clipboard delivery resumes after the cohort upgrade')
+            metrics=[op(i,'transport_metrics') for i in range(3)];result['rolling_upgrade']['transport_metrics']=metrics
+            check('The resumed cohort negotiates fragments on every peer',all(m['fragment_sessions']>0 for m in metrics))
         if args.legacy_peer_c:
             metrics=[op(i,'transport_metrics') for i in range(3)];result['compatibility_transport_metrics']=metrics
             check('New A/B negotiate fragments and B falls back to legacy C',metrics[0]['fragment_sessions']>0 and metrics[1]['fragment_sessions']>0 and metrics[1]['legacy_sessions']>0 and not metrics[2]['fragmented_started'])
@@ -800,20 +918,20 @@ def main():
                     while time.monotonic()<deadline:
                         if any(e['at']>=started and e.get('sha256')==images[0][image]['sha256'] for e in op(1,'browser_records')):break
                         time.sleep(.2)
-                    else:raise AssertionError('Native Firefox did not paste the '+image+' image')
-                    check('Native Firefox Ctrl+V pastes the '+image+' image with matching RGBA pixels')
+                    else:raise AssertionError(f'Native {browser_name} did not paste the '+image+' image')
+                    check(f'Native {browser_name} Ctrl+V pastes the '+image+' image with matching RGBA pixels')
                 text=copy_text(0,'Native browser text after screenshots');started=time.time();op(1,'browser_paste');deadline=time.monotonic()+8
                 while time.monotonic()<deadline:
                     if any(e['at']>=started and e.get('sha256')==hashlib.sha256(text.encode()).hexdigest() for e in op(1,'browser_records')):break
                     time.sleep(.2)
-                else:raise AssertionError('Native Firefox did not paste the fresh text')
-                check('Native Firefox Ctrl+V pastes text after images')
+                else:raise AssertionError(f'Native {browser_name} did not paste the fresh text')
+                check(f'Native {browser_name} Ctrl+V pastes text after images')
                 started=time.time();op(0,'copy',image='first');expect((0,1,2),images[0]['first'],started);op(1,'browser_paste');deadline=time.monotonic()+8
                 while time.monotonic()<deadline:
                     if any(e['at']>=started and e.get('sha256')==images[0]['first']['sha256'] for e in op(1,'browser_records')):break
                     time.sleep(.2)
-                else:raise AssertionError('Native Firefox did not paste an image after text')
-                check('Native Firefox Ctrl+V pastes an image after text')
+                else:raise AssertionError(f'Native {browser_name} did not paste an image after text')
+                check(f'Native {browser_name} Ctrl+V pastes an image after text')
                 result['native_browser_paste']=True
 
             if args.large_images:
@@ -825,8 +943,8 @@ def main():
                         while time.monotonic()<deadline:
                             if any(e['at']>=started and e.get('sha256')==images[0][image]['sha256'] for e in op(1,'browser_records')):break
                             time.sleep(.2)
-                        else:raise AssertionError('Native Firefox did not paste a full-HD PNG')
-                        check('Native Firefox pastes the full-HD '+image+' PNG')
+                        else:raise AssertionError(f'Native {browser_name} did not paste a full-HD PNG')
+                        check(f'Native {browser_name} pastes the full-HD '+image+' PNG')
                 copy_text(0,'Native text following a full-HD image')
                 started=time.time();screenshot=op(0,'screenshot',app='flameshot' if args.flameshot else 'xfce');expect((0,1,2),screenshot,started)
                 check('A real '+('Flameshot' if args.flameshot else 'XFCE')+' screenshot survives application close and pastes on every peer')
@@ -844,8 +962,8 @@ def main():
                             while time.monotonic()<deadline:
                                 if any(e['at']>=started and e.get('sha256')==images[0]['first']['sha256'] for e in op(1,'browser_records')):break
                                 time.sleep(.2)
-                            else:raise AssertionError('Native Firefox did not paste the lossless image')
-                            check('Native Firefox preserves lossless pixels after '+label)
+                            else:raise AssertionError(f'Native {browser_name} did not paste the lossless image')
+                            check(f'Native {browser_name} preserves lossless pixels after '+label)
                         copy_text(0,'Fresh native copy ends '+label)
                     finally:op(0,'stop',pid=owner)
                 if args.lossless_only:
@@ -861,8 +979,8 @@ def main():
                         while time.monotonic()<deadline:
                             if any(e['at']>=started and e.get('sha256')==images[1][image]['sha256'] for e in op(1,'browser_records')):break
                             time.sleep(.2)
-                        else:raise AssertionError('Native Firefox did not paste the converted BMP')
-                        check('Native Firefox pastes the fresh converted '+image+' BMP')
+                        else:raise AssertionError(f'Native {browser_name} did not paste the converted BMP')
+                        check(f'Native {browser_name} pastes the fresh converted '+image+' BMP')
                 started=time.time();handoff=op(0,'handoff')
                 expect((0,1,2),images[0]['second'],started)
                 deadline=time.monotonic()+5
@@ -950,26 +1068,32 @@ def main():
                         with ThreadPoolExecutor(max_workers=1) as executor:
                             pulse_until(executor.submit(expect,(0,1,2),images[source][image],since))
                         if args.native_browser:
-                            op(1,'browser_paste');deadline=time.monotonic()+10
-                            while time.monotonic()<deadline:
-                                if any(e['at']>=since and e.get('sha256')==images[source][image]['sha256'] for e in op(1,'browser_records')):break
-                                time.sleep(.2)
-                            else:
-                                result['browser_failure']={'requested_after':since,'records':op(1,'browser_records'),
-                                    'diagnostics':op(1,'browser_diagnostics'),
-                                    'input_diagnostics':[op(i,'input_diagnostics') for i in range(3)]}
-                                raise AssertionError('Browser image paste failed while C control remained active')
+                            def paste_mixed_image():
+                                for paste_round in range(args.mixed_browser_pastes):
+                                    if args.mixed_browser_pastes>1:op(1,'key_window_focus')
+                                    paste_since=time.time();op(1,'browser_paste');deadline=time.monotonic()+10
+                                    while time.monotonic()<deadline:
+                                        if any(e['at']>=paste_since and e.get('sha256')==images[source][image]['sha256'] for e in op(1,'browser_records')):break
+                                        time.sleep(.2)
+                                    else:
+                                        result['browser_failure']={'requested_after':paste_since,'mixed_round':rounds,'paste_round':paste_round,
+                                            'records':op(1,'browser_records'),'diagnostics':op(1,'browser_diagnostics'),
+                                            'input_diagnostics':[op(i,'input_diagnostics') for i in range(3)]}
+                                        raise AssertionError('Browser image paste failed while C control remained active')
+                            with ThreadPoolExecutor(max_workers=1) as executor:
+                                pulse_until(executor.submit(paste_mixed_image))
                         with ThreadPoolExecutor(max_workers=1) as executor:
                             pulse_until(executor.submit(copy_text,1,'Fresh text during active KVM round '+str(rounds)))
                         rounds+=1
                         print(json.dumps({'mixed_progress':{'elapsed_seconds':round(time.monotonic()-mixed_started,1),'image_text_rounds':rounds,'fresh_native_keys':len(key_latencies),'maximum_native_key_seconds':max(key_latencies) if key_latencies else None}}),flush=True)
                     after_resources=[op(i,'resources') for i in range(3)]
                     result['mixed_workload']={'elapsed_seconds':round(time.monotonic()-mixed_started,3),'large_image_text_rounds':rounds,
+                        'native_browser_pastes_per_round':args.mixed_browser_pastes if args.native_browser else 0,
                         'native_key_latency_seconds':key_latencies,'unchanged_lease':baseline,
                         'transport_metrics':[op(i,'transport_metrics') for i in range(3)],
                         'resources':[{'node':node,'cpu_percent':100*(b['cpu_seconds']-a['cpu_seconds'])/(b['at']-a['at']),'rss_start_kib':a['rss_kib'],'rss_end_kib':b['rss_kib'],'pid_preserved':a['pid']==b['pid']} for node,a,b in zip(nodes,before_resources,after_resources)]}
                     check('Large image/text traffic preserves active C control and fresh native GTK keys',bool(key_latencies) and max(key_latencies)<1 and all(a['pid']==b['pid'] for a,b in zip(before_resources,after_resources)))
-                    if args.native_browser:check('Native Firefox pastes the mixed-workload images while C remains controlled')
+                    if args.native_browser:check(f'Native {browser_name} pastes the mixed-workload images while C remains controlled')
                     if args.mixed_diagnostic_only:
                         result['functional_checks_passed']=True;result['serverless_kvm']=True
                         return

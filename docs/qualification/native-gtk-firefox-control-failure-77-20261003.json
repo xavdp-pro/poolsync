@@ -1,0 +1,319 @@
+{
+  "poolsync_process_started": false,
+  "display": ":112",
+  "engine": "firefox",
+  "rounds_requested": 3,
+  "pastes_per_round": 12,
+  "native_pastes": [
+    {
+      "round": 0,
+      "paste": 0,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 1,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 2,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 3,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 4,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 5,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 6,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 7,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    },
+    {
+      "round": 0,
+      "paste": 8,
+      "pixel_sha256": "02ecf455f803f4835fd481f96527697f49dc55ed67f4bbcde40f9f42ae999e79"
+    }
+  ],
+  "native_text_pastes": 0,
+  "original_desktop_mutation_requested": false,
+  "source_sha256": {
+    "native-browser-control-test.py": "436ed1267aadacb3537b8f026f21c1ff5f52709da77a7a5462404fea1b0409ba",
+    "no-hub-desktop-test.py": "3b6e784502b19bc7578986c4963aefd3f5e43e944a3305e25dce9eb87b53b1aa",
+    "browser-paste-server.py": "d0d85d45b89b776ce85662fca6b8921b3481fd182309aeaca9757b1b64c37cef",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "browser_version": "Mozilla Firefox 140.16.0esr",
+  "failed_paste": {
+    "round": 0,
+    "paste": 9,
+    "diagnostics": [
+      {
+        "at": 1790994191.0583634,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994194.0456204,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994194.0472243,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994194.0983403,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994195.2222161,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994196.159527,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994196.1786282,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994197.284024,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994198.2465186,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994198.2664745,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994199.301201,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994200.260125,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994200.2776492,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994201.3461282,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994202.321154,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994202.350524,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994203.5953586,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994204.5699875,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994204.6309135,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994206.345542,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994207.4871695,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994207.5449774,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994209.0212564,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994210.0353417,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994210.051871,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994211.1447031,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994212.2016454,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994212.2449548,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263749
+      },
+      {
+        "at": 1790994213.4201372,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790994213.4304702,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790994214.44001,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 0,
+        "first_image_bytes": 0
+      }
+    ]
+  },
+  "functional_checks_passed": false,
+  "error": "Native GTK-to-browser image retrieval failed without PoolSync",
+  "original_state_preserved": true,
+  "cleanup_errors": [],
+  "cleanup_passed": true,
+  "diagnostic_summary": {
+    "native_clipboard_owner": "Standard Python GTK set_image process",
+    "poolsync_on_test_display": false,
+    "successful_image_pastes_before_failure": 9,
+    "failed_image_paste_number": 10,
+    "failure_event_image_files": 0,
+    "firefox_widgetclipboard_timeout_observed": true,
+    "production_firefox_impact_qualified": false
+  }
+}

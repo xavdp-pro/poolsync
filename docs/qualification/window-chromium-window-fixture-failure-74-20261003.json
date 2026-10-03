@@ -1,0 +1,390 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected candidate binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real XFCE screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Relay fixture has no direct candidate TCP connection between A and C",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.573,
+    1.716,
+    1.775,
+    1.727,
+    1.106,
+    1.957,
+    2.224,
+    1.603,
+    1.51,
+    1.525,
+    16.064,
+    16.224,
+    3.782,
+    1.717,
+    16.185,
+    1.636,
+    15.663,
+    1.893,
+    15.803
+  ],
+  "native_copy_owners": [
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3601557,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 27262978,
+      "copier_pid": 839108,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3601785,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3601970,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 29360130,
+      "copier_pid": 2229567,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 839772,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3602923,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3603093,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3603230,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3603368,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3603494,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 35651586,
+      "copier_pid": 3604437,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3605395,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 33554434,
+      "copier_pid": 3606814,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 50331650,
+      "copier_pid": 2235502,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 44040194,
+      "copier_pid": 847953,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 29360130,
+      "copier_pid": 2237360,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3611054,
+      "timestamp": null,
+      "kind": "image"
+    }
+  ],
+  "direct_links": "chain",
+  "three_kvm_peers": true,
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 20.0,
+    "per_peer_disposable_proxy": true,
+    "central_proxy": false,
+    "partition_ports": [
+      19676,
+      19686
+    ]
+  },
+  "peer_tls": true,
+  "browser_x11_trace": false,
+  "browser_syscall_trace": false,
+  "native_browser_engine": "chromium",
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {
+    "browser-paste-server.py": "d0d85d45b89b776ce85662fca6b8921b3481fd182309aeaca9757b1b64c37cef",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1841,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.2",
+        "10.89.2.3"
+      ]
+    ],
+    [
+      [
+        "10.89.2.3",
+        "10.89.2.5"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.2"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ],
+    [
+      [
+        "10.89.2.5",
+        "10.89.2.3"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ]
+  ],
+  "functional_checks_passed": false,
+  "error": "neko-desk-b: key_window_focus failed; see private diagnostics",
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 27,
+  "diagnostic_summary": {
+    "completed_mixed_image_text_rounds": 2,
+    "requested_browser_pastes_per_round": 12,
+    "last_completed_round_keys": 41,
+    "last_completed_round_maximum_key_seconds": 0.5329,
+    "failure_stage": "Keyboard receiver focus fixture could not find its titled visible window",
+    "native_browser_retrieval_failure_established": false,
+    "native_browser_records": 40,
+    "image_records": 39
+  }
+}

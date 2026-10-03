@@ -1,5 +1,9 @@
 # Recovering remote input after an agent process disappears
 
+Current production subsequently moves to the qualified windowed transport; see
+[HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md](HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md).
+The earlier results below retain their original executable scope.
+
 ## Retained failure and correction
 
 The lease-resynchronization candidate `214d2413` passes the scoped chain and

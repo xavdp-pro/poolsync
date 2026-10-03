@@ -18,7 +18,7 @@ HOOK = '''<script>
 const tracePaste=(event,extra={})=>fetch('/diagnostic',{method:'POST',body:JSON.stringify({event,
   paste_target_focused:document.activeElement===$('pasteTarget'),document_focused:document.hasFocus(),...extra})}).catch(()=>{});
 window.addEventListener('focus',()=>{$('pasteTarget').focus();tracePaste('focus');});
-window.addEventListener('keydown',event=>{if(event.ctrlKey&&event.code==='KeyV')tracePaste('paste-shortcut');},true);
+window.addEventListener('keydown',event=>{if(event.ctrlKey&&event.code==='KeyV')tracePaste('paste-shortcut',{shift_key:event.shiftKey,alt_key:event.altKey,meta_key:event.metaKey});},true);
 document.addEventListener('paste',event=>{const images=Array.from(event.clipboardData.files).filter(file=>file.type.startsWith('image/'));
   tracePaste('paste-dispatch',{image_files:images.length,first_image_bytes:images[0]?.size||0});},true);
 const nativeImageReceiver=receiveImage;
@@ -82,6 +82,10 @@ def main():
                 if record.get('event') not in ('focus','paste-shortcut','paste-dispatch','image-error') or any(type(record.get(k)) is not bool for k in ('paste_target_focused','document_focused')):
                     self.send_error(400);return
                 fields=('event','paste_target_focused','document_focused')
+                if record['event']=='paste-shortcut':
+                    if any(type(record.get(k)) is not bool for k in ('shift_key','alt_key','meta_key')):
+                        self.send_error(400);return
+                    fields+=('shift_key','alt_key','meta_key')
                 if record['event']=='paste-dispatch':
                     if any(type(record.get(k)) is not int or not 0<=record[k]<=64*1024*1024 for k in ('image_files','first_image_bytes')):
                         self.send_error(400);return

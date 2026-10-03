@@ -1,0 +1,861 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": true,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected candidate binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real XFCE screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Relay fixture has no direct candidate TCP connection between A and C",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Large image/text traffic preserves active C control and fresh native GTK keys",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the mixed-workload images while C remains controlled",
+      "passed": true
+    },
+    {
+      "name": "A can return from C to B without changing controller",
+      "passed": true
+    },
+    {
+      "name": "A can return through B to its own native desktop",
+      "passed": true
+    },
+    {
+      "name": "Emergency shortcut returns captured input to A",
+      "passed": true
+    },
+    {
+      "name": "Emergency return releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "A held modifier is injected on B",
+      "passed": true
+    },
+    {
+      "name": "Controller disappearance releases the held modifier on B",
+      "passed": true
+    },
+    {
+      "name": "B native keyboard is usable after the controller disappears",
+      "passed": true
+    },
+    {
+      "name": "B takes control and crosses to A after A restarts",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing remains on A despite repeated software warps on captured B",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing still forwards relative device motion to A",
+      "passed": true
+    },
+    {
+      "name": "A temporary departure returns B input locally",
+      "passed": true
+    },
+    {
+      "name": "B local GTK keyboard works after its remote target leaves",
+      "passed": true
+    },
+    {
+      "name": "Absent C neither receives nor retains office copies",
+      "passed": true
+    },
+    {
+      "name": "Absent C does not send its private copy",
+      "passed": true
+    },
+    {
+      "name": "Absence survives agent restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Rejoin does not replay the private clipboard",
+      "passed": true
+    },
+    {
+      "name": "Fresh native copies resume after rejoin without hub",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 0",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 1",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 2",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 3",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 4",
+      "passed": true
+    },
+    {
+      "name": "A local clipboard remains usable after the relay agent disappears",
+      "passed": true
+    },
+    {
+      "name": "Disconnected chain C does not receive a new isolated copy",
+      "passed": true
+    },
+    {
+      "name": "Direct links recover after relay restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Reverse-order agent restart restores native mesh delivery",
+      "passed": true
+    },
+    {
+      "name": "Hub stayed unreachable throughout; agents report no panic",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.739,
+    1.096,
+    1.881,
+    1.083,
+    1.481,
+    1.828,
+    1.544,
+    1.697,
+    1.152,
+    1.765,
+    16.57,
+    16.541,
+    4.575,
+    1.273,
+    16.04,
+    1.731,
+    15.877,
+    2.062,
+    16.802,
+    1.849,
+    16.003,
+    1.743,
+    16.536,
+    1.825,
+    16.403,
+    1.921,
+    1.686,
+    1.421,
+    0.727,
+    1.298,
+    1.915,
+    1.027,
+    1.604,
+    1.837,
+    1.438,
+    1.982,
+    1.634,
+    1.03,
+    1.399,
+    1.768,
+    0.881,
+    1.809,
+    1.633,
+    1.083,
+    1.352,
+    1.849,
+    1.06,
+    1.738,
+    1.99
+  ],
+  "native_copy_owners": [
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3475265,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 680909,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3475457,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3475643,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 29360130,
+      "copier_pid": 2121941,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 681512,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3476748,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3476881,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3477021,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3477134,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3477264,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3478267,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3479228,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3480662,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 39845890,
+      "copier_pid": 2127447,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 44040194,
+      "copier_pid": 688952,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 41943042,
+      "copier_pid": 2128386,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3483015,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 46137346,
+      "copier_pid": 2129411,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 691803,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 41943042,
+      "copier_pid": 2130401,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3485436,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 46137346,
+      "copier_pid": 2131437,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 44040194,
+      "copier_pid": 694767,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 41943042,
+      "copier_pid": 2132446,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 35651586,
+      "copier_pid": 3490461,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3491034,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 700242,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3491627,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3492017,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 701468,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3492223,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 33554434,
+      "copier_pid": 3492317,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 37748738,
+      "copier_pid": 701941,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3492655,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3492782,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 702493,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3493080,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3493176,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 702989,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 33554434,
+      "copier_pid": 3493468,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3493564,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 703448,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3493874,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3493968,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3494258,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 704413,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 704635,
+      "timestamp": null,
+      "kind": "text"
+    }
+  ],
+  "direct_links": "chain",
+  "three_kvm_peers": true,
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 20.0,
+    "per_peer_disposable_proxy": true,
+    "central_proxy": false,
+    "partition_ports": [
+      19676,
+      19686
+    ]
+  },
+  "peer_tls": true,
+  "browser_x11_trace": false,
+  "browser_syscall_trace": true,
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {
+    "browser-paste-server.py": "d0d85d45b89b776ce85662fca6b8921b3481fd182309aeaca9757b1b64c37cef",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1654,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.2",
+        "10.89.2.3"
+      ]
+    ],
+    [
+      [
+        "10.89.2.3",
+        "10.89.2.5"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.2"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ],
+    [
+      [
+        "10.89.2.5",
+        "10.89.2.3"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ]
+  ],
+  "mixed_workload": {
+    "elapsed_seconds": 130.014,
+    "large_image_text_rounds": 6,
+    "native_key_latency_seconds": [
+      0.2181,
+      0.3143,
+      0.2998,
+      0.2728,
+      0.3068,
+      0.3587,
+      0.4037,
+      0.3961,
+      0.2134,
+      0.1982,
+      0.1992,
+      0.2099,
+      0.2023,
+      0.2272,
+      0.2183,
+      0.3084,
+      0.2919,
+      0.2178,
+      0.2658,
+      0.271,
+      0.2197,
+      0.2211,
+      0.325,
+      0.3299,
+      0.2882,
+      0.4338,
+      0.5011,
+      0.3135,
+      0.3647,
+      0.2438,
+      0.207,
+      0.1612,
+      0.2027,
+      0.1658,
+      0.2047,
+      0.2202,
+      0.4749,
+      0.195,
+      0.2014,
+      0.1807,
+      0.2402,
+      0.218,
+      0.1682,
+      0.206,
+      0.3437,
+      0.311,
+      0.3279,
+      0.3547,
+      0.3253,
+      0.3145,
+      0.3195,
+      0.4076,
+      0.1952,
+      0.2384,
+      0.1814,
+      0.215,
+      0.155,
+      0.2471,
+      0.2852,
+      0.4123,
+      0.1875,
+      0.1989,
+      0.1987,
+      0.2079,
+      0.2234,
+      0.1841
+    ],
+    "unchanged_lease": {
+      "focus": "nohub-c",
+      "owner": "nohub-a",
+      "term": 1
+    },
+    "transport_metrics": [
+      {
+        "fragmented_started": 6,
+        "fragmented_finished": 6,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 1,
+        "legacy_sessions": 0
+      },
+      {
+        "fragmented_started": 9,
+        "fragmented_finished": 9,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 2,
+        "legacy_sessions": 0
+      },
+      {
+        "fragmented_started": 3,
+        "fragmented_finished": 3,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 1,
+        "legacy_sessions": 0
+      }
+    ],
+    "resources": [
+      {
+        "node": "nohub-a",
+        "cpu_percent": 5.7699504221276126,
+        "rss_start_kib": 99852,
+        "rss_end_kib": 94296,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-b",
+        "cpu_percent": 6.979559349977733,
+        "rss_start_kib": 101052,
+        "rss_end_kib": 108644,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-c",
+        "cpu_percent": 6.439355517460362,
+        "rss_start_kib": 96812,
+        "rss_end_kib": 91600,
+        "pid_preserved": true
+      }
+    ]
+  },
+  "kvm_observation": "Direct peer edge crossing, native GTK key reception, held-key release and target/controller recovery. Input is synthetic X11, not physical acceptance.",
+  "functional_checks_passed": true,
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 56
+}

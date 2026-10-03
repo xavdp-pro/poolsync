@@ -1,0 +1,70 @@
+{
+  "hosts": [
+    {
+      "node": "zaza-desktop",
+      "backup_verified": true,
+      "backup_mode": "0700",
+      "manifest_mode": "0600",
+      "configuration_preserved": true,
+      "layout_preserved": true,
+      "security_files_preserved": true,
+      "security_files_checked": 5,
+      "original_participation_preserved": true,
+      "previous_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+      "current_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+    },
+    {
+      "node": "acer",
+      "backup_verified": true,
+      "backup_mode": "0700",
+      "manifest_mode": "0600",
+      "configuration_preserved": true,
+      "layout_preserved": true,
+      "security_files_preserved": true,
+      "security_files_checked": 3,
+      "original_participation_preserved": true,
+      "previous_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+      "current_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+    },
+    {
+      "node": "asus",
+      "backup_verified": true,
+      "backup_mode": "0700",
+      "manifest_mode": "0600",
+      "configuration_preserved": true,
+      "layout_preserved": true,
+      "security_files_preserved": true,
+      "security_files_checked": 3,
+      "original_participation_preserved": true,
+      "previous_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+      "current_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+    },
+    {
+      "node": "gbs-p2",
+      "backup_verified": true,
+      "backup_mode": "0700",
+      "manifest_mode": "0600",
+      "configuration_preserved": true,
+      "layout_preserved": true,
+      "security_files_preserved": true,
+      "security_files_checked": 3,
+      "original_participation_preserved": true,
+      "previous_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+      "current_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+    },
+    {
+      "node": "gbs-p3",
+      "backup_verified": true,
+      "backup_mode": "0700",
+      "manifest_mode": "0600",
+      "configuration_preserved": true,
+      "layout_preserved": true,
+      "security_files_preserved": true,
+      "security_files_checked": 3,
+      "original_participation_preserved": true,
+      "previous_sha256": "1591699f4a5bd74b2e88639d2b3ed532a8c80082ddaffa6bb7f50c280459a132",
+      "current_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+    }
+  ],
+  "all_five_verified": true
+}

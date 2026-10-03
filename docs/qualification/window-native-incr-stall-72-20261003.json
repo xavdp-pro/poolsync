@@ -1,0 +1,1507 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected candidate binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real XFCE screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Relay fixture has no direct candidate TCP connection between A and C",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.798,
+    1.756,
+    1.501,
+    1.882,
+    2.121,
+    1.786,
+    1.606,
+    1.682,
+    1.527,
+    1.161,
+    15.532,
+    15.442,
+    4.342,
+    1.225,
+    16.641
+  ],
+  "native_copy_owners": [
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3498598,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 709517,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 29360130,
+      "copier_pid": 3498827,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3498993,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 29360130,
+      "copier_pid": 2142070,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 31457282,
+      "copier_pid": 710259,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 29360130,
+      "copier_pid": 3500047,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3500188,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 33554434,
+      "copier_pid": 3500365,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 29360130,
+      "copier_pid": 3500496,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3500602,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 29360130,
+      "copier_pid": 3501508,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3502391,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 29360130,
+      "copier_pid": 3503824,
+      "timestamp": null,
+      "kind": "image"
+    }
+  ],
+  "direct_links": "chain",
+  "three_kvm_peers": true,
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 20.0,
+    "per_peer_disposable_proxy": true,
+    "central_proxy": false,
+    "partition_ports": [
+      19676,
+      19686
+    ]
+  },
+  "peer_tls": true,
+  "browser_x11_trace": false,
+  "browser_syscall_trace": false,
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {
+    "browser-paste-server.py": "d0d85d45b89b776ce85662fca6b8921b3481fd182309aeaca9757b1b64c37cef",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1773,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.2",
+        "10.89.2.3"
+      ]
+    ],
+    [
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.2"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.5"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ],
+    [
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "10.89.2.5",
+        "10.89.2.3"
+      ]
+    ]
+  ],
+  "browser_failure": {
+    "requested_after": 1790990935.2593322,
+    "mixed_round": 0,
+    "paste_round": 0,
+    "records": [
+      {
+        "at": 1790990853.2880237,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "0fa990692b8094e013e35f7952953f319e39afb8f77f7754ba07608e69d5a042",
+        "width": 83,
+        "height": 59
+      },
+      {
+        "at": 1790990855.8984644,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "b499303a86ce1d024805f4b626b61e73f34ab195f02f13629b0b730bf1a06f2c",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1790990857.9169054,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "45500a7e468c3db3af49429291b9d982ef4bff46d0d8140b84cdbe81ebdb8126",
+        "length": 70
+      },
+      {
+        "at": 1790990859.5309892,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "b499303a86ce1d024805f4b626b61e73f34ab195f02f13629b0b730bf1a06f2c",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1790990876.163927,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "2fe27e9a3b2358e788d41ba611b13f369c6f9a8899864a2c746bccd1509d761e",
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "at": 1790990892.6023111,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "98dd6356ea77b9e5cc8dc408e2bd60c6bfd4f92cdb7f70ae5981c07ce615f837",
+        "width": 1920,
+        "height": 1080
+      }
+    ],
+    "diagnostics": [
+      {
+        "at": 1790990843.5165975,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790990844.1498787,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790990853.2605171,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790990853.2635012,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990853.2649846,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 286
+      },
+      {
+        "at": 1790990855.8972113,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990855.8978248,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 711
+      },
+      {
+        "at": 1790990857.9097807,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990857.9117045,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 0,
+        "first_image_bytes": 0
+      },
+      {
+        "at": 1790990859.5138855,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990859.5162847,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 711
+      },
+      {
+        "at": 1790990875.6370928,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990875.6558905,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7263236
+      },
+      {
+        "at": 1790990892.112763,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990892.1407228,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7261514
+      },
+      {
+        "at": 1790990935.5454738,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790990936.5543857,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790990936.6164546,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 0,
+        "first_image_bytes": 0
+      }
+    ],
+    "input_diagnostics": [
+      {
+        "focused_window": "35651587",
+        "received_key": {},
+        "lease": {
+          "focus": "nohub-c",
+          "owner": "nohub-a",
+          "term": 1
+        }
+      },
+      {
+        "focused_window": "33554475",
+        "received_key": {
+          "keyval": 122,
+          "at": 1790990907.8294895
+        },
+        "lease": {
+          "focus": "nohub-c",
+          "owner": "nohub-a",
+          "term": 1
+        }
+      },
+      {
+        "focused_window": "29360131",
+        "received_key": {
+          "keyval": 104,
+          "at": 1790990946.0903661
+        },
+        "lease": {
+          "focus": "nohub-c",
+          "owner": "nohub-a",
+          "term": 1
+        }
+      }
+    ]
+  },
+  "functional_checks_passed": false,
+  "error": "Browser image paste failed while C control remained active",
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 27,
+  "native_selection_protocol": {
+    "payload_bytes_recorded": false,
+    "keyboard_mouse_events_recorded": false,
+    "browser_proxy_or_syscall_tracing": false,
+    "ready_event": {
+      "at": 1790990935.6270094,
+      "client": 33554432,
+      "event": "PropertyNotify",
+      "window": 33554534,
+      "server_time": 4167994114,
+      "state": 0
+    },
+    "next_property_read": {
+      "at": 1790990936.5454676,
+      "client": 33554432,
+      "event": "GetProperty",
+      "window": 33554534
+    },
+    "ready_to_read_seconds": 0.918458,
+    "events": [
+      {
+        "at": 1790990935.540188,
+        "client": 33554432,
+        "event": "ConvertSelection",
+        "window": 33554534,
+        "target": 222,
+        "property": 267,
+        "server_time": 4167994027
+      },
+      {
+        "at": 1790990935.5402737,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994027,
+        "state": 0
+      },
+      {
+        "at": 1790990935.540354,
+        "client": 33554432,
+        "event": "SelectionNotify",
+        "window": 33554534,
+        "target": 222,
+        "property": 267,
+        "server_time": 4167994027
+      },
+      {
+        "at": 1790990935.5403807,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.5416133,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.541666,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994028,
+        "state": 1
+      },
+      {
+        "at": 1790990935.5472054,
+        "client": 33554432,
+        "event": "ConvertSelection",
+        "window": 33554534,
+        "target": 283,
+        "property": 267,
+        "server_time": 4167994031
+      },
+      {
+        "at": 1790990935.568043,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994055,
+        "state": 0
+      },
+      {
+        "at": 1790990935.5681617,
+        "client": 33554432,
+        "event": "SelectionNotify",
+        "window": 33554534,
+        "target": 283,
+        "property": 267,
+        "server_time": 4167994031
+      },
+      {
+        "at": 1790990935.5717943,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.582295,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.5823762,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994068,
+        "state": 1
+      },
+      {
+        "at": 1790990935.5851822,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994072,
+        "state": 0
+      },
+      {
+        "at": 1790990935.5921519,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.5926154,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.5926611,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994079,
+        "state": 1
+      },
+      {
+        "at": 1790990935.5941985,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994080,
+        "state": 0
+      },
+      {
+        "at": 1790990935.5954,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.602713,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6028132,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994088,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6029046,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994089,
+        "state": 0
+      },
+      {
+        "at": 1790990935.6043637,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6052651,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6053386,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994091,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6054068,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994092,
+        "state": 0
+      },
+      {
+        "at": 1790990935.6064985,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6093278,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6094072,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994094,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6094675,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994094,
+        "state": 0
+      },
+      {
+        "at": 1790990935.6095858,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6144302,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.615857,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994100,
+        "state": 1
+      },
+      {
+        "at": 1790990935.615995,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994101,
+        "state": 0
+      },
+      {
+        "at": 1790990935.616049,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.616071,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6160898,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994102,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6161594,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994102,
+        "state": 0
+      },
+      {
+        "at": 1790990935.616211,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6162322,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6162515,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994102,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6179557,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994105,
+        "state": 0
+      },
+      {
+        "at": 1790990935.6180654,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6202452,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6202972,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994107,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6203763,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994107,
+        "state": 0
+      },
+      {
+        "at": 1790990935.6231365,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.624215,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6242583,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994110,
+        "state": 1
+      },
+      {
+        "at": 1790990935.624334,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994110,
+        "state": 0
+      },
+      {
+        "at": 1790990935.6243963,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.6244168,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990935.624435,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994111,
+        "state": 1
+      },
+      {
+        "at": 1790990935.6270094,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167994114,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5454676,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.545784,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5458317,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995032,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5463483,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995033,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5477266,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.550835,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5510821,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995037,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5512643,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995038,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5514586,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.551876,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5519135,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995039,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5521839,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995039,
+        "state": 0
+      },
+      {
+        "at": 1790990936.553104,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5534692,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5535078,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995040,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5538268,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995040,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5539062,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5543373,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5543675,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995041,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5549688,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995042,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5552323,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5595896,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.559679,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995045,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5616267,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995048,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5618532,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5626738,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5627153,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995049,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5629056,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995050,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5692902,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5703785,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5704288,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995056,
+        "state": 1
+      },
+      {
+        "at": 1790990936.57064,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995056,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5707169,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5707624,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5707877,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995057,
+        "state": 1
+      },
+      {
+        "at": 1790990936.571498,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995058,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5743155,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5799696,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5800629,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995066,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5801206,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995066,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5811315,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5815182,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5815701,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995068,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5829344,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995069,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5830157,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5830402,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5830607,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995069,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5836165,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995070,
+        "state": 0
+      },
+      {
+        "at": 1790990936.5837042,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5842414,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5842855,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995071,
+        "state": 1
+      },
+      {
+        "at": 1790990936.5846288,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995071,
+        "state": 0
+      },
+      {
+        "at": 1790990936.591468,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.598912,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.5990603,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995085,
+        "state": 1
+      },
+      {
+        "at": 1790990936.599723,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995086,
+        "state": 0
+      },
+      {
+        "at": 1790990936.6050577,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.612758,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6129303,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995099,
+        "state": 1
+      },
+      {
+        "at": 1790990936.6130543,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995100,
+        "state": 0
+      },
+      {
+        "at": 1790990936.6158104,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6180913,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6181831,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995104,
+        "state": 1
+      },
+      {
+        "at": 1790990936.619739,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995106,
+        "state": 0
+      },
+      {
+        "at": 1790990936.620238,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6209428,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6210303,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995107,
+        "state": 1
+      },
+      {
+        "at": 1790990936.6214626,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995108,
+        "state": 0
+      },
+      {
+        "at": 1790990936.6220698,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6224618,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6225247,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995109,
+        "state": 1
+      },
+      {
+        "at": 1790990936.6226575,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995109,
+        "state": 0
+      },
+      {
+        "at": 1790990936.6228533,
+        "client": 33554432,
+        "event": "GetProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6229951,
+        "client": 33554432,
+        "event": "DeleteProperty",
+        "window": 33554534
+      },
+      {
+        "at": 1790990936.6230538,
+        "client": 33554432,
+        "event": "PropertyNotify",
+        "window": 33554534,
+        "server_time": 4167995110,
+        "state": 1
+      }
+    ]
+  }
+}

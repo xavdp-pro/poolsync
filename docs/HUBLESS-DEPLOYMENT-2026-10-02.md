@@ -1,5 +1,9 @@
 # Hubless fleet migration and acceptance
 
+Current production subsequently moves to the qualified windowed transport; see
+[HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md](HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md).
+The earlier results below retain their original executable scope.
+
 ## Current gate
 
 All five production agents are installed and run in hubless mode. This is an

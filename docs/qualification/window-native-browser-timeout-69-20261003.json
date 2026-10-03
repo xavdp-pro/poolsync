@@ -1,0 +1,584 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected candidate binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real XFCE screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Relay fixture has no direct candidate TCP connection between A and C",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.828,
+    1.606,
+    1.742,
+    1.73,
+    1.514,
+    1.993,
+    1.911,
+    1.927,
+    1.651,
+    2.08,
+    15.923,
+    16.108,
+    3.321,
+    1.859,
+    16.087
+  ],
+  "native_copy_owners": [
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3413838,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 27262978,
+      "copier_pid": 604394,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3414066,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3414252,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 29360130,
+      "copier_pid": 2069424,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 29360130,
+      "copier_pid": 605083,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3415294,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3415444,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3415594,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3415760,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3415901,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 33554434,
+      "copier_pid": 3416829,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 25165826,
+      "copier_pid": 3417778,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3419172,
+      "timestamp": null,
+      "kind": "image"
+    }
+  ],
+  "direct_links": "chain",
+  "three_kvm_peers": true,
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 20.0,
+    "per_peer_disposable_proxy": true,
+    "central_proxy": false,
+    "partition_ports": [
+      19676,
+      19686
+    ]
+  },
+  "peer_tls": true,
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {
+    "browser-paste-server.py": "d0d85d45b89b776ce85662fca6b8921b3481fd182309aeaca9757b1b64c37cef",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1715,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.2",
+        "10.89.2.3"
+      ]
+    ],
+    [
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.2"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.5"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ],
+    [
+      [
+        "10.89.2.5",
+        "10.89.2.3"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ]
+  ],
+  "browser_failure": {
+    "requested_after": 1790989507.2103648,
+    "records": [
+      {
+        "at": 1790989442.1210525,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "0fa990692b8094e013e35f7952953f319e39afb8f77f7754ba07608e69d5a042",
+        "width": 83,
+        "height": 59
+      },
+      {
+        "at": 1790989444.5714207,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "b499303a86ce1d024805f4b626b61e73f34ab195f02f13629b0b730bf1a06f2c",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1790989447.189239,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "a68481a9ad3de387e3c2fc81b1f3e056e06ae9f93b0a9905902fd160a7e47ed5",
+        "length": 70
+      },
+      {
+        "at": 1790989449.8932693,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "b499303a86ce1d024805f4b626b61e73f34ab195f02f13629b0b730bf1a06f2c",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1790989466.9904072,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "93177e1d2a709af9cc89e9879e6abfd11ae1261e2a66a561581ef0f977216f4f",
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "at": 1790989484.0447068,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "29ec5e300748e291e6af6ae09b5b603d243f0e4a723056a4592b639c244c2312",
+        "width": 1920,
+        "height": 1080
+      }
+    ],
+    "diagnostics": [
+      {
+        "at": 1790989431.8031416,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790989432.3773894,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790989442.1039672,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790989442.1051774,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989442.1146464,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 286
+      },
+      {
+        "at": 1790989444.5382283,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989444.54176,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 711
+      },
+      {
+        "at": 1790989447.184413,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989447.1870017,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 0,
+        "first_image_bytes": 0
+      },
+      {
+        "at": 1790989449.8707283,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989449.8755531,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 711
+      },
+      {
+        "at": 1790989466.532132,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989466.5483508,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7267076
+      },
+      {
+        "at": 1790989483.5037632,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989483.628721,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 1,
+        "first_image_bytes": 7262307
+      },
+      {
+        "at": 1790989524.5642643,
+        "event": "focus",
+        "paste_target_focused": true,
+        "document_focused": true
+      },
+      {
+        "at": 1790989524.566355,
+        "event": "paste-shortcut",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "shift_key": false,
+        "alt_key": false,
+        "meta_key": false
+      },
+      {
+        "at": 1790989524.5896444,
+        "event": "paste-dispatch",
+        "paste_target_focused": true,
+        "document_focused": true,
+        "image_files": 0,
+        "first_image_bytes": 0
+      }
+    ],
+    "input_diagnostics": [
+      {
+        "focused_window": "35651587",
+        "received_key": {},
+        "lease": {
+          "focus": "nohub-c",
+          "owner": "nohub-a",
+          "term": 1
+        }
+      },
+      {
+        "focused_window": "35651627",
+        "received_key": {
+          "keyval": 122,
+          "at": 1790989500.0600417
+        },
+        "lease": {
+          "focus": "nohub-c",
+          "owner": "nohub-a",
+          "term": 1
+        }
+      },
+      {
+        "focused_window": "31457283",
+        "received_key": {
+          "keyval": 104,
+          "at": 1790989522.6101623
+        },
+        "lease": {
+          "focus": "nohub-c",
+          "owner": "nohub-a",
+          "term": 1
+        }
+      }
+    ]
+  },
+  "functional_checks_passed": false,
+  "error": "Browser image paste failed while C control remained active",
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 27,
+  "browser_native_log_summary": {
+    "installed_browser_version": "Firefox 140.16.0esr",
+    "png_request_timed_out": true,
+    "empty_text_fallback": true,
+    "png_callback_after_timeout": true,
+    "unexpected_modifiers": false
+  }
+}

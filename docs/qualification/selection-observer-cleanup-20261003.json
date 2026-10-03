@@ -1,0 +1,6 @@
+{
+  "timer_stop": true,
+  "display_loss_stop": true,
+  "no_clipboard_or_input_payload_recorded": true,
+  "original_state_preserved": true
+}
