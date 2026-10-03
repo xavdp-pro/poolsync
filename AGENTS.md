@@ -13,9 +13,13 @@ on deployment or acceptance status.
 - Use Rust agents and direct encrypted peers; retain the user's existing VPN.
   Do not introduce a permanent PoolSync hub, Flutter rewrite or mobile app implicitly.
 - Distinguish developed, isolated-container-tested, deployed and physically accepted.
-  Keep the reported Asus/Acer physical edge failure open until actual acceptance.
-- Qualify runtime changes in the dedicated gbs-test lab before authorized promotion.
+  Keep the reported physical edge failure on full-mode nodes open until actual acceptance.
+- Qualify runtime changes in the dedicated test lab before authorized promotion.
   For existing hubless agents, use the documented paused-cohort upgrade and backups;
   old install helpers overwrite legacy templates and are not safe default upgrades.
 - Keep GitHub Actions, CI/CD and Vercel disabled. Documentation-only changes require
   link/schema checks and visual SVG inspection, not another production deployment.
+
+Use fictitious computer names in public concept diagrams, scenarios and runbook
+examples (desk-a/desk-b, work-a/work-b/work-c, lab-host). Preserve actual host
+identities, operational scripts and recorded qualification evidence.

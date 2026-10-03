@@ -14,8 +14,13 @@ authenticated, encrypted peer connections, without a permanent PoolSync hub.
 
 ![PoolSync: human–AI setup and direct peer operation](docs/images/poolsync-concept.svg)
 
-Read **[how it works and real-computer/RDP scenarios](docs/CONCEPT-AND-SCENARIOS.md)**.
+Read **[how it works and example computer/RDP scenarios](docs/CONCEPT-AND-SCENARIOS.md)**.
 For the AI assistant: **[build, install and configure nodes](docs/AI-AGENT-INSTALLATION.md)**.
+
+Computer names in these diagrams and scenarios are fictitious. The illustrated
+five-node pool is one possibility: add an authorized node, temporarily take one
+away while retaining its settings, or retire it through a reviewed membership
+change. See [hypothetical pool changes](docs/CONCEPT-AND-SCENARIOS.md#hypothetical-pool-changes).
 
 → **[Product pitch](PITCH.md)** (overview and share text)
 
@@ -23,11 +28,11 @@ For the AI assistant: **[build, install and configure nodes](docs/AI-AGENT-INSTA
 - **Peer mesh** — direct encrypted clipboard, presence, layout and KVM control
 - **Network** — LAN or the existing VPN; cross-site VPN dependencies remain
 - **Temporary controller** — eligible full-mode nodes claim and renew control
-- **Current fleet** — Asus/Acer: KVM + clipboard; gbs-p2/gbs-p3/zaza-desktop: clipboard only
+- **Example pool (fictitious names)** — desk-a/desk-b: KVM + clipboard; work-a/work-b/work-c: clipboard only
 
 The deployed hubless development build has passing isolated qualification.
-Physical Asus/Acer crossings and monitor changes still require acceptance; the
-reported edge blockage/loop remains open. See the
+Physical crossings between full-mode computers and monitor changes still require
+acceptance; the reported edge blockage/loop remains open. See the
 [current qualification and deployment report](docs/HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md).
 
 ## Rust workspace
@@ -92,11 +97,9 @@ POOLSYNC_TOKEN=your_token ./deploy/install-agent-local.sh my-node-name
 POOLSYNC_TOKEN=your_token ./deploy/install-agent.sh ssh-host my-node-name
 ```
 
-Secure deployment after generating the security directory:
+Legacy secure agent deployment after generating the security directory:
 
 ```bash
-POOLSYNC_TOKEN=admin POOLSYNC_SECURITY_DIR=/secure/path/poolsync \
-  ./deploy/install-hub-gbs-p3.sh
 POOLSYNC_TOKEN=admin POOLSYNC_SECURITY_DIR=/secure/path/poolsync \
   ./deploy/install-agent.sh ssh-host my-node-name
 ```

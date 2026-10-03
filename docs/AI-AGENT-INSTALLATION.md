@@ -8,7 +8,7 @@ configuration, compiles and qualifies an exact executable, installs reversibly
 within the authorized scope, and records evidence. Real keyboard/mouse and
 monitor-cable acceptance belongs to the human at the desk.
 
-Read [concept and real-computer/RDP scenarios](CONCEPT-AND-SCENARIOS.md) first.
+Read [concept and example computer/RDP scenarios](CONCEPT-AND-SCENARIOS.md) first.
 This runbook explains the existing tools; it is not permission to replace keys,
 reconfigure production or close a user's RDP session without authorization.
 The AI assistant is not a required runtime service. Do not introduce an extra
@@ -34,8 +34,13 @@ existing group keys, settings and positions unless the human authorizes a change
 Do not paste raw configs, process arguments, private keys or environment dumps
 into public reports. RDP arguments can contain passwords.
 
-The recorded fleet is Asus/Acer `full`; gbs-p2/gbs-p3/zaza-desktop
-`clipboard_only`. Do not hard-code UID 1000 or display `:10`. The current
+Example names throughout the public documentation are fictional: desk-a/desk-b
+are `full`; work-a/work-b/work-c are `clipboard_only`. Map these roles to the
+actual authorized inventory; do not infer real hostnames from the examples.
+These are illustrative roles, not a fixed membership list or capacity limit.
+See [hypothetical pool changes](CONCEPT-AND-SCENARIOS.md#hypothetical-pool-changes)
+for adding, pausing, retiring and changing a node's role.
+Do not hard-code UID 1000 or display `:10`. The current
 launcher selects this user's live XRDP session preferentially, otherwise an
 XFCE session. It does not simultaneously bridge every graphical session. Verify
 that this selection matches the intended desktop before starting an agent.
@@ -212,9 +217,9 @@ hosts or install. It preserves existing settings and adds missing peer entries;
 existing route URLs are not rewritten, so review their reachability separately.
 Do not run it over an already deployed hubless layout to reset its revision.
 
-## 4. Qualify on gbs-test before promotion
+## 4. Qualify on the dedicated test host before promotion
 
-Use `poolsync-test` and dedicated `neko-desk-a/b/c` desktops on gbs-test, with
+Use `poolsync-test` and dedicated `neko-desk-a/b/c` desktops on your dedicated test host (fictional alias `lab-host`), with
 private configurations, tokens, CA, HOME, graphical display and browser profiles.
 Prefer disposable clones for complete cold reboots; keep the original desktops'
 state and record preservation afterward. The commands below run **inside the
@@ -299,7 +304,8 @@ install -m 644 deploy/systemd/poolsync-agent.service \
 
 Create a per-user autostart entry from `deploy/autostart/poolsync-agent.desktop`,
 resolving its `Exec`, `TryExec` and `Icon` to the actual home. That template
-currently embeds `/home/zaza`; do not copy it unchanged for another account.
+currently embeds an account-specific absolute home path; do not copy it
+unchanged for another account.
 For a home path without spaces, this prepares the adapted entry. For paths with
 spaces, quote desktop-entry command paths correctly and review them separately:
 
@@ -311,7 +317,11 @@ assert not any(c.isspace() for c in str(home)), "review desktop-entry path quoti
 source = Path("deploy/autostart/poolsync-agent.desktop").read_text()
 target = home / ".config/autostart/poolsync-agent.desktop"
 assert not target.exists(), "existing autostart entry must be preserved/reviewed"
-target.write_text(source.replace("/home/zaza", str(home)))
+exec_line = next(line for line in source.splitlines() if line.startswith("Exec="))
+source_command = Path(exec_line.split("=", 1)[1])
+assert source_command.name == "poolsync-session-start.sh"
+source_home = source_command.parents[2]
+target.write_text(source.replace(str(source_home), str(home)))
 target.chmod(0o644)
 PY
 ```
@@ -351,7 +361,7 @@ The coordinator defaults to a read-only dry run:
 
 ```sh
 python3 deploy/apply-agent-cohort-hotfix.py \
-  --user zaza \
+  --user "$POOLSYNC_AGENT_USER" \
   --candidate "$POOLSYNC_STAGED_CANDIDATE" \
   --installer "$POOLSYNC_STAGED_INSTALLER" \
   --expected-current-sha256 "$POOLSYNC_CURRENT_SHA256" \
@@ -390,7 +400,7 @@ connection or hub-triggered watchdog restart. Keep logs reviewed for secrets.
 
 Test fresh text/images and real paste on each intended session, distinguishing
 native RDP redirection from PoolSync delivery. Close RDP clients normally before
-an independent Asus/Acer native paste campaign, with the human's agreement.
+an independent desk-a/desk-b native paste campaign, with the human's agreement.
 Ask the human for both physical crossings, destination typing, emergency return
 and real monitor changes. Record failures as well as successes. Do not mark a
 blocked hardware requirement complete from synthetic tests.

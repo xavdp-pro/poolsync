@@ -22,35 +22,68 @@ AI assistants should follow the
 The diagram illustrates logical peer connections, not an inventory of every
 configured network route or the physical screen arrangement.
 
-## The real computers
+## Example computers (fictitious names)
 
-The last recorded deployment audit assigns these roles. A role applies to the
-agent's graphical session, not to every session a computer might host.
+All computer names below are fictional. This example illustrates two full-mode
+computers and three clipboard-only computers; it is not a deployment inventory
+or a limit on the number of members. Other names, roles, layouts and network
+routes can be configured for an authorized pool.
+A role applies to the agent's graphical session, not to every session a computer
+might host.
 
-| Computer | PoolSync role | Recorded graphical session | Why |
+| Computer | PoolSync role | Example graphical session | Why |
 |----------|---------------|----------------------------|-----|
-| Asus | `full`: KVM + clipboard | Local X11, `:0` | Physical keyboard/mouse can request control and cross to Acer. |
-| Acer | `full`: KVM + clipboard | Local X11, `:0` | Physical keyboard/mouse can request control and cross to Asus. |
-| gbs-p2 | `clipboard_only` | RDP/X11, `:10` | Share copies from the remote desktop without participating in edge KVM. |
-| gbs-p3 | `clipboard_only` | RDP/X11, `:10` | Same role; its old hub is stopped and disabled. |
-| zaza-desktop | `clipboard_only` | RDP/X11, `:10` | Share the session clipboard without KVM capture/injection. |
+| desk-a | `full`: KVM + clipboard | Local X11, `:0` | Physical keyboard/mouse can request control and cross to desk-b. |
+| desk-b | `full`: KVM + clipboard | Local X11, `:0` | Physical keyboard/mouse can request control and cross to desk-a. |
+| work-a | `clipboard_only` | RDP/X11, `:10` | Share copies from the remote desktop without participating in edge KVM. |
+| work-b | `clipboard_only` | RDP/X11, `:10` | Share a remote session's copies with the other peers. |
+| work-c | `clipboard_only` | RDP/X11, `:10` | Share the session clipboard without KVM capture/injection. |
 
-These displays are the recorded deployment state, not constants to hard-code
+These displays are illustrative, not constants to hard-code
 when a different session opens. An agent must attach to the intended user's
 actual graphical session; a running process alone does not prove clipboard
 access. Existing settings and saved positions should be preserved.
 
+## Hypothetical pool changes
+
+![Example pool: add a node, then temporarily take it away](images/poolsync-flexible-pool.svg)
+
+These scenarios are deliberately hypothetical. They demonstrate configuration
+choices and membership changes, not the exact current installation or proof
+that every combination has already been qualified.
+
+| Situation | Example change | What must happen |
+|-----------|----------------|------------------|
+| Add a workstation | A sixth computer, `desk-c`, joins as a full-mode node. | Give it its own identity, authorize reciprocal peers, configure reachable encrypted routes and add its screens to the reviewed layout. Qualify its physical input. |
+| Add only a remote clipboard | `work-d` joins in an RDP graphical session. | Use `clipboard_only`; its agent shares copies without joining PoolSync KVM. RDP continues carrying its remote input. |
+| Leave for the afternoon | Take `desk-c` out of the pool temporarily. | Use the tray departure action; keep its identity/settings/positions. Other peers communicate over remaining usable routes. |
+| Return tomorrow | `desk-c` resumes participation. | Reuse its saved configuration; private copies made while away are not automatically broadcast. Check routes and screen geometry. |
+| Retire a computer permanently | Remove `work-c` from the authorized pool. | Remove its authorization, peer routes and saved layout entry coherently. Stop/uninstall its agent as authorized; define any credential rotation needed by the retirement policy. This is a configuration operation, not the temporary-away toggle. |
+| Change a role | A previously clipboard-only `work-a` should also handle KVM. | Explicitly change its permissions/mode and layout through reviewed configuration, then restart/requalify as needed. Physical activity alone never grants KVM permission. |
+| Rearrange the desk | Put `desk-b` above `desk-a`, with a different resolution. | Update the shared layout; do not infer adjacency from IP addresses. Verify intended edges and real monitor behavior. |
+| Use more or fewer peers | Begin with two computers, later configure several more. | Keep each member's identity and authorization distinct; review routes, resource use and latency for that actual pool size. Five illustrated nodes are not a product limit. |
+
+Enrollment is explicit, not unrestricted automatic discovery. An unknown device
+does not join merely because it appears on the LAN or VPN. Removing the sole
+relay in a chain breaks that route; a flexible pool still needs suitable network
+paths. Changing membership does not require starting a central PoolSync hub.
+
+The installation runbook separates new-node bootstrap, legacy migration and
+existing-cohort upgrade. The supplied cohort upgrader targets a recorded fleet;
+its target list must be reviewed/adapted for another deployment. It is not a
+general automatic enrollment service.
+
 ## Local desk scenarios
 
-1. **Work on Asus, then reach Acer.** Asus requests a temporary control lease
-   when used physically. With the saved Asus-left/Acer-right arrangement,
-   crossing Asus's right edge targets Acer; keyboard events follow the focus.
+1. **Work on desk-a, then reach desk-b.** desk-a requests a temporary control lease
+   when used physically. With the example desk-a-left/desk-b-right arrangement,
+   crossing desk-a's right edge targets desk-b; keyboard events follow the focus.
    Copying text or an image uses the clipboard mesh independently of KVM focus.
-2. **Start from Acer.** Acer can request control using its own physical input;
-   crossing its left edge targets Asus. There is no permanently privileged
+2. **Start from desk-b.** desk-b can request control using its own physical input;
+   crossing its left edge targets desk-a. There is no permanently privileged
    computer. Concurrent claims use the same deterministic ordering at each peer.
-3. **Copy in a clipboard-only session.** A fresh copy in gbs-p2, gbs-p3 or
-   zaza-desktop can circulate to participating peers. These nodes cannot become
+3. **Copy in a clipboard-only session.** A fresh copy in work-a, work-b or
+   work-c can circulate to participating peers. These nodes cannot become
    KVM controllers or receive PoolSync KVM input. RDP still delivers the user's
    remote keyboard/mouse through its own channel.
 4. **Take a laptop away.** Choose **Machine temporairement à l’écart du pool**
@@ -69,8 +102,8 @@ access. Existing settings and saved positions should be preserved.
    monitor; the actual desk and monitor-cable behavior require human validation.
 
 **Acceptance boundary:** these describe the implemented behavior, not completed
-physical acceptance. The reported Asus/Acer edge blockage and return loop remain
-open. Repeat both directions using each source's physical keyboard/mouse, type
+physical acceptance. The reported edge blockage and return loop on the deployed
+full-mode nodes remain open. Repeat both directions using each source's physical keyboard/mouse, type
 on the destination, test **Ctrl+Alt+Shift+M** local recovery, and attach/remove a
 real extra monitor. Container-generated input cannot replace these checks.
 
@@ -78,9 +111,9 @@ real extra monitor. Container-generated input cannot replace these checks.
 
 ![Example RDP route with one native clipboard bridge and a remote PoolSync agent](images/poolsync-rdp.svg)
 
-The illustrated Asus → gbs-p3 connection is an example, not a claim about the
-destination of the currently open RDP clients. The same principle applies when
-Acer connects to a participating gbs-p2 or zaza-desktop session.
+The illustrated desk-a → work-b connection is an example, not a claim about the
+destination of any actual RDP client. The same principle applies when
+desk-b connects to a participating work-a or work-c session.
 
 ### Native RDP clipboard redirection enabled
 
@@ -97,10 +130,10 @@ and relays shared history; this is not a temporary departure or a privacy mode.
 The agent in the remote graphical session can distribute that session's copies
 to the pool.
 
-For example: Asus copies a screenshot → native RDP delivers it to gbs-p3's
+For example: desk-a copies a screenshot → native RDP delivers it to work-b's
 session → that session's PoolSync agent distributes the fresh copy to the other
 participating peers. Conversely, a pool copy applied in that remote session may
-return through RDP to Asus. Each application still has to support the offered
+return through RDP to desk-a. Each application still has to support the offered
 image format; actual paste receivers are part of qualification.
 
 The pause applies to the client's whole clipboard while detection is active,
@@ -124,7 +157,7 @@ Once no matching clipboard-enabled FreeRDP client remains, the local PoolSync
 clipboard path can resume (process detection is cached for one second).
 Closing the RDP client does not necessarily log out its remote graphical
 session. The remote agent depends on that session continuing to exist.
-For an independent native Asus/Acer paste test, close those RDP clients normally
+For an independent native desk-a/desk-b paste test, close those RDP clients normally
 first so that their intentional clipboard pause does not mask the result.
 
 ### Detection limits
@@ -138,7 +171,7 @@ has paused, unless a matching FreeRDP process also exists. Do not claim universa
 RDP client coverage or change the policy without a separate native test.
 
 The RDP pause affects the clipboard, not the full node's PoolSync KVM permission.
-RDP window/input interactions still need physical acceptance on Asus/Acer.
+RDP window/input interactions still need physical acceptance on the deployed full-mode nodes.
 
 ## What runs without the hub
 
@@ -162,7 +195,7 @@ deployment and real-computer acceptance:
 It records the five deployed `2.1.0-dev.3` agents, passing hubless DEV checks,
 the finite twenty-minute image/text campaign and outstanding physical gates.
 No all-day stability, universal RDP client support or completed physical
-Asus/Acer acceptance is claimed here.
+full-mode node acceptance is claimed here.
 
 Implementation references:
 [hubless control](../poolsync-agent/src/hubless.rs),
