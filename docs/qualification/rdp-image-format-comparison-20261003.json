@@ -1,0 +1,1214 @@
+{
+  "baseline-result-1791037755527161002.json": {
+    "image_only": true,
+    "scope": "isolated XRDP/FreeRDP custom PNG/BMP offer without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791037752.359
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791037753.366
+          }
+        ]
+      }
+    ],
+    "server_display": ":14.0",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-win-bitmap",
+          "image/tiff"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "passed": true
+  },
+  "baseline-result-1791038584231808074.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh into XRDP/FreeRDP native GTK clipboard",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      }
+    ],
+    "server_display": ":14.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "passed": false,
+    "error": "Actual executing candidate hashes differ"
+  },
+  "baseline-result-1791037248828662170.json": {
+    "scope": "isolated XRDP/FreeRDP native GTK baseline without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      }
+    ],
+    "server_display": ":11.0",
+    "passed": false,
+    "error": "name 'code' is not defined"
+  },
+  "baseline-result-1791038328389276838.json": {
+    "image_only": false,
+    "scope": "isolated XRDP/FreeRDP native GTK baseline without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      }
+    ],
+    "server_display": ":14.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "passed": false,
+    "error": "Actual isolated agents did not converge"
+  },
+  "baseline-result-1791037314018961259.json": {
+    "scope": "isolated XRDP/FreeRDP native GTK baseline without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791037310.729
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791037311.75
+          }
+        ]
+      }
+    ],
+    "server_display": ":11.0",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-win-bitmap",
+          "image/tiff"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "SAVE_TARGETS",
+          "image/png",
+          "image/jpeg",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-icon",
+          "image/x-ico",
+          "image/x-win-bitmap",
+          "image/vnd.microsoft.icon",
+          "application/ico",
+          "image/ico",
+          "image/icon",
+          "text/ico",
+          "image/tiff"
+        ]
+      }
+    },
+    "passed": true
+  },
+  "baseline-result-1791038661479372359.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh into XRDP/FreeRDP native GTK clipboard",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791038658.218
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791038659.228
+          }
+        ]
+      }
+    ],
+    "server_display": ":15.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "executing_sha256": [
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+    ],
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-win-bitmap",
+          "image/tiff"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "passed": true
+  },
+  "baseline-result-1791037158442291705.json": {
+    "scope": "isolated XRDP/FreeRDP baseline without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": false
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791037156.292
+          }
+        ]
+      }
+    ],
+    "server_display": ":11.0",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-win-bitmap",
+          "image/tiff"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "SAVE_TARGETS",
+          "image/png",
+          "image/jpeg",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-icon",
+          "image/x-ico",
+          "image/x-win-bitmap",
+          "image/vnd.microsoft.icon",
+          "application/ico",
+          "image/ico",
+          "image/icon",
+          "text/ico",
+          "image/tiff"
+        ]
+      }
+    },
+    "passed": false
+  },
+  "baseline-result-1791039506144755225.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh with native RDP clipboard disabled",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh native GTK text across the selected clipboard route",
+        "passed": true
+      },
+      {
+        "name": "Fresh native GTK image pasted with matching pixels across the selected route",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791039494.867
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791039495.869
+          }
+        ]
+      },
+      {
+        "name": "Actual native Chromium Ctrl+V pastes the image across the selected route",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 0",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 1",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 2",
+        "passed": true
+      }
+    ],
+    "server_display": ":15.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "native_rdp_clipboard_enabled": false,
+    "executing_sha256": [
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+    ],
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "passed": false,
+    "error": "'list' object has no attribute 'pool_clipboard'"
+  },
+  "baseline-result.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh with native RDP clipboard disabled",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh native GTK text across the selected clipboard route",
+        "passed": true
+      },
+      {
+        "name": "Fresh native GTK image pasted with matching pixels across the selected route",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791039599.798
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791039600.797
+          }
+        ]
+      },
+      {
+        "name": "Actual native Chromium Ctrl+V pastes the image across the selected route",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 0",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 1",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 2",
+        "passed": true
+      },
+      {
+        "name": "Local GTK and Chromium clipboard remain usable after the RDP destination PoolSync agent exits",
+        "passed": true
+      }
+    ],
+    "server_display": ":15.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "native_rdp_clipboard_enabled": false,
+    "executing_sha256": [
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+    ],
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "native_browser_records": [
+      {
+        "at": 1791039602.7948966,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1791039604.0196426,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "cd310ec49ef70428bdfb78d495430e77633def2ca6eb46b77650f4131ccfdfc7",
+        "length": 49
+      },
+      {
+        "at": 1791039604.855778,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "9901b9902c3ae635f6e65710f6c198f0c08fc778483681dbb7af8b32c53581c7",
+        "width": 83,
+        "height": 59
+      },
+      {
+        "at": 1791039605.8862066,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "3203827640b4a46c2756acb1d68bff11a6fb29af2e4229b76656b077daad23c4",
+        "length": 49
+      },
+      {
+        "at": 1791039606.9444954,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "54026d3da231c368aebc722c10085c5f4b5e7f8d8b3a658398588940dc533894",
+        "width": 84,
+        "height": 60
+      },
+      {
+        "at": 1791039607.9521446,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "5083cd788ea150cc8514a61494f17da62b85464facb7a1512affafc0e4f8f2fe",
+        "length": 49
+      },
+      {
+        "at": 1791039609.0009577,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "bdd6d0d4b9155acaabe0ad687abb30e9ea29d09feff52b7136499bf4c1f06357",
+        "width": 85,
+        "height": 61
+      },
+      {
+        "at": 1791039612.0432115,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "0a842b270c990ba087d57b04337846aedb48fde11469126dae0c277d40429bcb",
+        "length": 81
+      }
+    ],
+    "passed": true
+  },
+  "baseline-result-1791038882352479438.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh into XRDP/FreeRDP native GTK clipboard",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791038867.132
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791038868.135
+          }
+        ]
+      }
+    ],
+    "server_display": ":15.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "executing_sha256": [
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+    ],
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-win-bitmap",
+          "image/tiff"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "passed": false,
+    "error": "Native RDP browser paste hash did not converge"
+  },
+  "baseline-result-1791039614279230145.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh with native RDP clipboard disabled",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh native GTK text across the selected clipboard route",
+        "passed": true
+      },
+      {
+        "name": "Fresh native GTK image pasted with matching pixels across the selected route",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791039599.798
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791039600.797
+          }
+        ]
+      },
+      {
+        "name": "Actual native Chromium Ctrl+V pastes the image across the selected route",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 0",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 1",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 2",
+        "passed": true
+      },
+      {
+        "name": "Local GTK and Chromium clipboard remain usable after the RDP destination PoolSync agent exits",
+        "passed": true
+      }
+    ],
+    "server_display": ":15.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "native_rdp_clipboard_enabled": false,
+    "executing_sha256": [
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+    ],
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "native_browser_records": [
+      {
+        "at": 1791039602.7948966,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1791039604.0196426,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "cd310ec49ef70428bdfb78d495430e77633def2ca6eb46b77650f4131ccfdfc7",
+        "length": 49
+      },
+      {
+        "at": 1791039604.855778,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "9901b9902c3ae635f6e65710f6c198f0c08fc778483681dbb7af8b32c53581c7",
+        "width": 83,
+        "height": 59
+      },
+      {
+        "at": 1791039605.8862066,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "3203827640b4a46c2756acb1d68bff11a6fb29af2e4229b76656b077daad23c4",
+        "length": 49
+      },
+      {
+        "at": 1791039606.9444954,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "54026d3da231c368aebc722c10085c5f4b5e7f8d8b3a658398588940dc533894",
+        "width": 84,
+        "height": 60
+      },
+      {
+        "at": 1791039607.9521446,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "5083cd788ea150cc8514a61494f17da62b85464facb7a1512affafc0e4f8f2fe",
+        "length": 49
+      },
+      {
+        "at": 1791039609.0009577,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "bdd6d0d4b9155acaabe0ad687abb30e9ea29d09feff52b7136499bf4c1f06357",
+        "width": 85,
+        "height": 61
+      },
+      {
+        "at": 1791039612.0432115,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "0a842b270c990ba087d57b04337846aedb48fde11469126dae0c277d40429bcb",
+        "length": 81
+      }
+    ],
+    "passed": true
+  },
+  "baseline-result-1791038503662074895.json": {
+    "image_only": false,
+    "scope": "isolated XRDP/FreeRDP native GTK baseline without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": false,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791038481.458
+          }
+        ]
+      }
+    ],
+    "server_display": ":14.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "UTF8_STRING",
+          "STRING"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TARGETS",
+          "image/png"
+        ]
+      }
+    },
+    "passed": false
+  },
+  "baseline-result-1791037353653714289.json": {
+    "scope": "isolated XRDP/FreeRDP custom PNG/BMP offer without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": false,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791037331.297
+          }
+        ]
+      }
+    ],
+    "server_display": ":12.0",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "UTF8_STRING",
+          "STRING"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "UTF8_STRING",
+          "STRING",
+          "TEXT",
+          "text/plain",
+          "text/plain;charset=utf-8",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "passed": false
+  },
+  "baseline-result-1791037415379649206.json": {
+    "image_only": true,
+    "scope": "isolated XRDP/FreeRDP custom PNG/BMP offer without PoolSync",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791037412.28
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791037413.283
+          }
+        ]
+      }
+    ],
+    "server_display": ":13.0",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "image/bmp",
+          "image/x-bmp",
+          "image/x-MS-bmp",
+          "image/x-win-bitmap",
+          "image/tiff"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "passed": true
+  },
+  "baseline-result-1791039330251722425.json": {
+    "image_only": false,
+    "scope": "Actual candidate direct encrypted mesh with native RDP clipboard disabled",
+    "checks": [
+      {
+        "name": "Fresh authenticated native RDP session",
+        "passed": true
+      },
+      {
+        "name": "Actual candidate agents share active encrypted direct peers without hub",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK text through FreeRDP",
+        "passed": true
+      },
+      {
+        "name": "Fresh remote GTK image pasted through FreeRDP into local GTK",
+        "passed": true,
+        "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "observed_records": [
+          {
+            "kind": "text",
+            "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+            "characters": 23,
+            "at": 1791039317.796
+          },
+          {
+            "kind": "image",
+            "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+            "width": 193,
+            "height": 127,
+            "at": 1791039318.795
+          }
+        ]
+      },
+      {
+        "name": "Actual native Chromium Ctrl+V pastes the image after RDP conversion",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 0",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 1",
+        "passed": true
+      },
+      {
+        "name": "Actual RDP GTK and Chromium image/text alternation 2",
+        "passed": true
+      }
+    ],
+    "server_display": ":15.0",
+    "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "native_rdp_clipboard_enabled": false,
+    "executing_sha256": [
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+      "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+    ],
+    "peer_transport": "loopback WebSocket with configured XChaCha20-Poly1305 envelope; TLS is qualified separately",
+    "targets": {
+      "client": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      },
+      "server": {
+        "returncode": 0,
+        "targets": [
+          "TIMESTAMP",
+          "TARGETS",
+          "MULTIPLE",
+          "image/png",
+          "image/bmp",
+          "image/x-bmp"
+        ]
+      }
+    },
+    "native_browser_records": [
+      {
+        "at": 1791039321.8384008,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+        "width": 193,
+        "height": 127
+      },
+      {
+        "at": 1791039323.0463476,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "8f91fb2c98c376304d968130f278f49fc4ee556c10d7052c1cd43ce59b71ce2d",
+        "length": 49
+      },
+      {
+        "at": 1791039323.8755984,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "9901b9902c3ae635f6e65710f6c198f0c08fc778483681dbb7af8b32c53581c7",
+        "width": 83,
+        "height": 59
+      },
+      {
+        "at": 1791039324.875509,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "7a45fb48e011c02012831d3e367bb0a1ccc3376732cc664863c941edd1f4389b",
+        "length": 49
+      },
+      {
+        "at": 1791039325.9296951,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "54026d3da231c368aebc722c10085c5f4b5e7f8d8b3a658398588940dc533894",
+        "width": 84,
+        "height": 60
+      },
+      {
+        "at": 1791039326.9546268,
+        "kind": "text",
+        "route": "Ctrl+V paste event",
+        "sha256": "d63611cd96a6b192fe1da21e148fa1404839b506985058a2fe5ab28d8422c083",
+        "length": 49
+      },
+      {
+        "at": 1791039328.0221927,
+        "kind": "image",
+        "route": "Ctrl+V paste event",
+        "sha256": "bdd6d0d4b9155acaabe0ad687abb30e9ea29d09feff52b7136499bf4c1f06357",
+        "width": 85,
+        "height": 61
+      }
+    ],
+    "passed": true
+  },
+  "modeled-failure-nonzero-exit-verification": {
+    "shell_exit_code": 1,
+    "result": {
+      "image_only": false,
+      "scope": "isolated XRDP/FreeRDP custom PNG/BMP offer without PoolSync",
+      "checks": [
+        {
+          "name": "Fresh authenticated native RDP session",
+          "passed": true
+        },
+        {
+          "name": "Fresh native GTK text across the selected clipboard route",
+          "passed": true
+        },
+        {
+          "name": "Fresh native GTK image pasted with matching pixels across the selected route",
+          "passed": false,
+          "expected_sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+          "observed_records": [
+            {
+              "kind": "text",
+              "sha256": "7a552b860a3870e2ae9244030d6922be9ff76ce51ab0dfdc817d11a94aba957d",
+              "characters": 23,
+              "at": 1791041954.765
+            }
+          ]
+        }
+      ],
+      "server_display": ":16.0",
+      "targets": {
+        "client": {
+          "returncode": 0,
+          "targets": [
+            "TIMESTAMP",
+            "TARGETS",
+            "UTF8_STRING",
+            "STRING"
+          ]
+        },
+        "server": {
+          "returncode": 0,
+          "targets": [
+            "TIMESTAMP",
+            "TARGETS",
+            "MULTIPLE",
+            "image/png",
+            "UTF8_STRING",
+            "STRING",
+            "TEXT",
+            "text/plain",
+            "text/plain;charset=utf-8",
+            "image/bmp",
+            "image/x-bmp"
+          ]
+        }
+      },
+      "passed": false,
+      "native_browser_records": [
+        {
+          "at": 1791039602.7948966,
+          "kind": "image",
+          "route": "Ctrl+V paste event",
+          "sha256": "6fe0ae12112e3fad3f195ae5e9d46e0aa91272a9a347c68b540127ec610a4fd9",
+          "width": 193,
+          "height": 127
+        },
+        {
+          "at": 1791039604.0196426,
+          "kind": "text",
+          "route": "Ctrl+V paste event",
+          "sha256": "cd310ec49ef70428bdfb78d495430e77633def2ca6eb46b77650f4131ccfdfc7",
+          "length": 49
+        },
+        {
+          "at": 1791039604.855778,
+          "kind": "image",
+          "route": "Ctrl+V paste event",
+          "sha256": "9901b9902c3ae635f6e65710f6c198f0c08fc778483681dbb7af8b32c53581c7",
+          "width": 83,
+          "height": 59
+        },
+        {
+          "at": 1791039605.8862066,
+          "kind": "text",
+          "route": "Ctrl+V paste event",
+          "sha256": "3203827640b4a46c2756acb1d68bff11a6fb29af2e4229b76656b077daad23c4",
+          "length": 49
+        },
+        {
+          "at": 1791039606.9444954,
+          "kind": "image",
+          "route": "Ctrl+V paste event",
+          "sha256": "54026d3da231c368aebc722c10085c5f4b5e7f8d8b3a658398588940dc533894",
+          "width": 84,
+          "height": 60
+        },
+        {
+          "at": 1791039607.9521446,
+          "kind": "text",
+          "route": "Ctrl+V paste event",
+          "sha256": "5083cd788ea150cc8514a61494f17da62b85464facb7a1512affafc0e4f8f2fe",
+          "length": 49
+        },
+        {
+          "at": 1791039609.0009577,
+          "kind": "image",
+          "route": "Ctrl+V paste event",
+          "sha256": "bdd6d0d4b9155acaabe0ad687abb30e9ea29d09feff52b7136499bf4c1f06357",
+          "width": 85,
+          "height": 61
+        },
+        {
+          "at": 1791039612.0432115,
+          "kind": "text",
+          "route": "Ctrl+V paste event",
+          "sha256": "0a842b270c990ba087d57b04337846aedb48fde11469126dae0c277d40429bcb",
+          "length": 81
+        }
+      ]
+    }
+  }
+}

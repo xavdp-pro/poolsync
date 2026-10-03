@@ -1,0 +1,110 @@
+{
+  "apply_requested": false,
+  "preflight": {
+    "gbs-p3": {
+      "node": "gbs-p3",
+      "mode": "clipboard_only",
+      "pid": 2262832,
+      "uid": 1000,
+      "display": ":10",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "configuration_sha256": "d4da679118269db67b90933a93a1be103a935a5b3f7fe0f5b24ee42070210c49",
+      "layout_sha256": "68d9c74934891ebcf5c94b445836cce4d51e45996cb568f02cb789bd22c1a9fd",
+      "away": false,
+      "self_active": true,
+      "direct_peer_names": [
+        "acer",
+        "asus",
+        "gbs-p2",
+        "gbs-p3",
+        "zaza-desktop"
+      ],
+      "backup_exists": false
+    },
+    "gbs-p2": {
+      "node": "gbs-p2",
+      "mode": "clipboard_only",
+      "pid": 2067349,
+      "uid": 1000,
+      "display": ":10",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "configuration_sha256": "dc788e399f88f327ebb17d1f8a4542c1ceee1618fc0a18d19b17c0c54880fdbf",
+      "layout_sha256": "68d9c74934891ebcf5c94b445836cce4d51e45996cb568f02cb789bd22c1a9fd",
+      "away": false,
+      "self_active": true,
+      "direct_peer_names": [
+        "acer",
+        "asus",
+        "gbs-p2",
+        "gbs-p3",
+        "zaza-desktop"
+      ],
+      "backup_exists": false
+    },
+    "local": {
+      "node": "zaza-desktop",
+      "mode": "clipboard_only",
+      "pid": 372605,
+      "uid": 1000,
+      "display": ":10",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "configuration_sha256": "7ca6bc041c5f33a0d6a8b4b8e6180f64b75c0de05b84ee3529aa690e329df626",
+      "layout_sha256": "68d9c74934891ebcf5c94b445836cce4d51e45996cb568f02cb789bd22c1a9fd",
+      "away": false,
+      "self_active": true,
+      "direct_peer_names": [
+        "acer",
+        "asus",
+        "gbs-p2",
+        "gbs-p3",
+        "zaza-desktop"
+      ],
+      "backup_exists": false
+    },
+    "gbs-asus-vpn": {
+      "node": "asus",
+      "mode": "full",
+      "pid": 543002,
+      "uid": 1000,
+      "display": ":0",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "configuration_sha256": "b452eea3acc4f19080dd1a4db6cbfcce74d06b05db3e147e64475757acc92e20",
+      "layout_sha256": "68d9c74934891ebcf5c94b445836cce4d51e45996cb568f02cb789bd22c1a9fd",
+      "away": false,
+      "self_active": true,
+      "direct_peer_names": [
+        "acer",
+        "asus",
+        "gbs-p2",
+        "gbs-p3",
+        "zaza-desktop"
+      ],
+      "backup_exists": false
+    },
+    "gbs-acer-vpn": {
+      "node": "acer",
+      "mode": "full",
+      "pid": 1546397,
+      "uid": 1001,
+      "display": ":0",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "configuration_sha256": "0753a571462cdf7786e22a25b5cd053f03030b8ce5ecdf1086a7c65a18ff0917",
+      "layout_sha256": "68d9c74934891ebcf5c94b445836cce4d51e45996cb568f02cb789bd22c1a9fd",
+      "away": false,
+      "self_active": true,
+      "direct_peer_names": [
+        "acer",
+        "asus",
+        "gbs-p2",
+        "gbs-p3",
+        "zaza-desktop"
+      ],
+      "backup_exists": false
+    }
+  },
+  "installations": {},
+  "rollbacks": {},
+  "maintenance_resumed": false,
+  "source_sha256": "e8c238c578ff4a093a6c76d8743f68cb112a239bf6f8135650db6f8f614a34de",
+  "dry_run_passed": true
+}

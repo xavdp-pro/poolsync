@@ -130,3 +130,11 @@ day of stability.
 
 These requirements remain unverified. The goal must not be marked complete on
 the strength of the automated native clipboard and controller checks alone.
+
+## Subsequent DEV diagnosis
+
+The [RDP image target investigation](RDP-IMAGE-TARGETS-2026-10-03.md) isolates
+the empty-text image advertisement regression, qualifies candidate dev.4 in
+116 mesh checks and compares native-RDP and direct-pool browser clipboard paths.
+It does not retroactively turn the failed production RDP campaign into a pass.
+The fleet remains on dev.3 until the separately recorded rollout occurs.

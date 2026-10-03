@@ -599,18 +599,14 @@ fn set_image_png_bmp(clip: &Clipboard, mime: &str, bytes: Vec<u8>) -> bool {
         png.len(),
         bmp.as_ref().map_or(0, Vec::len)
     );
-    // Empty text targets: xrdp-chansrv asks TEXT/STRING before it asks the
-    // bitmap target.  They must be advertised (but never contain PNG bytes),
-    // otherwise xrdp logs "unknown target TEXT" in a loop and Electron never
-    // reaches image/png or image/bmp.
-    let mut targets = vec![
-        TargetEntry::new("image/png", TargetFlags::empty(), INFO_PNG),
-        TargetEntry::new("UTF8_STRING", TargetFlags::empty(), INFO_TEXT),
-        TargetEntry::new("STRING", TargetFlags::empty(), INFO_TEXT),
-        TargetEntry::new("TEXT", TargetFlags::empty(), INFO_TEXT),
-        TargetEntry::new("text/plain", TargetFlags::empty(), INFO_TEXT),
-        TargetEntry::new("text/plain;charset=utf-8", TargetFlags::empty(), INFO_TEXT),
-    ];
+    // Advertise only formats containing this image. XRDP 0.10.1 treats the
+    // empty text targets as a text copy and FreeRDP never receives the bitmap.
+    // Ordinary GTK image offers likewise omit text targets.
+    let mut targets = vec![TargetEntry::new(
+        "image/png",
+        TargetFlags::empty(),
+        INFO_PNG,
+    )];
     if bmp.is_some() {
         targets.extend([
             TargetEntry::new("image/bmp", TargetFlags::empty(), INFO_BMP),
@@ -636,8 +632,6 @@ fn set_image_png_bmp(clip: &Clipboard, mime: &str, bytes: Vec<u8>) -> bool {
                 );
                 selection.set(&selection.target(), 8, bmp);
             }
-        } else if info == INFO_TEXT {
-            selection.set_text("");
         }
     })
 }

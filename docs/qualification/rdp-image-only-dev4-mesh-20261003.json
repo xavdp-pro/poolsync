@@ -1,0 +1,3827 @@
+{
+  "candidate_sha256": "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": true,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents and complete disposable containers",
+  "isolated_xorg_display": 185,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected starting binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes the second image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes the first image with matching RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes text after images",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium Ctrl+V pastes an image after text",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real Flameshot screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium preserves lossless pixels after slow metadata round 0",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium preserves lossless pixels after temporary PNG refusal round 0",
+      "passed": true
+    },
+    {
+      "name": "A genuine new second BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the fresh converted second BMP",
+      "passed": true
+    },
+    {
+      "name": "A genuine new first BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the fresh converted first BMP",
+      "passed": true
+    },
+    {
+      "name": "Application SAVE_TARGETS handoff preserves a fresh image after close",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff starts a real image transfer",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff cannot replace a newer native copy",
+      "passed": true
+    },
+    {
+      "name": "The delayed native image owner has received a real read request",
+      "passed": true
+    },
+    {
+      "name": "Fresh text converges before the six-second image response",
+      "passed": true
+    },
+    {
+      "name": "A late image response cannot restore the previous capture",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Large image/text traffic preserves active C control and fresh native GTK keys",
+      "passed": true
+    },
+    {
+      "name": "Native Chromium pastes the mixed-workload images while C remains controlled",
+      "passed": true
+    },
+    {
+      "name": "A superseded partial image never reaches either remote GTK paste history",
+      "passed": true
+    },
+    {
+      "name": "Fresh text remains selected after the cancelled image drains",
+      "passed": true
+    },
+    {
+      "name": "Departure cancels the source image without publishing private contents on return",
+      "passed": true
+    },
+    {
+      "name": "A held modifier reaches the actual C desktop",
+      "passed": true
+    },
+    {
+      "name": "Losing B preserves A control of C over the alternate direct path",
+      "passed": true
+    },
+    {
+      "name": "C native GTK still receives A input while B is unreachable",
+      "passed": true
+    },
+    {
+      "name": "Returning B learns the exact ongoing epoch without changing A/C control",
+      "passed": true
+    },
+    {
+      "name": "Resynchronizing B preserves the held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "C control resumes or persists after the relay reconnects",
+      "passed": true
+    },
+    {
+      "name": "Relay recovery leaves no held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: remote modifier and button are down and recorded",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: source native keyboard recovers locally",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: old injected modifier/button are released",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: recovery marker clears after acknowledged releases",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: unrelated held key and local pointer are preserved",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: target native keyboard is usable",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: fresh remote input resumes in native GTK",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: normal key release leaves no recovery marker",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: remote modifier and button are down and recorded",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: source native keyboard recovers locally",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: old injected modifier/button are released",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: recovery marker clears after acknowledged releases",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: unrelated held key and local pointer are preserved",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: target native keyboard is usable",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: fresh remote input resumes in native GTK",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: normal key release leaves no recovery marker",
+      "passed": true
+    },
+    {
+      "name": "A can return from C to B without changing controller",
+      "passed": true
+    },
+    {
+      "name": "A can return through B to its own native desktop",
+      "passed": true
+    },
+    {
+      "name": "Emergency shortcut returns captured input to A",
+      "passed": true
+    },
+    {
+      "name": "Emergency return releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "A held modifier is injected on B",
+      "passed": true
+    },
+    {
+      "name": "Network loss releases the remote held modifier",
+      "passed": true
+    },
+    {
+      "name": "Source native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Target native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Direct KVM resumes after the network partition",
+      "passed": true
+    },
+    {
+      "name": "Controller disappearance releases the held modifier on B",
+      "passed": true
+    },
+    {
+      "name": "B native keyboard is usable after the controller disappears",
+      "passed": true
+    },
+    {
+      "name": "B takes control and crosses to A after A restarts",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing remains on A despite repeated software warps on captured B",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing still forwards relative device motion to A",
+      "passed": true
+    },
+    {
+      "name": "A temporary departure returns B input locally",
+      "passed": true
+    },
+    {
+      "name": "B local GTK keyboard works after its remote target leaves",
+      "passed": true
+    },
+    {
+      "name": "Two local monitors are announced directly",
+      "passed": true
+    },
+    {
+      "name": "Docking keeps the saved neighboring computer adjacent",
+      "passed": true
+    },
+    {
+      "name": "The internal monitor edge keeps input local",
+      "passed": true
+    },
+    {
+      "name": "The added local monitor remains directly usable",
+      "passed": true
+    },
+    {
+      "name": "The external desktop edge reaches the other computer",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab returns native input locally",
+      "passed": true
+    },
+    {
+      "name": "Undocking restores the neighbor and advertises a different resolution",
+      "passed": true
+    },
+    {
+      "name": "Crossing scales coordinates between different resolutions",
+      "passed": true
+    },
+    {
+      "name": "Original desktop dimensions return after screen restoration",
+      "passed": true
+    },
+    {
+      "name": "Ten concurrent claim rounds converge on one eligible controller",
+      "passed": true
+    },
+    {
+      "name": "Concurrent claims leave both native keyboards available",
+      "passed": true
+    },
+    {
+      "name": "Repeated native image/text transitions",
+      "passed": true
+    },
+    {
+      "name": "Sustained real paste sequence finishes without stale contents",
+      "passed": true
+    },
+    {
+      "name": "Idle resource interval finishes with all peers alive",
+      "passed": true
+    },
+    {
+      "name": "Absent C neither receives nor retains office copies",
+      "passed": true
+    },
+    {
+      "name": "Absent C does not send its private copy",
+      "passed": true
+    },
+    {
+      "name": "Absence survives agent restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Rejoin does not replay the private clipboard",
+      "passed": true
+    },
+    {
+      "name": "Fresh native copies resume after rejoin without hub",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 0",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 1",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 2",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 3",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 4",
+      "passed": true
+    },
+    {
+      "name": "A local clipboard remains usable after the relay agent disappears",
+      "passed": true
+    },
+    {
+      "name": "An alternate direct route survives the loss of B",
+      "passed": true
+    },
+    {
+      "name": "Direct links recover after relay restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Reverse-order agent restart restores native mesh delivery",
+      "passed": true
+    },
+    {
+      "name": "Hub stayed unreachable throughout; agents report no panic",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    2.078,
+    1.569,
+    1.641,
+    1.424,
+    1.733,
+    1.726,
+    1.504,
+    1.496,
+    1.688,
+    1.962,
+    1.462,
+    1.733,
+    10.203,
+    9.79,
+    1.862,
+    1.904,
+    1.549,
+    3.657,
+    1.56,
+    1.749,
+    4.761,
+    1.715,
+    1.819,
+    1.528,
+    1.681,
+    2.067,
+    4.149,
+    3.757,
+    9.776,
+    1.791,
+    10.67,
+    1.844,
+    11.196,
+    1.775,
+    10.527,
+    2.025,
+    10.659,
+    1.852,
+    10.218,
+    1.64,
+    10.748,
+    1.819,
+    1.781,
+    4.434,
+    2.282,
+    1.764,
+    1.764,
+    1.564,
+    2.007,
+    1.605,
+    1.503,
+    1.894,
+    1.576,
+    1.979,
+    1.512,
+    1.62,
+    1.8,
+    1.539,
+    2.0,
+    1.754,
+    1.472,
+    1.687,
+    1.962,
+    2.019,
+    2.317,
+    1.848,
+    1.767,
+    1.79,
+    1.687,
+    1.755,
+    10.207,
+    1.948,
+    1.717,
+    1.895,
+    1.997,
+    1.935,
+    1.61,
+    1.679,
+    2.082,
+    1.656,
+    2.054,
+    2.083,
+    1.732,
+    2.055,
+    1.601,
+    1.645,
+    1.523,
+    1.556,
+    1.542,
+    1.824,
+    10.333,
+    1.968,
+    1.641,
+    1.732,
+    1.75,
+    1.85,
+    1.916,
+    2.141,
+    1.631,
+    1.892,
+    1.762,
+    1.841,
+    1.775,
+    1.739,
+    1.691,
+    1.707,
+    1.64,
+    1.953,
+    2.043,
+    1.729,
+    9.151,
+    1.768,
+    1.502,
+    1.695,
+    2.031,
+    1.618,
+    1.787,
+    1.708,
+    1.491,
+    1.865,
+    1.691,
+    1.635,
+    1.747,
+    1.788,
+    1.749,
+    1.685,
+    2.364,
+    2.115,
+    1.812,
+    1.728,
+    9.647,
+    1.803,
+    2.227,
+    1.815,
+    1.734,
+    1.835,
+    1.834,
+    1.617,
+    1.562,
+    1.648,
+    1.683,
+    1.728,
+    2.137,
+    1.64,
+    1.724,
+    1.535,
+    1.662,
+    1.882,
+    1.777,
+    1.729,
+    10.241,
+    1.899,
+    1.928,
+    1.771,
+    2.043,
+    1.93,
+    1.809,
+    1.897,
+    1.833,
+    2.156,
+    1.839,
+    1.668,
+    1.623,
+    2.046,
+    1.796,
+    1.716,
+    1.793,
+    1.647,
+    1.528,
+    1.684,
+    10.86,
+    1.925,
+    1.699,
+    2.021,
+    1.876,
+    2.106,
+    2.38,
+    2.047,
+    1.527,
+    1.769,
+    1.875,
+    1.728,
+    1.716,
+    1.61,
+    1.642,
+    1.882,
+    2.105,
+    1.885,
+    1.552,
+    1.84,
+    9.893,
+    1.562,
+    1.913,
+    2.203,
+    1.896,
+    1.719,
+    1.731,
+    1.668,
+    1.573,
+    1.816,
+    1.69,
+    1.879,
+    1.801,
+    2.275,
+    1.637,
+    1.793,
+    1.683,
+    1.979,
+    1.764,
+    1.957,
+    9.401,
+    1.667,
+    1.73,
+    1.791,
+    1.739,
+    1.704,
+    1.699,
+    1.481,
+    1.785,
+    1.886,
+    1.873,
+    2.101,
+    1.913,
+    1.494,
+    1.754,
+    1.804,
+    2.014,
+    1.895,
+    1.626,
+    1.844,
+    10.065,
+    1.641,
+    1.83,
+    1.494,
+    1.523,
+    1.923,
+    1.724,
+    2.177,
+    1.88,
+    1.817,
+    1.6,
+    1.798,
+    1.704,
+    1.72,
+    1.758,
+    1.511,
+    1.654,
+    1.934,
+    1.835,
+    2.066,
+    9.793,
+    1.892,
+    1.726,
+    2.079,
+    2.174,
+    1.8,
+    1.605,
+    1.747,
+    1.802,
+    2.019,
+    1.797,
+    1.76,
+    1.832,
+    2.004,
+    1.771,
+    2.045,
+    1.544,
+    2.058,
+    1.843,
+    1.786,
+    9.074,
+    2.164,
+    1.494,
+    1.887,
+    1.848,
+    1.872,
+    1.897,
+    1.778,
+    1.872,
+    1.752,
+    1.896,
+    1.897,
+    2.092,
+    1.845,
+    1.5,
+    1.964,
+    1.819,
+    1.852,
+    1.851,
+    1.831,
+    9.153,
+    1.819,
+    1.822,
+    1.974,
+    1.808,
+    1.94,
+    1.71,
+    1.923,
+    1.883,
+    2.206,
+    2.141,
+    1.606,
+    1.246,
+    1.998,
+    1.747,
+    2.011,
+    1.88,
+    1.831,
+    1.832,
+    2.367,
+    9.954,
+    1.591,
+    1.774,
+    1.707,
+    1.692,
+    2.142,
+    2.212,
+    1.746,
+    2.122,
+    1.576,
+    1.069,
+    1.863,
+    1.855,
+    0.757,
+    1.401,
+    2.019,
+    1.554,
+    1.38,
+    1.753,
+    1.733,
+    1.51,
+    2.135,
+    0.714,
+    1.501,
+    1.614,
+    0.739,
+    1.554,
+    1.667,
+    1.455,
+    1.731,
+    1.753
+  ],
+  "native_copy_owners": [
+    {
+      "container": "poolsync-cold-c",
+      "owner": 25165826,
+      "copier_pid": 54,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 54,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 35651586,
+      "copier_pid": 83,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 31457282,
+      "copier_pid": 77,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 99,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 106,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 29360130,
+      "copier_pid": 97,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 109,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 131,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 145,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 160,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 175,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 190,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 205,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 220,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 246,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 273,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 289,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 37748738,
+      "copier_pid": 311,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234497,
+      "copier_pid": 518,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 29360129,
+      "copier_pid": 541,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 343,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 37748738,
+      "copier_pid": 363,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 395,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 487,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 725,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 41943042,
+      "copier_pid": 386,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 811,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 688,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 898,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 46137346,
+      "copier_pid": 482,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 995,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 893,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1082,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 41943042,
+      "copier_pid": 576,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1170,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 1078,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1257,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1184,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 1202,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 687,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 710,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1216,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 31457282,
+      "copier_pid": 1798,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1812,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 54525954,
+      "copier_pid": 1663,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1670,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 997,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1011,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 31457282,
+      "copier_pid": 1841,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1855,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1712,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1719,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1044,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1051,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 1890,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1898,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1754,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1762,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1085,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1093,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 1933,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1941,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1798,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1812,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1128,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1135,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 1976,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 1994,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1863,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1870,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1183,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1197,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2037,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2044,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1905,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1913,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1232,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1239,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2080,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2095,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 1962,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 1970,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1279,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1287,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2130,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2138,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2004,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2015,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1334,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1341,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2188,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2195,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2058,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2066,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1376,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1384,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2236,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2243,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 52428802,
+      "copier_pid": 2108,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2116,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1419,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1426,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2278,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2286,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2151,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 52428802,
+      "copier_pid": 2158,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1459,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1469,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2337,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2345,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2205,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2213,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1510,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1524,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2381,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 2396,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2257,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2265,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1550,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1564,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2431,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 2439,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2301,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2308,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1596,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1611,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2482,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 2492,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2365,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2372,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 1660,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1674,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2543,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2551,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2416,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2423,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1706,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1714,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2586,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2594,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2458,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2472,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1747,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1761,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2637,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2644,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2506,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2517,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1810,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1818,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2692,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2699,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2562,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2570,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1854,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1862,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 2736,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2744,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2605,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2613,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1902,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 1910,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2780,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2788,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2649,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2657,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1944,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 1954,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2839,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2847,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2708,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2718,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 1996,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2003,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2884,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2892,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2753,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2761,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2045,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2053,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2926,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2934,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2796,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2804,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2087,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 2094,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 2971,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 2982,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2861,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2868,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2145,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2152,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3023,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3030,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 52428802,
+      "copier_pid": 2911,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2918,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2187,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2194,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3065,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3073,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2953,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 2961,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2227,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 2234,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3116,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3124,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 2997,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3008,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2281,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2288,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 3174,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3182,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3052,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3059,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2322,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2329,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3219,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3227,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 52428802,
+      "copier_pid": 3093,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3107,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2370,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2377,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3270,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3278,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3142,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3150,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2410,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2420,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3336,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 3343,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3200,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3207,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2456,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2471,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3378,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3386,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3244,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3252,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2505,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2512,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3422,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3429,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3288,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3295,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2547,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 2554,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3464,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3475,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3343,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3353,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2601,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2609,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3520,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3534,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3388,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3403,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2648,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2656,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3578,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3586,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3440,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3448,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2689,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2703,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3629,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 41943042,
+      "copier_pid": 3637,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3490,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3501,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2750,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2757,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3687,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3695,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3544,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3552,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2789,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2796,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3732,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3740,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3589,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3597,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2829,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 2836,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3777,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3785,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3631,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3639,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2869,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2879,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3835,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3843,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3689,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3698,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2920,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 2928,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3880,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3888,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3735,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3749,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 2969,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 2977,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3930,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3938,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3789,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3797,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 3011,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 3018,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 3975,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 3986,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3848,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 48234498,
+      "copier_pid": 3857,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 33554434,
+      "copier_pid": 3067,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 3074,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4030,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4038,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-cold-b",
+      "owner": 50331650,
+      "copier_pid": 3893,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4062,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4077,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 39845890,
+      "copier_pid": 3128,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4098,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4120,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 29360130,
+      "copier_pid": 3215,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4135,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4150,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 3237,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4164,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4179,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 29360130,
+      "copier_pid": 3261,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4192,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4207,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 35651586,
+      "copier_pid": 3284,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4221,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4236,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 29360130,
+      "copier_pid": 3306,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4249,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 33554434,
+      "copier_pid": 4264,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-a",
+      "owner": 27262978,
+      "copier_pid": 4277,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 37748738,
+      "copier_pid": 3340,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-cold-c",
+      "owner": 29360130,
+      "copier_pid": 3354,
+      "timestamp": null,
+      "kind": "text"
+    }
+  ],
+  "harness_sha256": "c83ea4b39cef30b51461d9d8c41f5257585db854240c33d0f937dd4f74f9da0b",
+  "direct_links": "triangle",
+  "three_kvm_peers": true,
+  "fresh_desktops": true,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 20.0,
+    "per_peer_disposable_proxy": true,
+    "central_proxy": false,
+    "partition_ports": [
+      19676,
+      19686
+    ]
+  },
+  "peer_tls": true,
+  "browser_x11_trace": false,
+  "browser_syscall_trace": false,
+  "native_browser_engine": "chromium",
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+  ],
+  "initial_peer_binary_sha256": [
+    "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9",
+    "20f5168a32e446fe1edd94b678ed5ee24c10b6dc1a3336addd13c2bcdf48ffe9"
+  ],
+  "browser_fixture_sha256": {
+    "browser-paste-server.py": "d0d85d45b89b776ce85662fca6b8921b3481fd182309aeaca9757b1b64c37cef",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "resource_samples": [
+    [
+      {
+        "at": 4215803.589302262,
+        "cpu_seconds": 2.49,
+        "rss_kib": 40144,
+        "pid": 1516
+      },
+      {
+        "at": 4215803.853575607,
+        "cpu_seconds": 21.5,
+        "rss_kib": 97352,
+        "pid": 17
+      },
+      {
+        "at": 4215804.056367997,
+        "cpu_seconds": 3.45,
+        "rss_kib": 36984,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4215851.349578168,
+        "cpu_seconds": 4.58,
+        "rss_kib": 40504,
+        "pid": 1516
+      },
+      {
+        "at": 4215851.59993458,
+        "cpu_seconds": 23.37,
+        "rss_kib": 97576,
+        "pid": 17
+      },
+      {
+        "at": 4215851.836812977,
+        "cpu_seconds": 5.25,
+        "rss_kib": 37332,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4215899.790539921,
+        "cpu_seconds": 6.48,
+        "rss_kib": 40536,
+        "pid": 1516
+      },
+      {
+        "at": 4215900.024658264,
+        "cpu_seconds": 25.68,
+        "rss_kib": 97476,
+        "pid": 17
+      },
+      {
+        "at": 4215900.217898992,
+        "cpu_seconds": 7.04,
+        "rss_kib": 37324,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4215946.389255767,
+        "cpu_seconds": 8.31,
+        "rss_kib": 40660,
+        "pid": 1516
+      },
+      {
+        "at": 4215946.687208908,
+        "cpu_seconds": 27.5,
+        "rss_kib": 97536,
+        "pid": 17
+      },
+      {
+        "at": 4215946.987272537,
+        "cpu_seconds": 8.97,
+        "rss_kib": 37636,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4215993.424118852,
+        "cpu_seconds": 10.3,
+        "rss_kib": 40628,
+        "pid": 1516
+      },
+      {
+        "at": 4215993.666578448,
+        "cpu_seconds": 29.3,
+        "rss_kib": 97508,
+        "pid": 17
+      },
+      {
+        "at": 4215993.954109625,
+        "cpu_seconds": 10.71,
+        "rss_kib": 38132,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216042.041618201,
+        "cpu_seconds": 12.31,
+        "rss_kib": 40600,
+        "pid": 1516
+      },
+      {
+        "at": 4216042.365068848,
+        "cpu_seconds": 31.33,
+        "rss_kib": 97748,
+        "pid": 17
+      },
+      {
+        "at": 4216042.672736717,
+        "cpu_seconds": 12.67,
+        "rss_kib": 37956,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216091.968191677,
+        "cpu_seconds": 14.26,
+        "rss_kib": 41096,
+        "pid": 1516
+      },
+      {
+        "at": 4216092.161193468,
+        "cpu_seconds": 33.24,
+        "rss_kib": 98028,
+        "pid": 17
+      },
+      {
+        "at": 4216092.408696296,
+        "cpu_seconds": 14.64,
+        "rss_kib": 38396,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216140.050125483,
+        "cpu_seconds": 16.46,
+        "rss_kib": 41364,
+        "pid": 1516
+      },
+      {
+        "at": 4216140.275129023,
+        "cpu_seconds": 35.06,
+        "rss_kib": 98176,
+        "pid": 17
+      },
+      {
+        "at": 4216140.515864062,
+        "cpu_seconds": 16.44,
+        "rss_kib": 38264,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216186.95486117,
+        "cpu_seconds": 18.42,
+        "rss_kib": 41408,
+        "pid": 1516
+      },
+      {
+        "at": 4216187.168459942,
+        "cpu_seconds": 37.08,
+        "rss_kib": 98160,
+        "pid": 17
+      },
+      {
+        "at": 4216187.477416932,
+        "cpu_seconds": 18.22,
+        "rss_kib": 38596,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216234.367430553,
+        "cpu_seconds": 20.26,
+        "rss_kib": 41628,
+        "pid": 1516
+      },
+      {
+        "at": 4216234.549571337,
+        "cpu_seconds": 38.92,
+        "rss_kib": 98368,
+        "pid": 17
+      },
+      {
+        "at": 4216234.74224757,
+        "cpu_seconds": 20.1,
+        "rss_kib": 38640,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216283.109982077,
+        "cpu_seconds": 22.46,
+        "rss_kib": 42000,
+        "pid": 1516
+      },
+      {
+        "at": 4216283.429480566,
+        "cpu_seconds": 40.99,
+        "rss_kib": 98196,
+        "pid": 17
+      },
+      {
+        "at": 4216283.645894308,
+        "cpu_seconds": 22.11,
+        "rss_kib": 39028,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216331.073118356,
+        "cpu_seconds": 24.39,
+        "rss_kib": 42148,
+        "pid": 1516
+      },
+      {
+        "at": 4216331.350774813,
+        "cpu_seconds": 43.16,
+        "rss_kib": 98732,
+        "pid": 17
+      },
+      {
+        "at": 4216331.592834068,
+        "cpu_seconds": 23.92,
+        "rss_kib": 39092,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216379.798251098,
+        "cpu_seconds": 26.32,
+        "rss_kib": 41952,
+        "pid": 1516
+      },
+      {
+        "at": 4216380.196509824,
+        "cpu_seconds": 45.07,
+        "rss_kib": 98624,
+        "pid": 17
+      },
+      {
+        "at": 4216380.503482454,
+        "cpu_seconds": 25.94,
+        "rss_kib": 39260,
+        "pid": 873
+      }
+    ],
+    [
+      {
+        "at": 4216405.089247488,
+        "cpu_seconds": 27.95,
+        "rss_kib": 42260,
+        "pid": 1516
+      },
+      {
+        "at": 4216405.337361565,
+        "cpu_seconds": 46.39,
+        "rss_kib": 98776,
+        "pid": 17
+      },
+      {
+        "at": 4216405.600521718,
+        "cpu_seconds": 27.25,
+        "rss_kib": 39484,
+        "pid": 873
+      }
+    ]
+  ],
+  "native_browser_version": "Chromium 154.0.8037.92 built on Debian GNU/Linux 13 (trixie)",
+  "native_screenshot_application": "flameshot",
+  "native_browser_paste": true,
+  "superseded_image_text_seconds": 3.757,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.179,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.101",
+        "10.89.2.103"
+      ],
+      [
+        "10.89.2.101",
+        "10.89.2.102"
+      ]
+    ],
+    [
+      [
+        "10.89.2.102",
+        "10.89.2.103"
+      ],
+      [
+        "10.89.2.102",
+        "10.89.2.101"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ],
+    [
+      [
+        "10.89.2.103",
+        "10.89.2.101"
+      ],
+      [
+        "10.89.2.103",
+        "10.89.2.102"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ]
+  ],
+  "mixed_workload": {
+    "elapsed_seconds": 135.708,
+    "large_image_text_rounds": 7,
+    "native_browser_pastes_per_round": 3,
+    "native_key_latency_seconds": [
+      0.2154,
+      0.2885,
+      0.2747,
+      0.2823,
+      0.3111,
+      0.1957,
+      0.1969,
+      0.199,
+      0.2103,
+      0.2071,
+      0.2437,
+      0.1882,
+      0.2186,
+      0.1976,
+      0.2091,
+      0.1908,
+      0.1996,
+      0.1905,
+      0.1839,
+      0.2278,
+      0.1929,
+      0.4071,
+      0.5088,
+      0.3393,
+      0.2955,
+      0.2,
+      0.176,
+      0.2063,
+      0.2104,
+      0.1952,
+      0.1992,
+      0.1636,
+      0.3481,
+      0.3013,
+      0.2244,
+      0.2898,
+      0.2494,
+      0.1889,
+      0.1952,
+      0.1916,
+      0.1737,
+      0.1939,
+      0.1874,
+      0.2245,
+      0.3731,
+      0.3361,
+      0.2927,
+      0.2048,
+      0.262,
+      0.2028,
+      0.1821,
+      0.2183,
+      0.1787,
+      0.2345,
+      0.2177,
+      0.3772,
+      0.2119,
+      0.1895,
+      0.2878,
+      0.2302,
+      0.1612,
+      0.2012,
+      0.1793,
+      0.3191,
+      0.3269,
+      0.325,
+      0.4067,
+      0.1867,
+      0.1988,
+      0.2241,
+      0.185,
+      0.1977,
+      0.18
+    ],
+    "unchanged_lease": {
+      "focus": "nohub-c",
+      "owner": "nohub-a",
+      "term": 1
+    },
+    "transport_metrics": [
+      {
+        "fragmented_started": 17,
+        "fragmented_finished": 17,
+        "send_failures": 0,
+        "sessions_ended": 1,
+        "fragment_sessions": 6,
+        "legacy_sessions": 0
+      },
+      {
+        "fragmented_started": 10,
+        "fragmented_finished": 9,
+        "send_failures": 0,
+        "sessions_ended": 1,
+        "fragment_sessions": 6,
+        "legacy_sessions": 0
+      },
+      {
+        "fragmented_started": 13,
+        "fragmented_finished": 12,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 6,
+        "legacy_sessions": 0
+      }
+    ],
+    "resources": [
+      {
+        "node": "nohub-a",
+        "cpu_percent": 8.341215036772166,
+        "rss_start_kib": 92820,
+        "rss_end_kib": 93016,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-b",
+        "cpu_percent": 8.280448574048378,
+        "rss_start_kib": 95160,
+        "rss_end_kib": 107976,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-c",
+        "cpu_percent": 8.266428972084448,
+        "rss_start_kib": 90244,
+        "rss_end_kib": 91336,
+        "pid_preserved": true
+      }
+    ]
+  },
+  "mixed_resolution_entry_pointer": {
+    "x": 30,
+    "y": 384
+  },
+  "simultaneous_claim_winners": [
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 13
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 15
+    },
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 17
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 19
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 21
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 23
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 25
+    },
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 27
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 29
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 31
+    }
+  ],
+  "kvm_observation": "Direct peer edge crossing, native GTK key reception, held-key release and target/controller recovery. Input is synthetic X11, not physical acceptance.",
+  "soak": {
+    "elapsed_seconds": 602.243,
+    "image_text_rounds": 124
+  },
+  "idle_resources": [
+    {
+      "elapsed_seconds": 30.666849312372506,
+      "cpu_percent": 2.119552593678935,
+      "rss_start_kib": 42260,
+      "rss_end_kib": 42260
+    },
+    {
+      "elapsed_seconds": 30.743173454888165,
+      "cpu_percent": 1.984180328342182,
+      "rss_start_kib": 98776,
+      "rss_end_kib": 98776
+    },
+    {
+      "elapsed_seconds": 30.768655351363122,
+      "cpu_percent": 2.015037683382319,
+      "rss_start_kib": 39484,
+      "rss_end_kib": 39484
+    }
+  ],
+  "functional_checks_passed": true,
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "poolsync-cold-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "poolsync-cold-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "poolsync-cold-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true,
+      "private_bandwidth_proxy_stopped": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 116,
+  "test_root": "/tmp/poolsync-no-hub-b9348ef779df"
+}
