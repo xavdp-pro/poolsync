@@ -46,6 +46,11 @@ to its own loopback server, never image or text payloads. The manual HTML page
 keeps its original behavior and has no upload endpoint. Each browser uses a
 separate profile, HOME and X11 display; neither the in-app browser's virtual
 clipboard nor `navigator.clipboard.write` is used to fabricate delivery.
+The lab hook refocuses the editable paste target when its native browser window
+regains focus. It separately records focus, native paste-shortcut arrival and
+paste dispatch as bounded metadata, without logging key contents. This lets a
+missing native paste be distinguished from a shortcut sent to an unfocused
+browser widget; image/text delivery still requires the real paste handler.
 
 ## Regression sequence
 

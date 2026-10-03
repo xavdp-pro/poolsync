@@ -1,6 +1,7 @@
 //! Mesh clipboard direct entre voisins (LAN/VPN) — sans relay hub bs1.
 
 use crate::clipboard_incoming::apply_incoming_clipboard;
+use crate::peer_clip_transfer::{self, CAPABILITY_HEADER};
 use crate::state::AgentState;
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
@@ -8,6 +9,7 @@ use poolsync_core::{decode_message, decrypt_clipboard, AgentConfig, Message, Nei
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::BufReader;
+use std::os::fd::AsRawFd;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
@@ -53,12 +55,15 @@ pub fn spawn(state: Arc<AgentState>) -> Result<Option<mpsc::UnboundedSender<Stri
     let (peer_in_tx, mut peer_in_rx) = mpsc::unbounded_channel::<PeerInbound>();
     // Local selection application is serialized and coalesced independently of
     // control/forwarding. Slow X11/RDP owners cannot stall input lease renewals.
-    let (clip_tx, mut clip_rx) = tokio::sync::watch::channel::<Option<(String, String)>>(None);
+    let (clip_tx, mut clip_rx) = tokio::sync::watch::channel::<Option<(String, String, u64)>>(None);
     let clip_state = state.clone();
     tokio::spawn(async move {
         while clip_rx.changed().await.is_ok() {
             let clip = clip_rx.borrow_and_update().clone();
-            if let Some((source, wire)) = clip {
+            if let Some((source, wire, epoch)) = clip {
+                if epoch != clip_state.participation_epoch() {
+                    continue;
+                }
                 if let Some(Message::Clipboard {
                     hash,
                     data,
@@ -120,7 +125,7 @@ pub fn spawn(state: Arc<AgentState>) -> Result<Option<mpsc::UnboundedSender<Stri
     }
 
     tokio::spawn(async move {
-        let mut peers: HashMap<String, mpsc::Sender<String>> = HashMap::new();
+        let mut peers: HashMap<String, mpsc::Sender<PeerSend>> = HashMap::new();
         let mut seen_messages: HashSet<String> = HashSet::new();
         let mut seen_order = VecDeque::new();
         let mut queued_clipboard: Option<(u64, String)> = None;
@@ -147,10 +152,11 @@ pub fn spawn(state: Arc<AgentState>) -> Result<Option<mpsc::UnboundedSender<Stri
                         remember_bounded(&mut seen_messages, &mut seen_order, id);
                         advance_clipboard_queue(&mut queued_clipboard,&payload,&state.config);
                     }
-                    peers.retain(|_,tx| tx.try_send(payload.clone()).is_ok());
+                    peers.retain(|_,tx| tx.try_send(PeerSend::new(payload.clone(), &state)).is_ok());
                 }
                 Some(incoming) = peer_in_rx.recv() => {
                     let clip_id = clipboard_message_id(&incoming.payload);
+                    if clip_id.is_some() && incoming.participation_epoch != state.participation_epoch() { continue; }
                     let id = clip_id.clone().unwrap_or_else(|| poolsync_core::hash_text(&incoming.payload));
                     if seen_messages.contains(&id) { continue; }
                     if let Some(controller) = controller.as_mut() {
@@ -167,10 +173,10 @@ pub fn spawn(state: Arc<AgentState>) -> Result<Option<mpsc::UnboundedSender<Stri
                         }
                     } else if state.pool_away() || clip_id.is_none() { continue; }
                     remember_bounded(&mut seen_messages, &mut seen_order, id);
-                    peers.retain(|node,tx| node == &incoming.source || tx.try_send(incoming.payload.clone()).is_ok());
+                    peers.retain(|node,tx| node == &incoming.source || tx.try_send(PeerSend::new(incoming.payload.clone(), &state)).is_ok());
                     if controller.is_some() && clip_id.is_some()
                         && advance_clipboard_queue(&mut queued_clipboard,&incoming.payload,&state.config) {
-                        let _ = clip_tx.send(Some((incoming.source,incoming.payload)));
+                        let _ = clip_tx.send(Some((incoming.source,incoming.payload,incoming.participation_epoch)));
                     }
                 }
                 Some(link) = peer_reg_rx.recv() => {
@@ -182,7 +188,7 @@ pub fn spawn(state: Arc<AgentState>) -> Result<Option<mpsc::UnboundedSender<Stri
                     if let Some(controller) = controller.as_mut() {
                         state.set_connected(!peers.is_empty());
                         match controller.tick().await {
-                            Ok(messages) => for payload in messages { peers.retain(|_,tx| tx.try_send(payload.clone()).is_ok()); },
+                            Ok(messages) => for payload in messages { peers.retain(|_,tx| tx.try_send(PeerSend::new(payload.clone(), &state)).is_ok()); },
                             Err(err) => warn!("peer heartbeat: {err:#}"),
                         }
                     }
@@ -243,12 +249,26 @@ fn should_initiate_link(local: &str, remote: &str) -> bool {
 
 struct PeerLink {
     node: String,
-    tx: mpsc::Sender<String>,
+    tx: mpsc::Sender<PeerSend>,
+}
+
+struct PeerSend {
+    payload: String,
+    participation_epoch: u64,
+}
+impl PeerSend {
+    fn new(payload: String, state: &AgentState) -> Self {
+        Self {
+            payload,
+            participation_epoch: state.participation_epoch(),
+        }
+    }
 }
 
 struct PeerInbound {
     source: String,
     payload: String,
+    participation_epoch: u64,
 }
 
 const MAX_SEEN_MESSAGES: usize = 4096;
@@ -279,6 +299,7 @@ async fn run_listener(
 
     loop {
         let (stream, peer_addr) = listener.accept().await.context("peer accept")?;
+        let socket_fd = stream.as_raw_fd();
         let state_in = state.clone();
         let reg_in = reg.clone();
         let incoming_in = incoming.clone();
@@ -293,14 +314,22 @@ async fn run_listener(
                             peer_addr.to_string(),
                             reg_in,
                             incoming_in,
+                            socket_fd,
                         )
                         .await
                     }
                     Err(err) => Err(anyhow::anyhow!("peer TLS accept: {err}")),
                 }
             } else {
-                handle_inbound_stream(state_in, stream, peer_addr.to_string(), reg_in, incoming_in)
-                    .await
+                handle_inbound_stream(
+                    state_in,
+                    stream,
+                    peer_addr.to_string(),
+                    reg_in,
+                    incoming_in,
+                    socket_fd,
+                )
+                .await
             };
             if let Err(err) = result {
                 debug!("peer inbound {peer_addr}: {err:#}");
@@ -341,16 +370,18 @@ async fn handle_inbound_stream<S>(
     peer_addr: String,
     reg: mpsc::UnboundedSender<PeerLink>,
     incoming: mpsc::UnboundedSender<PeerInbound>,
+    socket_fd: std::os::fd::RawFd,
 ) -> Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let mut remote_node: Option<String> = None;
+    let mut fragments = false;
     let config = state.config.clone();
     let ws = tokio_tungstenite::accept_hdr_async(
         stream,
         |req: &tokio_tungstenite::tungstenite::handshake::server::Request,
-         res: tokio_tungstenite::tungstenite::handshake::server::Response| {
+         mut res: tokio_tungstenite::tungstenite::handshake::server::Response| {
             let Some(node) = peer_request_identity(req, &config) else {
                 let err_res = tokio_tungstenite::tungstenite::handshake::server::ErrorResponse::new(
                     Some("Invalid peer credentials".to_string()),
@@ -358,13 +389,26 @@ where
                 return Err(err_res);
             };
             remote_node = Some(node);
+            fragments = req
+                .headers()
+                .get(CAPABILITY_HEADER)
+                .is_some_and(|v| v == "1");
+            if fragments {
+                peer_clip_transfer::pace_socket(socket_fd).map_err(|_| {
+                    tokio_tungstenite::tungstenite::handshake::server::ErrorResponse::new(Some(
+                        "Peer socket pacing unavailable".into(),
+                    ))
+                })?;
+                res.headers_mut()
+                    .insert(CAPABILITY_HEADER, HeaderValue::from_static("1"));
+            }
             Ok(res)
         },
     )
     .await
     .context("peer ws accept")?;
     let label = remote_node.clone().unwrap_or(peer_addr);
-    serve_peer_session(state, ws, remote_node, label, reg, incoming).await
+    serve_peer_session(state, ws, remote_node, label, reg, incoming, fragments).await
 }
 
 fn neighbor_accepts_token(neighbor: &Neighbor, token: &str, shared_token: &str) -> bool {
@@ -416,7 +460,7 @@ async fn peer_outbound_loop(
             match timeout_connect(url, state.config.authentication_token(), &state.config.node)
                 .await
             {
-                Ok(ws) => {
+                Ok((ws, fragments)) => {
                     info!("peer mesh → {neighbor} via {url}");
                     if serve_peer_session(
                         state.clone(),
@@ -425,6 +469,7 @@ async fn peer_outbound_loop(
                         url.clone(),
                         reg.clone(),
                         incoming.clone(),
+                        fragments,
                     )
                     .await
                     .is_ok()
@@ -453,7 +498,10 @@ async fn timeout_connect(
     url: &str,
     token: &str,
     node: &str,
-) -> Result<WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>> {
+) -> Result<(
+    WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>,
+    bool,
+)> {
     let mut request = url.into_client_request()?;
     request.headers_mut().insert(
         AUTHORIZATION,
@@ -462,11 +510,28 @@ async fn timeout_connect(
     request
         .headers_mut()
         .insert("x-poolsync-node", HeaderValue::from_str(node)?);
-    let (ws, _) = timeout(PEER_CONNECT_TIMEOUT, connect_async(request))
+    request
+        .headers_mut()
+        .insert(CAPABILITY_HEADER, HeaderValue::from_static("1"));
+    let (ws, response) = timeout(PEER_CONNECT_TIMEOUT, connect_async(request))
         .await
         .context("peer connect timeout")?
         .with_context(|| format!("peer connect {url}"))?;
-    Ok(ws)
+    let fragments = response
+        .headers()
+        .get(CAPABILITY_HEADER)
+        .is_some_and(|v| v == "1");
+    if fragments {
+        let stream = match ws.get_ref() {
+            tokio_tungstenite::MaybeTlsStream::Plain(stream) => stream,
+            tokio_tungstenite::MaybeTlsStream::NativeTls(stream) => {
+                stream.get_ref().get_ref().get_ref()
+            }
+            _ => anyhow::bail!("unsupported peer stream for TCP pacing"),
+        };
+        peer_clip_transfer::pace_socket(stream.as_raw_fd())?;
+    }
+    Ok((ws, fragments))
 }
 
 async fn serve_peer_session<S>(
@@ -476,12 +541,13 @@ async fn serve_peer_session<S>(
     label: String,
     reg: mpsc::UnboundedSender<PeerLink>,
     incoming: mpsc::UnboundedSender<PeerInbound>,
+    fragments: bool,
 ) -> Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let (mut write, mut read) = ws.split();
-    let (peer_tx, mut peer_rx) = mpsc::channel::<String>(128);
+    let (peer_tx, mut peer_rx) = mpsc::channel::<PeerSend>(128);
     let node_name = remote_node.clone().unwrap_or_else(|| label.clone());
     // Inbound handshakes include their node name.  With one deterministic
     // dialer per pair, both endpoints may register this single channel.
@@ -495,9 +561,28 @@ where
     let state_read = state.clone();
     let remote = remote_node.clone();
     let mut ping_interval = tokio::time::interval(Duration::from_secs(10));
+    let mut outgoing_clipboard: Option<peer_clip_transfer::Outgoing> = None;
+    let mut incoming_clipboard = peer_clip_transfer::Incoming::default();
+    let mut participation_epoch = state.participation_epoch();
+    info!(peer = %node_name, clipboard_fragments = fragments, "peer transport negotiated");
 
     loop {
+        let epoch = state.participation_epoch();
+        if epoch != participation_epoch || !state.local_poolsync_active() {
+            outgoing_clipboard = None;
+            incoming_clipboard.cancel();
+            participation_epoch = epoch;
+        }
+        incoming_clipboard.expire(std::time::Instant::now());
+        if outgoing_clipboard
+            .as_ref()
+            .is_some_and(|outgoing| outgoing.expired(std::time::Instant::now()))
+        {
+            debug!(peer = %node_name, "peer clipboard fragmented transfer stalled; control remains connected");
+            outgoing_clipboard = None;
+        }
         tokio::select! {
+            biased;
             _ = ping_interval.tick() => {
                 if write.send(WsMessage::Ping(vec![].into())).await.is_err() {
                     warn!("peer mesh ping échoué vers {node_name}");
@@ -506,8 +591,11 @@ where
             }
             maybe = peer_rx.recv() => {
                 match maybe {
-                    Some(payload) => {
+                    Some(queued) => {
+                        let payload = queued.payload;
                         if state_read.pool_away() && !state_read.config.hubless { continue; }
+                        let clipboard = clipboard_message_id(&payload).is_some();
+                        if clipboard && (queued.participation_epoch != state.participation_epoch() || !state.local_poolsync_active()) { continue; }
                         let decoded = decode_message(&payload).ok().and_then(|message| {
                             if matches!(message, Message::EncryptedClipboard { .. }) {
                                 state
@@ -532,7 +620,17 @@ where
                                 );
                             }
                         }
+                        if clipboard && fragments {
+                            // A newer copy cancels the incomplete outgoing image.
+                            outgoing_clipboard = None;
+                            if payload.len() > peer_clip_transfer::CHUNK_BYTES {
+                                debug!(peer = %node_name, wire_bytes = payload.len(), "peer clipboard fragmented transfer started");
+                                outgoing_clipboard = Some(peer_clip_transfer::Outgoing::new(payload)?);
+                                continue;
+                            }
+                        }
                         if !matches!(timeout(Duration::from_secs(1), write.send(WsMessage::Text(payload.into()))).await, Ok(Ok(()))) {
+                            debug!(peer = %node_name, "peer send failed or timed out");
                             break;
                         }
                     }
@@ -542,8 +640,9 @@ where
             msg = read.next() => {
                 match msg {
                     Some(Ok(WsMessage::Text(text))) => {
+                        if clipboard_message_id(&text).is_some() { incoming_clipboard.cancel(); }
                         if state_read.config.hubless {
-                            let _ = incoming.send(PeerInbound { source: node_name.clone(), payload: text.to_string() });
+                            let _ = incoming.send(PeerInbound { source: node_name.clone(), payload: text.to_string(), participation_epoch });
                             continue;
                         }
                         let wire = decode_message(&text);
@@ -568,6 +667,7 @@ where
                             let _ = incoming.send(PeerInbound {
                                 source: node_name.clone(),
                                 payload: text.to_string(),
+                                participation_epoch,
                             });
                             let source = remote.as_deref().unwrap_or("peer");
                             // Toujours relayer : `(origin, seq)` voyage avec le
@@ -583,6 +683,23 @@ where
                             warn!("peer clipboard chiffré rejeté depuis {node_name}: clef absente ou invalide");
                         }
                     }
+                    Some(Ok(WsMessage::Binary(frame))) => {
+                        anyhow::ensure!(fragments, "unnegotiated clipboard fragment");
+                        if peer_clip_transfer::is_ack(&frame) {
+                            if let Some(outgoing) = outgoing_clipboard.as_mut() {
+                                outgoing.acknowledge(&frame, std::time::Instant::now())?;
+                            }
+                            continue;
+                        }
+                        let ack = peer_clip_transfer::acknowledgement(&frame)?;
+                        if !matches!(timeout(Duration::from_secs(1), write.send(WsMessage::Binary(ack.into()))).await, Ok(Ok(()))) { break; }
+                        if !state.local_poolsync_active() { incoming_clipboard.cancel(); continue; }
+                        if let Some(payload) = incoming_clipboard.push(&frame, std::time::Instant::now())? {
+                            anyhow::ensure!(clipboard_message_id(&payload).is_some(), "fragmented payload is not a clipboard message");
+                            if !state_read.config.hubless && decode_peer_clipboard(&payload, &state_read.config).is_none() { continue; }
+                            let _ = incoming.send(PeerInbound { source: node_name.clone(), payload, participation_epoch });
+                        }
+                    }
                     Some(Ok(WsMessage::Ping(payload))) => {
                         if write.send(WsMessage::Pong(payload)).await.is_err() {
                             break;
@@ -590,6 +707,19 @@ where
                     }
                     Some(Ok(WsMessage::Close(_))) | Some(Err(_)) | None => break,
                     _ => {}
+                }
+            }
+            _ = std::future::ready(()), if outgoing_clipboard.as_ref().is_some_and(|outgoing| outgoing.ready()) => {
+                let outgoing = outgoing_clipboard.as_mut().expect("pending clipboard");
+                if let Some(frame) = outgoing.next_frame() {
+                    if !matches!(timeout(Duration::from_secs(1), write.send(WsMessage::Binary(frame.into()))).await, Ok(Ok(()))) {
+                        debug!(peer = %node_name, "peer clipboard fragment send failed or timed out");
+                        break;
+                    }
+                }
+                if outgoing.finished() {
+                    debug!(peer = %node_name, "peer clipboard fragmented transfer finished");
+                    outgoing_clipboard = None;
                 }
             }
         }

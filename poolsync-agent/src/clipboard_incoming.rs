@@ -27,6 +27,7 @@ pub async fn apply_incoming_clipboard(
     origin: &str,
     seq: u64,
 ) -> anyhow::Result<()> {
+    let participation_epoch = state.participation_epoch();
     // An absent laptop must not accumulate office clipboard contents.
     if state.pool_away() {
         return Ok(());
@@ -106,7 +107,9 @@ pub async fn apply_incoming_clipboard(
     // l'affiche est fermée ensuite, on pourra le resservir.
     let context = format!("incoming-{source_node}");
     match write_clipboard_if(&write_data, &write_mime, || {
-        !state.pool_away() && state.clip_order().is_current(origin, seq)
+        !state.pool_away()
+            && state.participation_epoch() == participation_epoch
+            && state.clip_order().is_current(origin, seq)
     })
     .await
     {

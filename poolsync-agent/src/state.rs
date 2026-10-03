@@ -28,6 +28,7 @@ pub struct AgentState {
     /// Pause locale (raccourci clavier) — n'affecte que cette machine.
     local_active: Arc<AtomicBool>,
     pool_away: Arc<AtomicBool>,
+    participation_epoch: Arc<AtomicU64>,
     pool_away_transition: Arc<Mutex<()>>,
     clipboard_baseline_reset: Arc<AtomicBool>,
     private_clipboard_epoch: Arc<Mutex<PrivateClipboardEpoch>>,
@@ -166,6 +167,7 @@ impl AgentState {
             layout_kvm_allowed: Arc::new(AtomicBool::new(true)),
             local_active: Arc::new(AtomicBool::new(true)),
             pool_away: Arc::new(AtomicBool::new(away)),
+            participation_epoch: Arc::new(AtomicU64::new(0)),
             pool_away_transition: Arc::new(Mutex::new(())),
             clipboard_baseline_reset: Arc::new(AtomicBool::new(false)),
             private_clipboard_epoch: Arc::new(Mutex::new(None)),
@@ -536,6 +538,11 @@ impl AgentState {
         self.pool_away.load(Ordering::SeqCst)
     }
 
+    /// Fence queued/partial clipboard transfers across even brief departures.
+    pub fn participation_epoch(&self) -> u64 {
+        self.participation_epoch.load(Ordering::SeqCst)
+    }
+
     pub fn set_pool_away(&self, away: bool) -> std::io::Result<()> {
         let _transition = self
             .pool_away_transition
@@ -570,6 +577,7 @@ impl AgentState {
             }
             self.clipboard_baseline_reset.store(true, Ordering::SeqCst);
         }
+        self.participation_epoch.fetch_add(1, Ordering::SeqCst);
         self.pool_away.store(away, Ordering::SeqCst);
         self.set_local_poolsync_active(!away);
     }
@@ -602,7 +610,9 @@ impl AgentState {
 
     pub fn set_local_poolsync_active(&self, value: bool) {
         let was = self.local_poolsync_active();
-        self.local_active.store(value, Ordering::SeqCst);
+        if self.local_active.swap(value, Ordering::SeqCst) != value {
+            self.participation_epoch.fetch_add(1, Ordering::SeqCst);
+        }
         self.notify_tray_status_changed();
         if !value {
             // Leave remote-grab state so resume does not keep driving another screen.

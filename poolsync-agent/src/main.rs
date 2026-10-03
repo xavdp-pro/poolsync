@@ -25,6 +25,7 @@ mod network;
 mod notify_thumb;
 mod notify_util;
 mod participation;
+mod peer_clip_transfer;
 mod peer_mesh;
 mod physical_input;
 mod rdp_detect;

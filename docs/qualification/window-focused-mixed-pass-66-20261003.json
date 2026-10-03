@@ -1,0 +1,410 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": true,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected candidate binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "Relay fixture has no direct candidate TCP connection between A and C",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Large image/text traffic preserves active C control and fresh native GTK keys",
+      "passed": true
+    },
+    {
+      "name": "Native Firefox pastes the mixed-workload images while C remains controlled",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    2.021,
+    16.351,
+    1.672,
+    15.983,
+    1.886,
+    15.739,
+    1.809,
+    15.584,
+    1.871,
+    15.521,
+    1.606,
+    16.312,
+    1.75
+  ],
+  "native_copy_owners": [
+    {
+      "container": "neko-desk-a",
+      "owner": 27262978,
+      "copier_pid": 3326283,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3328125,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 37748738,
+      "copier_pid": 1997149,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 41943042,
+      "copier_pid": 499617,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 39845890,
+      "copier_pid": 1998121,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 33554434,
+      "copier_pid": 3330523,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 37748738,
+      "copier_pid": 1999129,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 44040194,
+      "copier_pid": 502513,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 39845890,
+      "copier_pid": 2000119,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-a",
+      "owner": 31457282,
+      "copier_pid": 3332958,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 41943042,
+      "copier_pid": 2001112,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "neko-desk-c",
+      "owner": 41943042,
+      "copier_pid": 505372,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "neko-desk-b",
+      "owner": 39845890,
+      "copier_pid": 2002179,
+      "timestamp": null,
+      "kind": "text"
+    }
+  ],
+  "direct_links": "chain",
+  "three_kvm_peers": true,
+  "fresh_desktops": false,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 20.0,
+    "per_peer_disposable_proxy": true,
+    "central_proxy": false,
+    "partition_ports": [
+      19676,
+      19686
+    ]
+  },
+  "peer_tls": true,
+  "qualification_scope": "focused mixed native clipboard/input diagnostic",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {
+    "browser-paste-server.py": "8ff124eef2fd5dbc2669b22739788c4babb371586752ca23ffc794e6ce0c875d",
+    "clipboard-paste.html": "aa72ab9f10fd65ceefc2be23c3c7b42688f483e714605068a64e534eaad017e7"
+  },
+  "resource_samples": [],
+  "native_browser_paste": true,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1654,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.2",
+        "10.89.2.3"
+      ]
+    ],
+    [
+      [
+        "10.89.2.3",
+        "10.89.2.2"
+      ],
+      [
+        "10.89.2.3",
+        "10.89.2.5"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ],
+    [
+      [
+        "10.89.2.5",
+        "10.89.2.3"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ],
+      [
+        "127.0.0.1",
+        "127.0.0.1"
+      ]
+    ]
+  ],
+  "mixed_workload": {
+    "elapsed_seconds": 125.773,
+    "large_image_text_rounds": 6,
+    "native_key_latency_seconds": [
+      0.178,
+      0.3845,
+      0.3655,
+      0.3292,
+      0.5667,
+      0.3452,
+      0.2914,
+      0.3168,
+      0.2171,
+      0.2054,
+      0.1801,
+      0.2222,
+      0.2566,
+      0.1841,
+      0.259,
+      0.5109,
+      0.3561,
+      0.1946,
+      0.2046,
+      0.2024,
+      0.1992,
+      0.1818,
+      0.1902,
+      0.3156,
+      0.3113,
+      0.3345,
+      0.5689,
+      0.418,
+      0.3306,
+      0.307,
+      0.1788,
+      0.1999,
+      0.1764,
+      0.2184,
+      0.2057,
+      0.2019,
+      0.1988,
+      0.2075,
+      0.2004,
+      0.2317,
+      0.1956,
+      0.2506,
+      0.2118,
+      0.1684,
+      0.1967,
+      0.3272,
+      0.2795,
+      0.3231,
+      0.3529,
+      0.3242,
+      0.298,
+      0.3046,
+      0.2277,
+      0.1816,
+      0.1771,
+      0.2054,
+      0.1986,
+      0.2184,
+      0.1779,
+      0.1903,
+      0.2068,
+      0.2019,
+      0.2674,
+      0.1893,
+      0.1944,
+      0.2151,
+      0.1817
+    ],
+    "unchanged_lease": {
+      "focus": "nohub-c",
+      "owner": "nohub-a",
+      "term": 1
+    },
+    "transport_metrics": [
+      {
+        "fragmented_started": 3,
+        "fragmented_finished": 3,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 1,
+        "legacy_sessions": 0
+      },
+      {
+        "fragmented_started": 6,
+        "fragmented_finished": 6,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 2,
+        "legacy_sessions": 0
+      },
+      {
+        "fragmented_started": 3,
+        "fragmented_finished": 3,
+        "send_failures": 0,
+        "sessions_ended": 0,
+        "fragment_sessions": 1,
+        "legacy_sessions": 0
+      }
+    ],
+    "resources": [
+      {
+        "node": "nohub-a",
+        "cpu_percent": 5.827991563392533,
+        "rss_start_kib": 92700,
+        "rss_end_kib": 93772,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-b",
+        "cpu_percent": 7.24373547869278,
+        "rss_start_kib": 94888,
+        "rss_end_kib": 108556,
+        "pid_preserved": true
+      },
+      {
+        "node": "nohub-c",
+        "cpu_percent": 6.6150307468204295,
+        "rss_start_kib": 90540,
+        "rss_end_kib": 92024,
+        "pid_preserved": true
+      }
+    ]
+  },
+  "functional_checks_passed": true,
+  "restoration": {
+    "neko-desk-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    },
+    "neko-desk-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": false,
+      "private_bandwidth_proxy_stopped": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 14
+}

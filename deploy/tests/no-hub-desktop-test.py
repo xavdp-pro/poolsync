@@ -134,6 +134,13 @@ elif op=='prepare':
     environment.pop('DBUS_STARTER_ADDRESS',None);environment.pop('DBUS_STARTER_BUS_TYPE',None)
     environment['GTK_USE_PORTAL']='0'
     environment['RUST_LOG']='poolsync_agent=info,poolsync_agent::clipboard=debug'
+    if request.get('trace_transport'):environment['RUST_LOG']+=',poolsync_agent::peer_mesh=debug'
+    if request.get('tls'):
+        for name,contents in request['tls'].items():
+            assert name in ('peer-ca.pem','peer.pem','peer.key')
+            path=root/name;path.write_text(contents);path.chmod(0o600)
+        (root/'empty-cert-directory').mkdir(mode=0o700)
+        environment.update(SSL_CERT_FILE=str(root/'peer-ca.pem'),SSL_CERT_DIR=str(root/'empty-cert-directory'))
     display=request['display'];assert not Path('/tmp/.X11-unix/X'+str(display)).exists(),'test display already in use'
     environment.update(DISPLAY=':'+str(display),XAUTHORITY=str(root/'authority'),XDG_SESSION_TYPE='x11')
     (root/'authority').touch(mode=0o600)
@@ -143,6 +150,11 @@ elif op=='prepare':
     if request.get('show_window'):(root/'show-window').touch()
     if request.get('native_owner')=='gtk':(root/'gtk-native-owner').touch()
     if request.get('bounded_allocator'):(root/'bounded-allocator').touch()
+    if request.get('bandwidth_proxy'):(root/'peer-bandwidth-proxy.py').write_text(request['bandwidth_proxy'])
+    if request.get('browser_fixtures'):
+        for name,contents in request['browser_fixtures'].items():
+            assert name in ('browser-paste-server.py','clipboard-paste.html')
+            (root/name).write_text(contents)
     if 'layout' in request:
         (root/'agent.topology.json').write_text(json.dumps(request['layout']));(root/'agent.topology.json').chmod(0o600)
     import gi
@@ -177,6 +189,17 @@ elif op=='cold_reset':
     output=True
 elif op=='receiver':
     output=spawn(['python3','/opt/poolsync-tests/paste-receiver/clipboard-receiver.py','--watch','--log',str(root/'pastes.json'),'--quit-after','7200'],'receiver.log')
+elif op=='bandwidth_proxy':
+    output=spawn(['python3',str(root/'peer-bandwidth-proxy.py'),'--listen-port',str(request['listen_port']),
+                  '--backend-port',str(request['backend_port']),'--rate-mbit',str(request['rate_mbit'])],'bandwidth-proxy.log')
+    deadline=time.monotonic()+3
+    while True:
+        try:
+            with socket.create_connection(('127.0.0.1',request['listen_port']),timeout=.2):break
+        except OSError:
+            assert time.monotonic()<deadline, 'private bandwidth proxy did not listen'
+            time.sleep(.05)
+elif op=='process_alive':output=Path('/proc/'+str(request['pid'])).exists()
 elif op=='stop':stop(request['pid']);output=True
 elif op=='crash':
     try:os.killpg(request['pid'],signal.SIGKILL)
@@ -239,6 +262,16 @@ elif op=='ui_windows':
 elif op=='pastes':
     try:output=json.loads((root/'pastes.json').read_text())
     except (FileNotFoundError,json.JSONDecodeError):output=[]
+elif op=='transport_metrics':
+    import re
+    log=(root/'agent.log').read_text(errors='replace')
+    log=re.sub(r'\x1b\[[0-9;]*m','',log)
+    output={'fragmented_started':log.count('peer clipboard fragmented transfer started'),
+            'fragmented_finished':log.count('peer clipboard fragmented transfer finished'),
+            'send_failures':log.count('send failed or timed out'),
+            'sessions_ended':log.count('peer session ended'),
+            'fragment_sessions':log.count('clipboard_fragments=true'),
+            'legacy_sessions':log.count('clipboard_fragments=false')}
 elif op=='text':
     code="import gi,json;gi.require_version('Gtk','3.0');from gi.repository import Gtk,Gdk;Gtk.init([]);print(json.dumps(Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text()))"
     r=user(['python3','-c',code],env=env());assert r.returncode==0;output=json.loads(r.stdout)
@@ -291,7 +324,7 @@ elif op=='browser':
     profile=root/'browser-profile';profile.mkdir(mode=0o700)
     (profile/'user.js').write_text('user_pref("browser.shell.checkDefaultBrowser",false);user_pref("browser.startup.homepage_override.mstone","ignore");user_pref("browser.aboutwelcome.enabled",false);user_pref("datareporting.policy.firstRunURL","");')
     subprocess.run(['chown','-R','zaza:zaza',str(profile)],check=True)
-    server=spawn(['python3','/opt/poolsync-tests/paste-receiver/browser-paste-server.py','--html','/opt/poolsync-tests/paste-receiver/clipboard-paste.html','--log',str(root/'browser-pastes.json')],'browser-server.log')
+    server=spawn(['python3',str(root/'browser-paste-server.py'),'--html',str(root/'clipboard-paste.html'),'--log',str(root/'browser-pastes.json')],'browser-server.log')
     time.sleep(.3)
     browser=spawn(['firefox','--no-remote','--profile',str(profile),'--new-window','http://127.0.0.1:19580/'],'browser.log')
     deadline=time.monotonic()+8
@@ -316,6 +349,9 @@ elif op=='browser_paste':
 elif op=='browser_records':
     try:output=json.loads((root/'browser-pastes.json').read_text())
     except (FileNotFoundError,json.JSONDecodeError):output=[]
+elif op=='browser_diagnostics':
+    try:output=json.loads((root/'browser-pastes-diagnostics.json').read_text())
+    except (FileNotFoundError,json.JSONDecodeError):output=[]
 elif op=='key':
     r=user(['xdotool',request.get('action','key'),request['key']],env=env());assert r.returncode==0;output=True
 elif op=='motion':
@@ -336,7 +372,7 @@ for step in range(steps):
 x.XCloseDisplay(d)"""
     r=user(['python3','-c',code,str(request['dx']),str(request['dy']),str(request.get('steps',1)),str(request.get('interval',0))],env=env());assert r.returncode==0;output=True
 elif op=='key_window':
-    code="import gi,json,sys,time;gi.require_version('Gtk','3.0');from gi.repository import Gtk,GLib;w=Gtk.Window(title='PoolSync remote keyboard receiver');w.connect('key-press-event',lambda _,event: (open(sys.argv[1],'w').write(json.dumps({'keyval':event.keyval,'at':time.time()})),False)[1]);w.show_all();GLib.timeout_add_seconds(600,lambda: (Gtk.main_quit(),False)[1]);Gtk.main()"
+    code="import gi,json,sys,time;gi.require_version('Gtk','3.0');from gi.repository import Gtk,GLib;w=Gtk.Window(title='PoolSync remote keyboard receiver');w.connect('key-press-event',lambda _,event: (open(sys.argv[1],'w').write(json.dumps({'keyval':event.keyval,'at':time.time()})),False)[1]);w.show_all();GLib.timeout_add_seconds(7200,lambda: (Gtk.main_quit(),False)[1]);Gtk.main()"
     marker=root/'remote-key.json';marker.unlink(missing_ok=True)
     output=spawn(['python3','-c',code,str(marker)],'remote-key.log')
     for _ in range(50):
@@ -348,13 +384,20 @@ elif op=='key_window':
 elif op=='received_key':
     try:output=json.loads((root/'remote-key.json').read_text())
     except (FileNotFoundError,json.JSONDecodeError):output={}
+elif op=='input_diagnostics':
+    focused=user(['xdotool','getwindowfocus'],env=env())
+    output={'focused_window':focused.stdout.decode().strip()}
+    try:output['received_key']=json.loads((root/'remote-key.json').read_text())
+    except (FileNotFoundError,json.JSONDecodeError):output['received_key']={}
+    try:output['lease']=json.loads((root/'agent.status.json').read_text()).get('lease')
+    except (FileNotFoundError,json.JSONDecodeError):output['lease']=None
 elif op=='peer_connections':
     output=[]
     for line in Path('/proc/net/tcp').read_text().splitlines()[1:]:
         fields=line.split()
         if fields[3]!='01':continue
         endpoints=[field.split(':') for field in fields[1:3]]
-        if not any(int(port,16)==request['port'] for _,port in endpoints):continue
+        if not any(int(port,16) in request.get('ports',[request.get('port')]) for _,port in endpoints):continue
         output.append([socket.inet_ntoa(bytes.fromhex(address)[::-1]) for address,_ in endpoints])
 elif op=='key_state':
     code="import ctypes,os,sys,json;l=ctypes.CDLL('libX11.so.6');l.XOpenDisplay.argtypes=[ctypes.c_char_p];l.XOpenDisplay.restype=ctypes.c_void_p;l.XStringToKeysym.argtypes=[ctypes.c_char_p];l.XStringToKeysym.restype=ctypes.c_ulong;l.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];l.XKeysymToKeycode.restype=ctypes.c_ubyte;l.XQueryKeymap.argtypes=[ctypes.c_void_p,ctypes.c_void_p];l.XCloseDisplay.argtypes=[ctypes.c_void_p];d=l.XOpenDisplay(os.environ['DISPLAY'].encode());assert d;k=l.XKeysymToKeycode(d,l.XStringToKeysym(sys.argv[1].encode()));m=ctypes.create_string_buffer(32);l.XQueryKeymap(d,m);l.XCloseDisplay(d);print(json.dumps(bool(m.raw[k//8]&(1<<(k%8)))))"
@@ -397,7 +440,8 @@ elif op=='health':
         raw=user(['cat','/proc/'+pids[0]+'/environ']).stdout.decode()
         actual=dict(item.split('=',1) for item in raw.split('\0') if '=' in item)
         isolated=actual.get('HOME')==str(root/'home') and actual.get('DISPLAY')==env()['DISPLAY'] and actual.get('XDG_RUNTIME_DIR')==str(root/'runtime')
-    output={'listener':listener,'hub_reachable':hub,'hub_connected_logged':'connected to hub' in log,'isolated_environment':isolated,'mesh_links':log.count('peer mesh connecté'),'panic':'thread ' in log and 'panicked' in log}
+    output={'listener':listener,'tls_listener':'(wss)' in log,'hub_reachable':hub,'hub_connected_logged':'connected to hub' in log,'isolated_environment':isolated,'mesh_links':log.count('peer mesh connecté'),'panic':'thread ' in log and 'panicked' in log,
+            'executing_sha256':digest('/proc/'+pids[0]+'/exe') if len(pids)==1 else None}
 elif op=='restore':
     original=request['original'];cfg=Path('/home/zaza/.config/poolsync/agent.toml')
     assert (digest(cfg) if cfg.exists() else None)==original['config_sha256'],'original configuration changed'
@@ -441,6 +485,13 @@ def main():
     parser.add_argument('--three-kvm-peers', action='store_true', help='Make C KVM-capable and verify A controls C through B and returns')
     parser.add_argument('--kvm-soak-seconds', type=int, default=0, help='Measure active native motion/key capture with repeated software warps')
     parser.add_argument('--target-restart', action='store_true', help='Restart the actual target agent while a remote modifier/button is held')
+    parser.add_argument('--peer-rate-mbit', type=float, default=0, help='Limit each private peer TCP direction through disposable per-desktop proxies')
+    parser.add_argument('--peer-tls', action='store_true', help='Use private test CA/certificates and process-local trust for native TLS peer connections')
+    parser.add_argument('--legacy-peer-c', type=Path, help='Qualify negotiated fallback against an existing legacy C agent binary')
+    parser.add_argument('--expected-legacy-sha256', help='Required exact binary hash when --legacy-peer-c is used')
+    parser.add_argument('--mixed-workload-seconds', type=int, default=0, help='Keep native captured input active during image/text paste transfers')
+    parser.add_argument('--mixed-diagnostic-only', action='store_true', help='Skip the already qualified clipboard primer and stop after the focused mixed-traffic diagnostic')
+    parser.add_argument('--fragment-preemption', action='store_true', help='Supersede an observed partial image and leave/rejoin while a source transfer is unfinished')
     parser.add_argument('--screen-changes', action='store_true', help='Qualify private-display docking, resolution changes and undocking')
     parser.add_argument('--network-loss', action='store_true', help='Drop only candidate TCP traffic in its network namespace, then recover')
     parser.add_argument('--clipboard-races', action='store_true', help='Qualify valid BMP and a delayed image owner superseded by fresh text')
@@ -463,10 +514,18 @@ def main():
     args = parser.parse_args()
     assert not args.retain_failed_desktops or args.fresh_desktops, 'failure retention is limited to disposable fresh desktops'
     assert not args.kvm_only or args.hubless, '--kvm-only requires --hubless'
-    assert not args.three_kvm_peers or args.kvm_only, '--three-kvm-peers requires --kvm-only'
+    assert not args.three_kvm_peers or args.hubless, '--three-kvm-peers requires --hubless'
     assert 0 <= args.kvm_soak_seconds <= 300
     assert not args.kvm_soak_seconds or args.three_kvm_peers, '--kvm-soak-seconds requires --three-kvm-peers'
     assert not args.target_restart or args.three_kvm_peers, '--target-restart requires --three-kvm-peers'
+    assert 0<=args.peer_rate_mbit<=1000, '--peer-rate-mbit must be within 0..1000'
+    assert not args.peer_rate_mbit or args.hubless, 'bandwidth qualification requires --hubless'
+    assert 0<=args.mixed_workload_seconds<=1200
+    assert not (args.mixed_workload_seconds or args.fragment_preemption) or (args.three_kvm_peers and args.large_images and not args.kvm_only), 'mixed/fragment qualification requires three hubless KVM peers and large clipboard images'
+    assert not args.fragment_preemption or args.peer_rate_mbit, 'fragment preemption requires an observed constrained transfer'
+    assert not args.mixed_diagnostic_only or (args.mixed_workload_seconds and args.native_browser), 'focused mixed diagnostic requires native browser and mixed workload'
+    assert not args.legacy_peer_c or args.expected_legacy_sha256, 'legacy peer requires its exact expected hash'
+    assert not args.legacy_peer_c or not args.peer_rate_mbit, 'legacy fallback qualification uses the normal link; constrained legacy bulk failure is already retained'
     assert not args.reboot_desktops or args.fresh_desktops, 'Reboots require disposable fresh desktops'
     assert not args.participation_only or args.hubless, '--participation-only requires --hubless'
     assert not args.lossless_only or args.clipboard_races, '--lossless-only requires --clipboard-races'
@@ -474,6 +533,8 @@ def main():
     assert os.geteuid() == 0, 'Run on the disposable Podman host as root'
     actual = hashlib.file_digest(args.candidate.open('rb'), 'sha256').hexdigest()
     assert actual == args.expected_sha256, 'Unexpected candidate binary'
+    if args.legacy_peer_c:
+        assert hashlib.file_digest(args.legacy_peer_c.open('rb'),'sha256').hexdigest()==args.expected_legacy_sha256, 'Unexpected legacy peer binary'
     run_id = uuid.uuid4().hex[:12]
     root = '/tmp/poolsync-no-hub-' + run_id
     artifacts = args.output.parent / ('private-' + run_id)
@@ -482,7 +543,8 @@ def main():
     tokens = {node: secrets.token_hex(24) for node in nodes}
     e2e_key = base64.b64encode(secrets.token_bytes(32)).decode()
     port = 19676
-    snapshots, agents, receivers, key_windows, images, xservers, buses = {}, {}, {}, {}, {}, {}, {}
+    peer_wire_port = 19686 if args.peer_rate_mbit else port
+    snapshots, agents, receivers, key_windows, images, xservers, buses, proxies = {}, {}, {}, {}, {}, {}, {}, {}
     browser_workers = {}
     network_rules = []
     checked, checks, restoration = set(), [], {}
@@ -497,6 +559,12 @@ def main():
     result['fresh_desktops']=args.fresh_desktops
     result['native_copy_application']=args.native_owner
     result['allocator']={'arena_max':2,'mmap_threshold':131072} if args.bounded_allocator else 'system default'
+    result['network_fixture']={'per_direction_rate_mbit':args.peer_rate_mbit,'per_peer_disposable_proxy':bool(args.peer_rate_mbit),'central_proxy':False,'partition_ports':sorted({port,peer_wire_port})}
+    result['peer_tls']=args.peer_tls
+    result['qualification_scope']='focused mixed native clipboard/input diagnostic' if args.mixed_diagnostic_only else 'full selected scenarios'
+    result['peer_binary_sha256']=[actual,actual,args.expected_legacy_sha256 if args.legacy_peer_c else actual]
+    browser_fixtures={name:Path(__file__).with_name(name).read_text() for name in ('browser-paste-server.py','clipboard-paste.html')} if args.native_browser else {}
+    result['browser_fixture_sha256']={name:hashlib.sha256(contents.encode()).hexdigest() for name,contents in browser_fixtures.items()}
     resource_samples=[]
     result['resource_samples']=resource_samples
 
@@ -573,15 +641,31 @@ def main():
     def network_drop(index, enabled):
         pid=subprocess.check_output(['podman','inspect',args.containers[index],'--format','{{.State.Pid}}'],text=True).strip()
         rules=[('INPUT','--dport'),('OUTPUT','--sport'),('OUTPUT','--dport')]
-        for chain,option in rules:
-            rule=['-p','tcp',option,str(port),'-m','comment','--comment','poolsync-lab-'+run_id,'-j','DROP']
-            command=['nsenter','--target',pid,'--net','iptables','-I' if enabled else '-D',chain,*rule]
-            subprocess.run(command,check=True,capture_output=True,timeout=5)
-            item=(index,pid,chain,rule)
-            if enabled:network_rules.append(item)
-            else:network_rules.remove(item)
+        for transport_port in sorted({port,peer_wire_port}):
+            for chain,option in rules:
+                rule=['-p','tcp',option,str(transport_port),'-m','comment','--comment','poolsync-lab-'+run_id,'-j','DROP']
+                command=['nsenter','--target',pid,'--net','iptables','-I' if enabled else '-D',chain,*rule]
+                subprocess.run(command,check=True,capture_output=True,timeout=5)
+                item=(index,pid,chain,rule)
+                if enabled:network_rules.append(item)
+                else:network_rules.remove(item)
 
     try:
+        tls_material={}
+        if args.peer_tls:
+            security=artifacts/'tls';security.mkdir(mode=0o700)
+            def openssl(*argv):
+                subprocess.run(['openssl',*map(str,argv)],check=True,capture_output=True,timeout=15)
+            openssl('req','-x509','-newkey','rsa:2048','-nodes','-days','2','-subj','/CN=PoolSync isolated test CA',
+                    '-addext','basicConstraints=critical,CA:TRUE','-addext','keyUsage=critical,keyCertSign,cRLSign',
+                    '-keyout',security/'ca.key','-out',security/'ca.pem')
+            (security/'ca.key').chmod(0o600)
+            for index,node in enumerate(nodes):
+                key=security/(node+'.key');csr=security/(node+'.csr');cert=security/(node+'.pem');extension=security/(node+'.ext')
+                extension.write_text('subjectAltName=IP:'+args.addresses[index]+'\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n')
+                openssl('req','-new','-newkey','rsa:2048','-nodes','-subj','/CN='+node,'-keyout',key,'-out',csr);key.chmod(0o600)
+                openssl('x509','-req','-in',csr,'-CA',security/'ca.pem','-CAkey',security/'ca.key','-set_serial',str(index+1),'-days','2','-extfile',extension,'-out',cert)
+                tls_material[index]={'peer-ca.pem':(security/'ca.pem').read_text(),'peer.pem':cert.read_text()+(security/'ca.pem').read_text(),'peer.key':key.read_text()}
         for index in range(3):
             snapshots[index] = op(index, 'snapshot')
         (artifacts / 'original-agents.json').write_text(json.dumps(snapshots))
@@ -597,14 +681,17 @@ def main():
                      f'peer_listen_port={port}', 'peer_direct_clipboard=true', 'hub_clipboard=false',
                      'clipboard_poll_ms=80', 'pause_clipboard_when_rdp=false', 'input_poll_ms=8',
                      '[screen]', 'width=1600', 'height=900', '[peer_tokens]']
+            if args.peer_tls:
+                at=lines.index('[screen]');lines[at:at]=[f'peer_tls_cert={json.dumps(root+"/peer.pem")}',f'peer_tls_key={json.dumps(root+"/peer.key")}']
             lines += [f'{nodes[j]}={json.dumps(tokens[nodes[j]])}' for j in range(3) if j != index]
             for j in peers:
                 lines += ['[[neighbors]]', f'node={json.dumps(nodes[j])}',
                           'direction="right"' if j > index else 'direction="left"',
-                          f'peer_url="ws://{args.addresses[j]}:{port}/ws"']
+                          f'peer_url="{"wss" if args.peer_tls else "ws"}://{args.addresses[j]}:{peer_wire_port}/ws"']
             layout={'revision':1,'origin':'nohub-a','topology':{'nodes':{name:{'x':j*1600,'y':0,'width':1600,'height':900,'kvm_enabled':j!=2 or args.three_kvm_peers} for j,name in enumerate(nodes)}}}
-            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),lossless_fixture=Path(__file__).with_name('lossless-image-owner.py').read_text(),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
-            subprocess.run(['podman', 'cp', str(args.candidate), args.containers[index] + ':' + root + '/candidate-agent'], check=True, capture_output=True)
+            images[index] = op(index, 'prepare', original=snapshots[index], config='\n'.join(lines) + '\n',slow_fixture=Path(__file__).with_name('slow-image-owner.py').read_text(),lossless_fixture=Path(__file__).with_name('lossless-image-owner.py').read_text(),bandwidth_proxy=Path(__file__).with_name('peer-bandwidth-proxy.py').read_text() if args.peer_rate_mbit else None,browser_fixtures=browser_fixtures,trace_transport=bool(args.peer_rate_mbit or args.mixed_workload_seconds or args.legacy_peer_c),tls=tls_material.get(index),show_window=args.layout_ui and index==0,large_images=args.large_images,native_owner=args.native_owner,bounded_allocator=args.bounded_allocator,display=args.display,xorg_config=XORG_CONFIG,layout=layout)
+            peer_binary=args.legacy_peer_c if index==2 and args.legacy_peer_c else args.candidate
+            subprocess.run(['podman', 'cp', str(peer_binary), args.containers[index] + ':' + root + '/candidate-agent'], check=True, capture_output=True)
             subprocess.run(['podman', 'exec', args.containers[index], 'chmod', '755', root + '/candidate-agent'], check=True, capture_output=True)
         for index in range(3):
             checked.add(index)
@@ -612,19 +699,26 @@ def main():
             buses[index]=op(index,'dbus')
         time.sleep(1.5)
         for index in (2, 0, 1):
+            if args.peer_rate_mbit:proxies[index]=op(index,'bandwidth_proxy',listen_port=peer_wire_port,backend_port=port,rate_mbit=args.peer_rate_mbit)
             agents[index] = op(index, 'start')
             receivers[index] = op(index, 'receiver')
         time.sleep(4)
         health = [op(i, 'health', port=port) for i in range(3)]
         check('Cold start: isolated agents run with hub unreachable', all(h['listener'] and h['isolated_environment'] and not h['hub_reachable'] and not h['hub_connected_logged'] for h in health))
+        check('Every isolated peer executes its expected candidate binary',all(h['executing_sha256']==expected for h,expected in zip(health,result['peer_binary_sha256'])))
+        if args.peer_tls:check('Every private peer listener uses TLS with isolated credentials',all(h['tls_listener'] for h in health))
+        if args.legacy_peer_c:
+            metrics=[op(i,'transport_metrics') for i in range(3)];result['compatibility_transport_metrics']=metrics
+            check('New A/B negotiate fragments and B falls back to legacy C',metrics[0]['fragment_sessions']>0 and metrics[1]['fragment_sessions']>0 and metrics[1]['legacy_sessions']>0 and not metrics[2]['fragmented_started'])
         if args.reboot_desktops:
             for order in ((0,1,2),(1,2,0)):
                 subprocess.run(['podman','stop','--time','3',*args.containers],check=True,capture_output=True,timeout=20)
-                agents.clear();receivers.clear();buses.clear();xservers.clear();browser_workers.clear()
+                agents.clear();receivers.clear();buses.clear();xservers.clear();browser_workers.clear();proxies.clear()
                 for index in order:
                     subprocess.run(['podman','start',args.containers[index]],check=True,capture_output=True,timeout=10)
                     op(index,'cold_reset')
                     xservers[index]=op(index,'xserver');buses[index]=op(index,'dbus');time.sleep(.6)
+                    if args.peer_rate_mbit:proxies[index]=op(index,'bandwidth_proxy',listen_port=peer_wire_port,backend_port=port,rate_mbit=args.peer_rate_mbit)
                     agents[index]=op(index,'start');receivers[index]=op(index,'receiver')
                 time.sleep(4)
                 copy_text(order[-1],'Fresh clipboard after complete container cold start '+str(order))
@@ -670,11 +764,14 @@ def main():
             result['functional_checks_passed']=True
             return
 
-        if not args.kvm_only:
+        if args.mixed_diagnostic_only:
+            copy_text(0,'Shared text before focused mixed native diagnostic')
+            browser_workers=op(1,'browser');time.sleep(8);result['native_browser_paste']=True
+        elif not args.kvm_only:
             copy_text(0, 'Cold-start A to B to C')
             check('Encrypted native text crosses the A-B-C chain without hub')
             copy_text(2, 'Clipboard-only C to B to A')
-            check('Clipboard-only node sends native text in the reverse direction')
+            check('Node C sends native text in the reverse direction')
             for image in ('first', 'second'):
                 started = time.time();op(0, 'copy', image=image)
                 name='GTK receivers paste ' + image + ' image with identical RGBA pixels'
@@ -693,7 +790,7 @@ def main():
                 time.sleep(6)
                 copy_text(1,'Settled text baseline after failed rapid transition')
             started = time.time();op(2, 'copy', image='first');expect((0, 1, 2), images[2]['first'], started)
-            check('Image after text travels from clipboard-only C to A')
+            check('Image after text travels from C to A')
 
             if args.native_browser:
                 browser_workers=op(1,'browser');time.sleep(8)
@@ -816,7 +913,7 @@ def main():
             check('A keyboard reaches the real B GTK window',op(1,'received_key').get('keyval')==ord('z'))
             result['native_kvm_key_seconds']=round(op(1,'received_key')['at']-key_started,4)
             if args.three_kvm_peers:
-                result['native_control_connections']=[op(i,'peer_connections',port=port) for i in range(3)]
+                result['native_control_connections']=[op(i,'peer_connections',ports=[port,peer_wire_port]) for i in range(3)]
                 if args.links=='chain':
                     check('Relay fixture has no direct candidate TCP connection between A and C',
                           all(args.addresses[2] not in connection for connection in result['native_control_connections'][0])
@@ -827,6 +924,76 @@ def main():
                 check('A keyboard reaches the real C GTK window through the peer mesh',op(2,'received_key').get('keyval')==ord('x'))
                 before=op(2,'pointer');op(0,'motion',dx=70,dy=25);time.sleep(.4)
                 check('Captured A relative motion moves C through the peer mesh',op(2,'pointer')!=before)
+                if args.mixed_workload_seconds:
+                    baseline=op(0,'status')['lease'];before_resources=[op(i,'resources') for i in range(3)]
+                    mixed_started=time.monotonic();rounds=0;key_latencies=[]
+                    def pulse_until(future):
+                        while not future.done():
+                            op(0,'motion',dx=2,dy=1,steps=24,interval=.008)
+                            sent=time.time();op(0,'key',key='h');deadline=time.monotonic()+2
+                            while time.monotonic()<deadline:
+                                received=op(2,'received_key')
+                                if received.get('keyval')==ord('h') and received.get('at',0)>=sent:break
+                                time.sleep(.04)
+                            else:
+                                result['mixed_failure']={'sent_at':sent,'observation_at':time.time(),
+                                    'native_key_latency_seconds':key_latencies,
+                                    'input_diagnostics':[op(i,'input_diagnostics') for i in range(3)],
+                                    'transport_metrics':[op(i,'transport_metrics') for i in range(3)]}
+                                raise AssertionError('Native C input stopped during a clipboard transfer')
+                            key_latencies.append(round(received['at']-sent,4))
+                            assert all(op(i,'status').get('lease')==baseline for i in range(3)), 'Clipboard transfer changed or expired the active input lease'
+                        future.result()
+                    while time.monotonic()-mixed_started<args.mixed_workload_seconds:
+                        source=0 if rounds%2==0 else 2;image='large-first' if rounds%2==0 else 'large-second'
+                        since=time.time();op(source,'copy',image=image)
+                        with ThreadPoolExecutor(max_workers=1) as executor:
+                            pulse_until(executor.submit(expect,(0,1,2),images[source][image],since))
+                        if args.native_browser:
+                            op(1,'browser_paste');deadline=time.monotonic()+10
+                            while time.monotonic()<deadline:
+                                if any(e['at']>=since and e.get('sha256')==images[source][image]['sha256'] for e in op(1,'browser_records')):break
+                                time.sleep(.2)
+                            else:
+                                result['browser_failure']={'requested_after':since,'records':op(1,'browser_records'),
+                                    'diagnostics':op(1,'browser_diagnostics'),
+                                    'input_diagnostics':[op(i,'input_diagnostics') for i in range(3)]}
+                                raise AssertionError('Browser image paste failed while C control remained active')
+                        with ThreadPoolExecutor(max_workers=1) as executor:
+                            pulse_until(executor.submit(copy_text,1,'Fresh text during active KVM round '+str(rounds)))
+                        rounds+=1
+                        print(json.dumps({'mixed_progress':{'elapsed_seconds':round(time.monotonic()-mixed_started,1),'image_text_rounds':rounds,'fresh_native_keys':len(key_latencies),'maximum_native_key_seconds':max(key_latencies) if key_latencies else None}}),flush=True)
+                    after_resources=[op(i,'resources') for i in range(3)]
+                    result['mixed_workload']={'elapsed_seconds':round(time.monotonic()-mixed_started,3),'large_image_text_rounds':rounds,
+                        'native_key_latency_seconds':key_latencies,'unchanged_lease':baseline,
+                        'transport_metrics':[op(i,'transport_metrics') for i in range(3)],
+                        'resources':[{'node':node,'cpu_percent':100*(b['cpu_seconds']-a['cpu_seconds'])/(b['at']-a['at']),'rss_start_kib':a['rss_kib'],'rss_end_kib':b['rss_kib'],'pid_preserved':a['pid']==b['pid']} for node,a,b in zip(nodes,before_resources,after_resources)]}
+                    check('Large image/text traffic preserves active C control and fresh native GTK keys',bool(key_latencies) and max(key_latencies)<1 and all(a['pid']==b['pid'] for a,b in zip(before_resources,after_resources)))
+                    if args.native_browser:check('Native Firefox pastes the mixed-workload images while C remains controlled')
+                    if args.mixed_diagnostic_only:
+                        result['functional_checks_passed']=True;result['serverless_kvm']=True
+                        return
+                if args.fragment_preemption:
+                    def start_partial(index,image):
+                        baseline=op(index,'transport_metrics');since=time.time();op(index,'copy',image=image);deadline=time.monotonic()+8
+                        while time.monotonic()<deadline:
+                            metrics=op(index,'transport_metrics')
+                            if metrics['fragmented_started']>baseline['fragmented_started'] and metrics['fragmented_finished']==baseline['fragmented_finished']:return since
+                            time.sleep(.03)
+                        raise AssertionError('The large-copy transfer was not observed unfinished')
+                    since=start_partial(0,'large-first')
+                    fresh=copy_text(0,'Fresh text cancels the partial remote image');time.sleep(8)
+                    check('A superseded partial image never reaches either remote GTK paste history',all(not any(p['at']>=since and p['sha256']==images[0]['large-first']['sha256'] for p in op(i,'pastes')) for i in (1,2)))
+                    check('Fresh text remains selected after the cancelled image drains',all(op(i,'text')==fresh for i in range(3)))
+                    since=start_partial(2,'large-first');op(2,'away',value=True)
+                    private=copy_text(2,'Private text after cancelling a source transfer',targets=(2,));private_hash=hashlib.sha256(private.encode()).hexdigest()
+                    op(2,'away',value=False);time.sleep(8)
+                    check('Departure cancels the source image without publishing private contents on return',all(not any(p['at']>=since and p['sha256'] in (private_hash,images[2]['large-first']['sha256']) for p in op(i,'pastes')) for i in (0,1)))
+                    copy_text(0,'Fresh shared text after cancelled-transfer rejoin')
+                    op(0,'move',x=width//2,y=height//2);op(0,'key',key='ctrl+alt+shift+m');time.sleep(.8)
+                    op(0,'move',x=width-1,y=height//2);wait_lease(0,1)
+                    time.sleep(.65);op(0,'motion',dx=1600,dy=0);wait_lease(0,2,indices=(0,1,2))
+                    op(0,'motion',dx=70,dy=0);time.sleep(.65)
                 if args.kvm_soak_seconds:
                     resources_before=[op(i,'resources') for i in range(3)]
                     started=time.monotonic();bursts=0;key_latencies=[]
@@ -1122,15 +1289,19 @@ def main():
         for pid in (() if retained else browser_workers.values()):
             try:op(1,'stop',pid=pid)
             except Exception as error:restoration['browser-stop-error']=str(error)
-        for processes in (() if retained else (receivers, key_windows, agents, buses, xservers)):
+        for processes in (() if retained else (receivers, key_windows, agents, proxies, buses, xservers)):
             for index, pid in list(processes.items()):
                 try:op(index, 'stop', pid=pid)
                 except Exception as error:restoration[str(index) + '-stop-error']=str(error)
         for index in ([] if retained else sorted(checked)):
-            try:restoration[args.containers[index]]=op(index, 'restore', original=snapshots[index])
+            try:
+                restoration[args.containers[index]]=op(index, 'restore', original=snapshots[index])
+                if index in proxies:
+                    restoration[args.containers[index]]['private_bandwidth_proxy_stopped']=not op(index,'process_alive',pid=proxies[index])
             except Exception as error:restoration[args.containers[index]]={'error':str(error)}
         result['restoration']=restoration
         result['restoration_passed']=len(restoration)==len(checked) and all(r.get('original_agent_restored') and r.get('original_pid_preserved') for r in restoration.values() if isinstance(r,dict))
+        if args.peer_rate_mbit:result['restoration_passed']=result['restoration_passed'] and all(r.get('private_bandwidth_proxy_stopped') for r in restoration.values())
         result['checks_passed']=sum(check['passed'] for check in checks)
         result['test_root']=root
         args.output.write_text(json.dumps(result, indent=2) + '\n');args.output.chmod(0o600)
