@@ -114,6 +114,8 @@ Enrollment is explicit, not unrestricted automatic discovery. An unknown device
 does not join merely because it appears on the LAN or VPN. Removing the sole
 relay in a chain breaks that route; a flexible pool still needs suitable network
 paths. Changing membership does not require starting a central PoolSync hub.
+The implementation currently accepts at most 64 entries in a received layout;
+that bound is not a claim that a 64-computer deployment has been qualified.
 
 The installation runbook separates new-node bootstrap, legacy migration and
 existing-cohort upgrade. The supplied cohort upgrader targets a recorded fleet;
@@ -145,8 +147,10 @@ general automatic enrollment service.
    A–C while B is absent. The existing cross-site VPN gateway is still required
    where it supplies that route.
 6. **Add or remove a monitor.** Agents advertise monitor/geometry changes and
-   share the saved layout locally. Cross-machine KVM currently uses the primary
-   monitor; the actual desk and monitor-cable behavior require human validation.
+   share the saved layout locally. Hubless KVM uses the virtual desktop bounds
+   across monitors and its origin, with primary-monitor fallback when desktop
+   geometry is unavailable. Legacy hub KVM uses primary bounds. Verify real
+   outer edges, monitor arrangement and cable changes physically.
 
 **Acceptance boundary:** these describe the implemented behavior, not completed
 physical acceptance. The reported edge blockage and return loop on the deployed

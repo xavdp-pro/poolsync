@@ -1,0 +1,7 @@
+{
+  "single_node_certificate_issuance": true,
+  "existing_ca_files_preserved": true,
+  "private_key_and_token_permissions": true,
+  "existing_identity_output_refused_without_overwrite": true,
+  "bootstrap_existing_config_guard_stops_before_install": true
+}

@@ -42,6 +42,8 @@ The deployed hubless development build has passing isolated qualification.
 Physical crossings between full-mode computers and monitor changes still require
 acceptance; the reported edge blockage/loop remains open. See the
 [current qualification and deployment report](docs/HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md).
+An [independent Cursor counter-review](docs/CURSOR-COUNTER-REVIEW-2026-10-03.md)
+records documentation corrections and remaining application/tooling limits.
 
 ## Rust workspace
 
@@ -136,8 +138,10 @@ Operators can use `poolsync-agent --config PATH --away true` / `--away false`.
 
 See [daily-use review and qualification](docs/DAILY-USE-REVIEW-2026-10-01.md).
 Clipboard, KVM control, presence and layout operate over the peer mesh in hubless
-mode. Additional monitors are detected, while cross-machine KVM uses the primary
-monitor. Actual monitor attachment/removal remains a physical acceptance gate.
+mode. Hubless KVM uses full virtual desktop bounds across monitors, including
+their desktop origin, with primary-monitor fallback when desktop geometry is
+unavailable. Legacy hub KVM uses primary bounds. Actual monitor attachment/removal
+remains a physical acceptance gate.
 
 When native FreeRDP clipboard redirection is detected and
 `pause_clipboard_when_rdp = true`, PoolSync leaves the client's local clipboard

@@ -9,6 +9,8 @@ within the authorized scope, and records evidence. Real keyboard/mouse and
 monitor-cable acceptance belongs to the human at the desk.
 
 Read [concept and example computer/RDP scenarios](CONCEPT-AND-SCENARIOS.md) first.
+The [independent Cursor counter-review](CURSOR-COUNTER-REVIEW-2026-10-03.md)
+records checked corrections and remaining tooling limitations.
 This runbook explains the existing tools; it is not permission to replace keys,
 reconfigure production or close a user's RDP session without authorization.
 The AI assistant is not a required runtime service. Do not introduce an extra
@@ -90,6 +92,78 @@ regenerate the whole pool's security directory just to enroll one machine.
 A new node needs its own identity/certificate and explicit authorization from
 existing peers. Never give it another node's copied identity or the CA private key.
 
+### Issue one identity using the existing CA
+
+On an authorized private signing machine, prepare a **new** output directory.
+The example below signs one new node and leaves the existing CA files alone.
+`POOLSYNC_NEW_NODE_SAN` must contain reviewed SAN entries matching every actual
+LAN/VPN URL host for this node, such as `DNS:desk-c.example,IP:10.20.0.23`.
+ED25519 matches the repository generator; verify a real handshake on the oldest
+intended TLS stack before promotion. Do not send the CA key to the new computer.
+
+```sh
+(
+set -eu
+umask 077
+: "${POOLSYNC_EXISTING_CA_CERT:?existing CA certificate required}"
+: "${POOLSYNC_EXISTING_CA_KEY:?existing private signing key required}"
+: "${POOLSYNC_NEW_NODE_NAME:?unique node name required}"
+: "${POOLSYNC_NEW_NODE_SAN:?reviewed SAN entries required}"
+: "${POOLSYNC_NEW_IDENTITY_DIR:?new private output directory required}"
+test ! -e "$POOLSYNC_NEW_IDENTITY_DIR"
+test -s "$POOLSYNC_EXISTING_CA_CERT"
+test -s "$POOLSYNC_EXISTING_CA_KEY"
+export POOLSYNC_NEW_NODE_NAME
+python3 - <<'PY'
+import os, re
+assert re.fullmatch(r"[A-Za-z0-9._-]+", os.environ["POOLSYNC_NEW_NODE_NAME"])
+PY
+mkdir -m 700 "$POOLSYNC_NEW_IDENTITY_DIR"
+openssl genpkey -algorithm ED25519 -out "$POOLSYNC_NEW_IDENTITY_DIR/node.key"
+openssl req -new -key "$POOLSYNC_NEW_IDENTITY_DIR/node.key" \
+  -out "$POOLSYNC_NEW_IDENTITY_DIR/node.csr" \
+  -subj "/CN=$POOLSYNC_NEW_NODE_NAME" \
+  -addext "subjectAltName=$POOLSYNC_NEW_NODE_SAN"
+printf 'subjectAltName=%s\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n' \
+  "$POOLSYNC_NEW_NODE_SAN" > "$POOLSYNC_NEW_IDENTITY_DIR/node.ext"
+POOLSYNC_NEW_CERT_SERIAL="$(openssl rand -hex 16)"
+openssl x509 -req -in "$POOLSYNC_NEW_IDENTITY_DIR/node.csr" \
+  -CA "$POOLSYNC_EXISTING_CA_CERT" -CAkey "$POOLSYNC_EXISTING_CA_KEY" \
+  -set_serial "0x$POOLSYNC_NEW_CERT_SERIAL" -days 825 \
+  -extfile "$POOLSYNC_NEW_IDENTITY_DIR/node.ext" \
+  -out "$POOLSYNC_NEW_IDENTITY_DIR/node.crt"
+openssl verify -CAfile "$POOLSYNC_EXISTING_CA_CERT" "$POOLSYNC_NEW_IDENTITY_DIR/node.crt"
+openssl rand -base64 32 > "$POOLSYNC_NEW_IDENTITY_DIR/node.token"
+chmod 600 "$POOLSYNC_NEW_IDENTITY_DIR/node.key" "$POOLSYNC_NEW_IDENTITY_DIR/node.token"
+chmod 644 "$POOLSYNC_NEW_IDENTITY_DIR/node.crt"
+)
+```
+
+Before signing, verify the new name is unique across the entire authorized
+inventory; this shell validates syntax, not roster uniqueness. Its random serial
+avoids changing a serial file beside the existing CA. The new token is stored
+privately, not printed. Prepare the new private `agent.toml` using that token,
+the **unchanged** pool E2E key, existing peer tokens and the new node's actual
+certificate/key destination paths. Validate TOML and the 32-byte base64 key.
+This certificate procedure does not build a complete node configuration.
+
+Reciprocal enrollment checklist:
+
+1. Back up candidate configs for every intended member. Add the new node/token
+   to their `[peer_tokens]` and its URL to `[[neighbors]]`; give the new node
+   matching current identities/routes. Do not append duplicate TOML tables.
+2. Add its geometry and KVM permission to one consistent layout document.
+   Preserve existing positions, increment its revision and retain an authorized
+   origin; do not reset a deployed layout revision to 1.
+3. Check CA trust and URL/SAN matches in both directions; qualify the enlarged
+   cohort and native TLS in isolated DEV before authorized promotion.
+4. Deploy membership/config changes under coordinated maintenance, restarting
+   agents whose startup config changed, with per-node backup/rollback. Preserve
+   existing temporarily-away states. The binary-only hotfix tool does not apply
+   these configuration changes; use a separately reviewed configuration procedure.
+5. Resume once every intended member recognizes the identity and permissions.
+   Verify actual peer presence and native clipboard/KVM acceptance.
+
 ### Entirely new isolated pool
 
 `deploy/generate-security.sh` creates a CA, node tokens, certificates and a shared
@@ -99,6 +173,8 @@ Certificate SANs are inferred from `agent.<node>.toml` files in the configuratio
 directory; those routes must be prepared first.
 
 ```sh
+(
+set -eu
 umask 077
 # Set these to reviewed absolute paths outside the checkout.
 : "${POOLSYNC_PRIVATE_CONFIG_DIR:?private seed configurations required}"
@@ -107,6 +183,7 @@ test ! -e "$POOLSYNC_NEW_SECURITY_DIR"
 POOLSYNC_CONFIG_DIR="$POOLSYNC_PRIVATE_CONFIG_DIR" \
   ./deploy/generate-security.sh "$POOLSYNC_NEW_SECURITY_DIR" \
   unused-hub.invalid desk-a desk-b desk-c
+)
 ```
 
 The generator still creates unused legacy hub certificate files; this does not
@@ -180,6 +257,9 @@ Saved layout lives in `agent.topology.json`, with `revision`, `origin` and
 existing document during upgrades. For a new pool, prepare one consistent layout
 for all members or review it in the configuration window before accepting edge
 KVM. Do not rely on independent per-node default layouts to describe a real desk.
+An empty layout currently seeds neighbors with KVM layout flags enabled until
+reviewed, even for clipboard-only peers. Presence/mode still gates actual KVM
+permission. Bootstrap must provide the reviewed nonempty layout before startup.
 
 For the entirely new three-node example above, this minimal initial layout
 places the two full nodes side by side and excludes the third from KVM. Copy the
@@ -220,6 +300,8 @@ python3 deploy/migrate-hubless-config.py \
 The output directory must not exist. This tool renders only; it does not contact
 hosts or install. It preserves existing settings and adds missing peer entries;
 existing route URLs are not rewritten, so review their reachability separately.
+Backfilled neighbor directions are `right` placeholders for transport entries;
+the saved topology, not those placeholders, defines hubless screen adjacency.
 Do not run it over an already deployed hubless layout to reset its revision.
 
 ## 4. Qualify on the dedicated test host before promotion
@@ -274,6 +356,8 @@ user in its intended graphical session**, from the reviewed source checkout.
 These bootstrap commands refuse an existing configuration:
 
 ```sh
+(
+set -eu
 : "${POOLSYNC_PRIVATE_NODE_BUNDLE:?reviewed node bundle required}"
 test ! -e "$HOME/.config/poolsync/agent.toml"
 install -d -m 700 "$HOME/.config/poolsync" "$HOME/.config/poolsync/tls"
@@ -305,6 +389,7 @@ install -m 644 poolsync-agent/icons/poolsync-tray.png \
 install -m 644 deploy/systemd/poolsync-agent.service \
   deploy/systemd/poolsync-watchdog.service deploy/systemd/poolsync-watchdog.timer \
   "$HOME/.config/systemd/user/"
+)
 ```
 
 Create a per-user autostart entry from `deploy/autostart/poolsync-agent.desktop`,
@@ -331,6 +416,27 @@ target.chmod(0o644)
 PY
 ```
 
+The copied `tls/ca.crt` is **not** an outbound trust store: the native-TLS peer
+client validates the operating system trust store. On a Debian-family target,
+after reviewing the private CA certificate fingerprint and system trust change:
+
+```sh
+(
+set -eu
+: "${POOLSYNC_PRIVATE_NODE_BUNDLE:?reviewed node bundle required}"
+test -s "$POOLSYNC_PRIVATE_NODE_BUNDLE/tls/ca.crt"
+test ! -e /usr/local/share/ca-certificates/poolsync-peer-ca.crt
+sudo install -m 644 "$POOLSYNC_PRIVATE_NODE_BUNDLE/tls/ca.crt" \
+  /usr/local/share/ca-certificates/poolsync-peer-ca.crt
+sudo update-ca-certificates
+)
+```
+
+If that path already exists, verify its fingerprint matches the intended CA
+instead of overwriting it. Other distributions need their own trust-store
+procedure. This is a system change, not a per-user clipboard setting. Never
+install the CA private key or disable certificate verification.
+
 Validate private TOML/JSON, permissions, TLS files and target binary hash before
 starting. From the same target user's graphical session:
 
@@ -353,7 +459,11 @@ Use `deploy/apply-hubless-upgrade.py` with a reviewed per-node bundle, original
 config hash, candidate hash and unique backup ID. Read `--help`; run
 `--check-only` first as root on the selected host. The bundle includes the binary,
 rendered `agent.toml`/`agent.topology.json`, and the helper files listed by the
-script's `FILES` mapping. This installer refuses an existing hubless layout;
+script's `FILES` mapping. Preflight the installed `poolsync-pick-session.sh` and
+`poolsync-session-start.sh` against the qualified bundle: the migration installer
+does not update these two required helpers. If missing/stale, include their
+reviewed replacement in a separate backed-up procedure before migration.
+This installer refuses an existing hubless layout;
 it is for first migration, not routine upgrades. Its backups support `--rollback`.
 
 ### Current hubless fleet: paused cohort upgrade
@@ -362,6 +472,12 @@ Use `deploy/apply-agent-cohort-hotfix.py` for a qualified binary update. It is
 fleet-specific: inspect `TARGETS`, SSH aliases and account prerequisites first.
 Stage the identical candidate and `deploy/apply-agent-hotfix.py` at the reviewed
 absolute paths on **every host**, including the local node. Pin their hashes.
+Before any `--apply`, verify `xinput` exists on every full-mode target and
+`xinput query-state` succeeds for both `Virtual core XTEST keyboard` and
+`Virtual core XTEST pointer` in the intended graphical session. The current
+coordinator checks this only after making the cohort absent, so its dry run
+alone is not a complete dependency preflight. Provision missing tools before
+maintenance, within the authorized scope.
 The coordinator defaults to a read-only dry run:
 
 ```sh
