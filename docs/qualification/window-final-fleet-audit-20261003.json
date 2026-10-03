@@ -1,0 +1,70 @@
+{
+  "observed_utc": "2026-10-03T04:28:02.865788+00:00",
+  "nodes": [
+    {
+      "node": "asus",
+      "mode": "full",
+      "pid": 543002,
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "display": ":0",
+      "configuration_preserved_since_deployment": true,
+      "saved_layout_preserved_since_deployment": true,
+      "all_five_peers_active": true,
+      "status_age_seconds": 0.639
+    },
+    {
+      "node": "acer",
+      "mode": "full",
+      "pid": 1546397,
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "display": ":0",
+      "configuration_preserved_since_deployment": true,
+      "saved_layout_preserved_since_deployment": true,
+      "all_five_peers_active": true,
+      "status_age_seconds": 0.411
+    },
+    {
+      "node": "gbs-p2",
+      "mode": "clipboard_only",
+      "pid": 2067349,
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "display": ":10",
+      "configuration_preserved_since_deployment": true,
+      "saved_layout_preserved_since_deployment": true,
+      "all_five_peers_active": true,
+      "status_age_seconds": 0.938
+    },
+    {
+      "node": "gbs-p3",
+      "mode": "clipboard_only",
+      "pid": 1426082,
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "display": ":10",
+      "configuration_preserved_since_deployment": true,
+      "saved_layout_preserved_since_deployment": true,
+      "all_five_peers_active": true,
+      "status_age_seconds": 0.142
+    },
+    {
+      "node": "zaza-desktop",
+      "mode": "clipboard_only",
+      "pid": 372605,
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "display": ":10",
+      "configuration_preserved_since_deployment": true,
+      "saved_layout_preserved_since_deployment": true,
+      "all_five_peers_active": true,
+      "status_age_seconds": 0.606
+    }
+  ],
+  "legacy_hub_active": false,
+  "legacy_hub_enabled": false,
+  "legacy_hub_port_9470_listening": false,
+  "github_actions_enabled": false,
+  "physical_acceptance_passed": null,
+  "remaining_human_gates": [
+    "Asus/Acer bidirectional crossings, typing from each physical keyboard and Ctrl+Alt+Shift+M recovery",
+    "Actual monitor cable addition/removal and mixed-resolution behavior",
+    "Asus/Acer native clipboard campaign after normal closure of existing RDP client sessions, with the saved privacy setting retained"
+  ]
+}

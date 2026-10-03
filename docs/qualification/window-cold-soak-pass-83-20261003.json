@@ -1,0 +1,6246 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": true,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents and complete disposable containers",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected starting binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real XFCE screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "A genuine new second BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "A genuine new first BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Application SAVE_TARGETS handoff preserves a fresh image after close",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff starts a real image transfer",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff cannot replace a newer native copy",
+      "passed": true
+    },
+    {
+      "name": "The delayed native image owner has received a real read request",
+      "passed": true
+    },
+    {
+      "name": "Fresh text converges before the six-second image response",
+      "passed": true
+    },
+    {
+      "name": "A late image response cannot restore the previous capture",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "A held modifier reaches the actual C desktop",
+      "passed": true
+    },
+    {
+      "name": "Losing B preserves A control of C over the alternate direct path",
+      "passed": true
+    },
+    {
+      "name": "C native GTK still receives A input while B is unreachable",
+      "passed": true
+    },
+    {
+      "name": "Returning B learns the exact ongoing epoch without changing A/C control",
+      "passed": true
+    },
+    {
+      "name": "Resynchronizing B preserves the held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "C control resumes or persists after the relay reconnects",
+      "passed": true
+    },
+    {
+      "name": "Relay recovery leaves no held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: remote modifier and button are down and recorded",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: source native keyboard recovers locally",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: old injected modifier/button are released",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: recovery marker clears after acknowledged releases",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: unrelated held key and local pointer are preserved",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: target native keyboard is usable",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: fresh remote input resumes in native GTK",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGTERM restart: normal key release leaves no recovery marker",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: remote modifier and button are down and recorded",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: source native keyboard recovers locally",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: old injected modifier/button are released",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: recovery marker clears after acknowledged releases",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: unrelated held key and local pointer are preserved",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: target native keyboard is usable",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: fresh remote input resumes in native GTK",
+      "passed": true
+    },
+    {
+      "name": "Target C SIGKILL restart: normal key release leaves no recovery marker",
+      "passed": true
+    },
+    {
+      "name": "A can return from C to B without changing controller",
+      "passed": true
+    },
+    {
+      "name": "A can return through B to its own native desktop",
+      "passed": true
+    },
+    {
+      "name": "Emergency shortcut returns captured input to A",
+      "passed": true
+    },
+    {
+      "name": "Emergency return releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "A held modifier is injected on B",
+      "passed": true
+    },
+    {
+      "name": "Network loss releases the remote held modifier",
+      "passed": true
+    },
+    {
+      "name": "Source native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Target native input recovers during a network partition",
+      "passed": true
+    },
+    {
+      "name": "Direct KVM resumes after the network partition",
+      "passed": true
+    },
+    {
+      "name": "Controller disappearance releases the held modifier on B",
+      "passed": true
+    },
+    {
+      "name": "B native keyboard is usable after the controller disappears",
+      "passed": true
+    },
+    {
+      "name": "B takes control and crosses to A after A restarts",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing remains on A despite repeated software warps on captured B",
+      "passed": true
+    },
+    {
+      "name": "Reverse crossing still forwards relative device motion to A",
+      "passed": true
+    },
+    {
+      "name": "A temporary departure returns B input locally",
+      "passed": true
+    },
+    {
+      "name": "B local GTK keyboard works after its remote target leaves",
+      "passed": true
+    },
+    {
+      "name": "Two local monitors are announced directly",
+      "passed": true
+    },
+    {
+      "name": "Docking keeps the saved neighboring computer adjacent",
+      "passed": true
+    },
+    {
+      "name": "The internal monitor edge keeps input local",
+      "passed": true
+    },
+    {
+      "name": "The added local monitor remains directly usable",
+      "passed": true
+    },
+    {
+      "name": "The external desktop edge reaches the other computer",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab releases remote modifiers",
+      "passed": true
+    },
+    {
+      "name": "Unplugging a monitor during a grab returns native input locally",
+      "passed": true
+    },
+    {
+      "name": "Undocking restores the neighbor and advertises a different resolution",
+      "passed": true
+    },
+    {
+      "name": "Crossing scales coordinates between different resolutions",
+      "passed": true
+    },
+    {
+      "name": "Original desktop dimensions return after screen restoration",
+      "passed": true
+    },
+    {
+      "name": "Ten concurrent claim rounds converge on one eligible controller",
+      "passed": true
+    },
+    {
+      "name": "Concurrent claims leave both native keyboards available",
+      "passed": true
+    },
+    {
+      "name": "Sustained real paste sequence finishes without stale contents",
+      "passed": true
+    },
+    {
+      "name": "Idle resource interval finishes with all peers alive",
+      "passed": true
+    },
+    {
+      "name": "Absent C neither receives nor retains office copies",
+      "passed": true
+    },
+    {
+      "name": "Absent C does not send its private copy",
+      "passed": true
+    },
+    {
+      "name": "Absence survives agent restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Rejoin does not replay the private clipboard",
+      "passed": true
+    },
+    {
+      "name": "Fresh native copies resume after rejoin without hub",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 0",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 1",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 2",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 3",
+      "passed": true
+    },
+    {
+      "name": "Concurrent rejoin does not replay private clipboard round 4",
+      "passed": true
+    },
+    {
+      "name": "A local clipboard remains usable after the relay agent disappears",
+      "passed": true
+    },
+    {
+      "name": "An alternate direct route survives the loss of B",
+      "passed": true
+    },
+    {
+      "name": "Direct links recover after relay restart without hub",
+      "passed": true
+    },
+    {
+      "name": "Reverse-order agent restart restores native mesh delivery",
+      "passed": true
+    },
+    {
+      "name": "Hub stayed unreachable throughout; agents report no panic",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.902,
+    1.922,
+    1.795,
+    1.14,
+    2.023,
+    2.054,
+    1.662,
+    1.455,
+    3.184,
+    4.182,
+    1.762,
+    2.64,
+    1.607,
+    3.227,
+    1.923,
+    1.487,
+    5.604,
+    3.897,
+    1.931,
+    1.755,
+    1.283,
+    1.633,
+    2.839,
+    2.825,
+    2.924,
+    2.04,
+    1.779,
+    1.947,
+    1.805,
+    2.278,
+    1.152,
+    1.849,
+    1.73,
+    1.424,
+    1.712,
+    2.005,
+    1.776,
+    1.766,
+    1.719,
+    2.275,
+    2.593,
+    1.919,
+    1.858,
+    1.86,
+    3.9,
+    1.983,
+    1.79,
+    1.914,
+    1.771,
+    2.169,
+    1.574,
+    1.841,
+    1.669,
+    1.903,
+    1.721,
+    1.689,
+    1.809,
+    1.149,
+    1.729,
+    1.89,
+    2.007,
+    1.94,
+    1.609,
+    2.005,
+    3.963,
+    1.942,
+    1.835,
+    1.99,
+    1.998,
+    1.796,
+    1.615,
+    2.022,
+    1.666,
+    2.027,
+    1.835,
+    1.735,
+    1.788,
+    1.985,
+    1.919,
+    2.198,
+    1.581,
+    1.764,
+    1.839,
+    1.821,
+    3.235,
+    2.01,
+    1.778,
+    1.816,
+    1.924,
+    1.918,
+    1.582,
+    1.933,
+    1.947,
+    1.721,
+    1.758,
+    2.034,
+    1.892,
+    1.839,
+    2.098,
+    1.473,
+    1.844,
+    1.937,
+    1.742,
+    2.028,
+    2.934,
+    1.967,
+    1.81,
+    2.285,
+    2.058,
+    1.236,
+    1.901,
+    1.8,
+    1.797,
+    1.927,
+    1.808,
+    1.975,
+    1.809,
+    2.42,
+    2.347,
+    1.797,
+    1.712,
+    2.027,
+    1.833,
+    1.729,
+    3.358,
+    1.804,
+    1.739,
+    2.247,
+    1.597,
+    2.045,
+    1.615,
+    1.898,
+    1.724,
+    2.024,
+    1.687,
+    1.954,
+    1.805,
+    2.142,
+    1.402,
+    1.804,
+    1.954,
+    2.275,
+    1.611,
+    1.849,
+    2.968,
+    2.038,
+    1.92,
+    2.196,
+    2.186,
+    1.871,
+    2.009,
+    1.882,
+    1.694,
+    1.891,
+    1.811,
+    1.439,
+    1.579,
+    2.168,
+    2.051,
+    1.01,
+    1.954,
+    2.022,
+    1.678,
+    1.792,
+    3.13,
+    1.921,
+    2.107,
+    2.001,
+    1.652,
+    1.717,
+    1.762,
+    2.044,
+    1.848,
+    1.665,
+    1.843,
+    2.095,
+    1.879,
+    2.154,
+    1.372,
+    1.855,
+    1.773,
+    2.033,
+    1.694,
+    1.878,
+    3.181,
+    1.937,
+    1.988,
+    1.935,
+    1.575,
+    2.027,
+    1.871,
+    1.852,
+    1.762,
+    1.775,
+    1.764,
+    1.955,
+    1.759,
+    2.196,
+    1.477,
+    1.965,
+    1.765,
+    1.952,
+    1.67,
+    1.765,
+    3.35,
+    2.032,
+    2.0,
+    2.022,
+    1.312,
+    1.925,
+    1.732,
+    1.827,
+    1.968,
+    2.106,
+    1.831,
+    1.928,
+    1.638,
+    2.164,
+    1.376,
+    2.057,
+    1.762,
+    2.031,
+    1.639,
+    1.989,
+    3.066,
+    1.973,
+    1.885,
+    2.318,
+    1.608,
+    1.733,
+    1.767,
+    1.898,
+    1.776,
+    1.854,
+    1.779,
+    2.035,
+    1.792,
+    2.29,
+    2.163,
+    1.85,
+    1.756,
+    1.559,
+    1.52,
+    1.789,
+    3.129,
+    1.975,
+    1.973,
+    1.952,
+    1.494,
+    1.85,
+    1.731,
+    1.863,
+    1.806,
+    1.694,
+    1.695,
+    1.602,
+    1.568,
+    2.156,
+    1.972,
+    1.556,
+    1.716,
+    1.794,
+    1.784,
+    2.072,
+    3.004,
+    1.843,
+    1.824,
+    2.065,
+    1.709,
+    1.806,
+    1.756,
+    1.949,
+    1.84,
+    2.054,
+    1.72,
+    1.842,
+    1.706,
+    2.034,
+    2.252,
+    1.572,
+    1.715,
+    1.806,
+    1.876,
+    1.918,
+    3.318,
+    1.891,
+    1.766,
+    2.295,
+    2.243,
+    1.999,
+    1.894,
+    1.779,
+    1.724,
+    1.947,
+    1.686,
+    1.946,
+    1.858,
+    2.214,
+    1.634,
+    1.709,
+    1.743,
+    1.87,
+    1.796,
+    2.089,
+    3.141,
+    1.813,
+    1.951,
+    2.007,
+    1.548,
+    1.825,
+    1.686,
+    1.47,
+    1.506,
+    1.86,
+    1.784,
+    2.006,
+    1.792,
+    2.036,
+    1.866,
+    1.693,
+    1.729,
+    1.754,
+    1.777,
+    1.51,
+    3.681,
+    1.902,
+    1.909,
+    2.091,
+    1.696,
+    1.865,
+    1.693,
+    1.775,
+    1.7,
+    1.435,
+    1.431,
+    1.832,
+    1.737,
+    1.97,
+    2.07,
+    1.936,
+    1.513,
+    2.011,
+    1.69,
+    1.964,
+    3.449,
+    1.685,
+    1.78,
+    2.368,
+    2.346,
+    1.896,
+    1.739,
+    2.138,
+    1.64,
+    1.841,
+    1.794,
+    1.769,
+    1.724,
+    2.167,
+    1.616,
+    1.977,
+    1.819,
+    1.945,
+    1.817,
+    1.754,
+    3.93,
+    1.527,
+    1.955,
+    1.618,
+    1.837,
+    1.765,
+    1.786,
+    1.814,
+    1.67,
+    1.736,
+    1.855,
+    1.051,
+    1.643,
+    2.093,
+    2.016,
+    1.725,
+    1.882,
+    1.803,
+    1.748,
+    1.989,
+    4.058,
+    1.78,
+    2.289,
+    1.999,
+    1.72,
+    1.701,
+    1.618,
+    1.789,
+    1.592,
+    1.589,
+    1.706,
+    1.733,
+    2.056,
+    2.129,
+    1.113,
+    1.473,
+    1.651,
+    1.699,
+    1.734,
+    1.762,
+    3.373,
+    1.995,
+    2.06,
+    1.604,
+    1.928,
+    1.643,
+    1.764,
+    1.474,
+    1.222,
+    1.47,
+    1.546,
+    1.731,
+    1.802,
+    1.934,
+    2.165,
+    1.982,
+    1.533,
+    1.736,
+    1.829,
+    1.778,
+    3.09,
+    2.072,
+    1.703,
+    2.217,
+    1.547,
+    1.856,
+    1.794,
+    1.981,
+    1.76,
+    1.905,
+    1.595,
+    1.632,
+    1.634,
+    1.925,
+    1.635,
+    1.976,
+    1.637,
+    1.797,
+    1.718,
+    1.988,
+    3.005,
+    1.734,
+    1.571,
+    1.627,
+    1.713,
+    2.113,
+    1.579,
+    1.718,
+    1.859,
+    1.768,
+    1.738,
+    1.486,
+    1.573,
+    1.815,
+    1.763,
+    2.322,
+    1.898,
+    1.554,
+    1.732,
+    1.856,
+    3.059,
+    2.085,
+    1.773,
+    1.84,
+    2.031,
+    1.518,
+    1.788,
+    1.883,
+    1.715,
+    1.488,
+    1.519,
+    1.715,
+    1.8,
+    1.886,
+    1.682,
+    1.448,
+    1.871,
+    1.755,
+    1.564,
+    1.779,
+    3.329,
+    1.769,
+    1.83,
+    1.691,
+    1.625,
+    1.474,
+    1.514,
+    1.924,
+    1.771,
+    1.503,
+    1.525,
+    1.681,
+    1.832,
+    2.067,
+    1.774,
+    1.918,
+    1.879,
+    2.056,
+    1.566,
+    1.735,
+    3.932,
+    1.697,
+    1.646,
+    1.616,
+    1.843,
+    1.667,
+    2.191,
+    1.946,
+    1.479,
+    1.682,
+    1.796,
+    1.524,
+    1.51,
+    1.759,
+    1.592,
+    1.457,
+    1.538,
+    1.827,
+    1.774,
+    1.708,
+    4.421,
+    1.726,
+    1.847,
+    1.632,
+    2.089,
+    1.675,
+    2.341,
+    1.912,
+    1.539,
+    2.005,
+    1.71,
+    1.747,
+    1.679,
+    1.526,
+    1.57,
+    1.768,
+    1.937,
+    2.013,
+    1.698,
+    1.639,
+    3.202,
+    1.685,
+    1.969,
+    2.066,
+    1.717,
+    2.087,
+    1.748,
+    2.123,
+    1.805,
+    1.87,
+    1.392,
+    2.062,
+    1.845,
+    1.772,
+    1.699,
+    1.689,
+    1.718,
+    1.405,
+    1.896,
+    1.748,
+    3.897,
+    1.829,
+    2.225,
+    1.665,
+    1.641,
+    1.766,
+    1.518,
+    2.033,
+    1.768,
+    1.753,
+    1.686,
+    1.777,
+    1.665,
+    1.459,
+    1.79,
+    1.628,
+    1.778,
+    1.713,
+    2.164,
+    1.846,
+    3.895,
+    1.849,
+    1.622,
+    1.519,
+    1.682,
+    1.689,
+    1.639,
+    1.878,
+    1.913,
+    1.886,
+    1.763,
+    1.886,
+    1.763,
+    1.673,
+    1.729,
+    1.659,
+    1.783,
+    1.778,
+    1.887,
+    1.911,
+    1.648,
+    1.772,
+    0.787,
+    0.869,
+    1.877,
+    1.067,
+    1.782,
+    1.684,
+    1.503,
+    1.584,
+    2.081,
+    1.437,
+    1.47,
+    1.697,
+    1.43,
+    1.638,
+    1.666,
+    1.622,
+    1.478,
+    1.608,
+    1.302,
+    1.774,
+    2.236
+  ],
+  "native_copy_owners": [
+    {
+      "container": "poolsync-final-c",
+      "owner": 27262978,
+      "copier_pid": 52,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 25165826,
+      "copier_pid": 52,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 31457282,
+      "copier_pid": 81,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 31457282,
+      "copier_pid": 84,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 25165826,
+      "copier_pid": 96,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 103,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 29360130,
+      "copier_pid": 105,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 118,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 25165826,
+      "copier_pid": 128,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 144,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 25165826,
+      "copier_pid": 161,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 186,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 25165826,
+      "copier_pid": 213,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 223,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 35651586,
+      "copier_pid": 252,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554433,
+      "copier_pid": 194,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 29360129,
+      "copier_pid": 205,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 25165826,
+      "copier_pid": 290,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 35651586,
+      "copier_pid": 303,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 333,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 966,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 37748738,
+      "copier_pid": 633,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 41943042,
+      "copier_pid": 640,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 545,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 553,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1012,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1027,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 683,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 690,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 595,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 602,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1062,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1070,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 724,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 732,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 634,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 642,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1107,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1115,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 776,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 787,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 687,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 695,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 1158,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1166,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 830,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 838,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 728,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 735,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1202,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1210,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 874,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 881,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 770,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 777,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1246,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1253,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 915,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 923,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 811,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 822,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1296,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1304,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 973,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 981,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 864,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 871,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1341,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1349,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1015,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1023,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 905,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 912,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1387,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1395,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1061,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1075,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 954,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 961,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1438,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1449,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1115,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1123,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 999,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1006,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1494,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1502,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1157,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1165,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 1038,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1045,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1539,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1547,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1202,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1210,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 1078,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1092,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1583,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1598,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1252,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1263,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1131,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1139,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1639,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1647,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1306,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1313,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1173,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1180,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1682,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1690,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1350,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1358,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1214,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1222,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1727,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1742,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1401,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1409,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1262,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1272,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1784,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1792,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1450,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1458,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1313,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1321,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1829,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1837,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1493,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1501,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1354,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1362,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1874,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1882,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1537,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1544,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1396,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1404,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1919,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1930,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1584,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1591,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1443,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1457,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 1977,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 1984,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1635,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1643,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1501,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1509,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2028,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2035,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1678,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1686,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1543,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1550,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2071,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2079,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1721,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1732,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1590,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1598,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2121,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2136,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1781,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1789,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1638,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1646,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2173,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2181,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1826,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1833,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1679,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1693,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2225,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2233,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 37748738,
+      "copier_pid": 1875,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1883,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1726,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1737,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2275,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2283,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1924,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1931,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1785,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1793,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2328,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2336,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 1968,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 1976,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1826,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1834,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2373,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2381,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2012,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2020,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 1867,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1875,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2424,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2434,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2062,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2070,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1913,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1927,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2484,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2491,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2112,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2119,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 1962,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 1970,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2528,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2536,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2155,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2163,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2002,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2010,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2572,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2580,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2198,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2209,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2049,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2057,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2621,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2629,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2253,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2261,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2097,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2104,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2665,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2673,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2298,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2306,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2137,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2144,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2710,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2717,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2343,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 37748738,
+      "copier_pid": 2350,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2181,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2198,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2757,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2765,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2390,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2404,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2239,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2247,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2809,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2817,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2440,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2447,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2282,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2289,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2854,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 2862,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2480,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2488,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2323,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2330,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2898,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2909,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2529,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2537,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2368,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2375,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 2954,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 2962,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2573,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2581,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2410,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2418,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3000,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3008,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2618,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2625,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2451,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2465,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3045,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3060,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2661,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2679,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2505,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2512,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3102,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3110,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2724,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2732,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2546,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2553,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3154,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3162,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2769,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2777,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2587,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2601,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3206,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3214,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2820,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2828,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2634,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2645,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3263,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3271,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2868,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2876,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2678,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2686,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3308,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3315,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2910,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2918,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2719,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2727,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3352,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3360,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 2954,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 2962,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2760,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2767,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3396,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3406,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3003,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3011,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2807,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2821,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3457,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3465,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3053,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3061,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2853,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2861,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3501,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3510,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3097,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3104,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2895,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2902,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3547,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3555,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3146,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3157,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2941,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2948,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3597,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 3605,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3201,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3209,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 2988,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 2996,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3649,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3657,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3245,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3253,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3028,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3035,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3693,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3701,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3289,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3297,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3069,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3079,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3744,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3751,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3337,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3344,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3114,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3128,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3786,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3794,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3381,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3388,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3162,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3169,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3830,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 3837,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3421,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3429,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3202,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3209,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3874,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3885,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 37748738,
+      "copier_pid": 3472,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3479,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3250,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3264,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3936,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3944,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3522,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3529,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3298,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3305,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 3981,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 3989,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3564,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3579,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3344,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3352,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4031,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4039,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3613,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3623,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3391,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3399,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4081,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4095,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3666,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3681,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3431,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3446,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4130,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4137,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3707,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3722,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3479,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3487,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4174,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 4188,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3763,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3771,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3528,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3538,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4229,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4237,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3812,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3820,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3580,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3587,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4273,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 4281,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3856,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3864,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3621,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3629,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4316,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4325,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3899,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3906,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3663,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3670,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4361,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4372,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3946,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3953,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3710,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3717,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4416,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4424,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 3985,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 3993,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3749,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3756,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4461,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4468,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4028,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4036,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3790,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3797,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4504,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4512,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4071,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4082,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3835,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 41943042,
+      "copier_pid": 3842,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4553,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4561,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4126,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4133,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3874,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3882,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4604,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4611,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4168,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 37748738,
+      "copier_pid": 4176,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3915,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3923,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 4648,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4655,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4211,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4219,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 3956,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 3966,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4696,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4704,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4260,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4267,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4008,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4015,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4739,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4747,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4301,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4308,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4049,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4056,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4782,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4790,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4351,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4359,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4089,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4096,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4827,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4838,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4406,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4413,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4137,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4144,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4880,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4888,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4448,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4463,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4183,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4190,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4932,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 4939,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4497,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4505,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4224,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4232,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 4974,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 4982,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4539,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4550,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4271,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4278,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5026,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5033,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4588,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4602,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4313,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4327,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5083,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5091,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4645,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4653,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4360,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4368,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5127,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5135,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4688,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4702,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4407,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4417,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5184,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5191,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4744,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 37748738,
+      "copier_pid": 4751,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4460,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4468,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5235,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5243,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4786,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4794,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4501,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4509,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5279,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5287,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4830,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4837,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4543,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4550,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5323,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5334,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4877,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4884,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 41943042,
+      "copier_pid": 4590,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4604,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5385,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5393,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4925,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4932,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4639,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4646,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5429,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5437,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 4968,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 4975,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4680,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4687,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5473,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5481,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 5009,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 5019,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4725,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4732,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5531,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5538,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 5054,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 5069,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4766,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4773,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5575,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 5583,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 5105,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 5113,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4805,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4813,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5618,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5626,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554434,
+      "copier_pid": 5148,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 35651586,
+      "copier_pid": 5156,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 39845890,
+      "copier_pid": 4848,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5673,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5688,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 4886,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5708,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5728,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 31457282,
+      "copier_pid": 4972,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 39845890,
+      "copier_pid": 5743,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5758,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 4994,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5771,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5786,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 31457282,
+      "copier_pid": 5018,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5799,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5814,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 5042,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5827,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5842,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 31457282,
+      "copier_pid": 5065,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5855,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 29360130,
+      "copier_pid": 5870,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 37748738,
+      "copier_pid": 5883,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 33554434,
+      "copier_pid": 5101,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 37748738,
+      "copier_pid": 5115,
+      "timestamp": null,
+      "kind": "text"
+    }
+  ],
+  "harness_sha256": "c83ea4b39cef30b51461d9d8c41f5257585db854240c33d0f937dd4f74f9da0b",
+  "direct_links": "triangle",
+  "three_kvm_peers": true,
+  "fresh_desktops": true,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 0,
+    "per_peer_disposable_proxy": false,
+    "central_proxy": false,
+    "partition_ports": [
+      19676
+    ]
+  },
+  "peer_tls": true,
+  "browser_x11_trace": false,
+  "browser_syscall_trace": false,
+  "native_browser_engine": null,
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "initial_peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {},
+  "resource_samples": [
+    [
+      {
+        "at": 4177036.954893836,
+        "cpu_seconds": 1.33,
+        "rss_kib": 39656,
+        "pid": 677
+      },
+      {
+        "at": 4177037.144673244,
+        "cpu_seconds": 6.95,
+        "rss_kib": 95620,
+        "pid": 15
+      },
+      {
+        "at": 4177037.348189314,
+        "cpu_seconds": 2.39,
+        "rss_kib": 35648,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177078.695461887,
+        "cpu_seconds": 2.97,
+        "rss_kib": 40568,
+        "pid": 677
+      },
+      {
+        "at": 4177078.946007721,
+        "cpu_seconds": 8.57,
+        "rss_kib": 96052,
+        "pid": 15
+      },
+      {
+        "at": 4177079.260121164,
+        "cpu_seconds": 4.03,
+        "rss_kib": 36436,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177120.554954365,
+        "cpu_seconds": 4.63,
+        "rss_kib": 40896,
+        "pid": 677
+      },
+      {
+        "at": 4177120.785077324,
+        "cpu_seconds": 10.5,
+        "rss_kib": 96512,
+        "pid": 15
+      },
+      {
+        "at": 4177121.023670472,
+        "cpu_seconds": 5.67,
+        "rss_kib": 36684,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177163.594330916,
+        "cpu_seconds": 6.35,
+        "rss_kib": 40712,
+        "pid": 677
+      },
+      {
+        "at": 4177163.768829889,
+        "cpu_seconds": 12.19,
+        "rss_kib": 96800,
+        "pid": 15
+      },
+      {
+        "at": 4177163.965051521,
+        "cpu_seconds": 7.47,
+        "rss_kib": 36904,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177205.704419921,
+        "cpu_seconds": 8.09,
+        "rss_kib": 40892,
+        "pid": 677
+      },
+      {
+        "at": 4177205.93649429,
+        "cpu_seconds": 13.9,
+        "rss_kib": 96904,
+        "pid": 15
+      },
+      {
+        "at": 4177206.114658705,
+        "cpu_seconds": 9.15,
+        "rss_kib": 37016,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177248.578217442,
+        "cpu_seconds": 9.81,
+        "rss_kib": 40884,
+        "pid": 677
+      },
+      {
+        "at": 4177248.748723325,
+        "cpu_seconds": 15.66,
+        "rss_kib": 97064,
+        "pid": 15
+      },
+      {
+        "at": 4177248.9299363,
+        "cpu_seconds": 10.86,
+        "rss_kib": 37448,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177290.676289031,
+        "cpu_seconds": 11.48,
+        "rss_kib": 41440,
+        "pid": 677
+      },
+      {
+        "at": 4177290.967558063,
+        "cpu_seconds": 17.32,
+        "rss_kib": 97128,
+        "pid": 15
+      },
+      {
+        "at": 4177291.147403057,
+        "cpu_seconds": 12.47,
+        "rss_kib": 37636,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177332.50222917,
+        "cpu_seconds": 13.05,
+        "rss_kib": 41396,
+        "pid": 677
+      },
+      {
+        "at": 4177332.723154821,
+        "cpu_seconds": 18.92,
+        "rss_kib": 97372,
+        "pid": 15
+      },
+      {
+        "at": 4177332.937065394,
+        "cpu_seconds": 14.08,
+        "rss_kib": 37656,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177374.561101549,
+        "cpu_seconds": 14.72,
+        "rss_kib": 41272,
+        "pid": 677
+      },
+      {
+        "at": 4177374.781703994,
+        "cpu_seconds": 20.55,
+        "rss_kib": 97208,
+        "pid": 15
+      },
+      {
+        "at": 4177374.990436762,
+        "cpu_seconds": 15.67,
+        "rss_kib": 38056,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177416.40697636,
+        "cpu_seconds": 16.43,
+        "rss_kib": 41780,
+        "pid": 677
+      },
+      {
+        "at": 4177416.607868437,
+        "cpu_seconds": 22.27,
+        "rss_kib": 97392,
+        "pid": 15
+      },
+      {
+        "at": 4177416.796628706,
+        "cpu_seconds": 17.31,
+        "rss_kib": 38324,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177458.72086544,
+        "cpu_seconds": 18.15,
+        "rss_kib": 41872,
+        "pid": 677
+      },
+      {
+        "at": 4177458.925020916,
+        "cpu_seconds": 24.03,
+        "rss_kib": 97448,
+        "pid": 15
+      },
+      {
+        "at": 4177459.125672422,
+        "cpu_seconds": 19.05,
+        "rss_kib": 38732,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177500.747326388,
+        "cpu_seconds": 19.8,
+        "rss_kib": 41924,
+        "pid": 677
+      },
+      {
+        "at": 4177500.96485912,
+        "cpu_seconds": 25.64,
+        "rss_kib": 97912,
+        "pid": 15
+      },
+      {
+        "at": 4177501.179996672,
+        "cpu_seconds": 20.67,
+        "rss_kib": 38700,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177541.793745385,
+        "cpu_seconds": 21.43,
+        "rss_kib": 41920,
+        "pid": 677
+      },
+      {
+        "at": 4177542.019712504,
+        "cpu_seconds": 27.27,
+        "rss_kib": 98084,
+        "pid": 15
+      },
+      {
+        "at": 4177542.261026591,
+        "cpu_seconds": 22.38,
+        "rss_kib": 39132,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177583.778994167,
+        "cpu_seconds": 23.12,
+        "rss_kib": 42456,
+        "pid": 677
+      },
+      {
+        "at": 4177583.97618046,
+        "cpu_seconds": 28.98,
+        "rss_kib": 98364,
+        "pid": 15
+      },
+      {
+        "at": 4177584.182874467,
+        "cpu_seconds": 24.03,
+        "rss_kib": 39392,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177626.832623773,
+        "cpu_seconds": 24.83,
+        "rss_kib": 42040,
+        "pid": 677
+      },
+      {
+        "at": 4177627.04342522,
+        "cpu_seconds": 30.63,
+        "rss_kib": 98600,
+        "pid": 15
+      },
+      {
+        "at": 4177627.260490843,
+        "cpu_seconds": 25.7,
+        "rss_kib": 39324,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177667.216565249,
+        "cpu_seconds": 26.47,
+        "rss_kib": 42164,
+        "pid": 677
+      },
+      {
+        "at": 4177667.445910119,
+        "cpu_seconds": 32.24,
+        "rss_kib": 98268,
+        "pid": 15
+      },
+      {
+        "at": 4177667.678539923,
+        "cpu_seconds": 27.47,
+        "rss_kib": 46500,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177708.768954485,
+        "cpu_seconds": 28.12,
+        "rss_kib": 42332,
+        "pid": 677
+      },
+      {
+        "at": 4177708.972292346,
+        "cpu_seconds": 33.87,
+        "rss_kib": 98480,
+        "pid": 15
+      },
+      {
+        "at": 4177709.205577281,
+        "cpu_seconds": 29.02,
+        "rss_kib": 46484,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177751.724737848,
+        "cpu_seconds": 29.93,
+        "rss_kib": 42328,
+        "pid": 677
+      },
+      {
+        "at": 4177751.94259636,
+        "cpu_seconds": 35.59,
+        "rss_kib": 98604,
+        "pid": 15
+      },
+      {
+        "at": 4177752.161565653,
+        "cpu_seconds": 30.74,
+        "rss_kib": 46984,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177792.809762317,
+        "cpu_seconds": 31.61,
+        "rss_kib": 43204,
+        "pid": 677
+      },
+      {
+        "at": 4177792.999084514,
+        "cpu_seconds": 37.31,
+        "rss_kib": 98668,
+        "pid": 15
+      },
+      {
+        "at": 4177793.207235019,
+        "cpu_seconds": 32.63,
+        "rss_kib": 46868,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177833.59651633,
+        "cpu_seconds": 33.3,
+        "rss_kib": 50292,
+        "pid": 677
+      },
+      {
+        "at": 4177833.812228545,
+        "cpu_seconds": 38.89,
+        "rss_kib": 98556,
+        "pid": 15
+      },
+      {
+        "at": 4177834.002385214,
+        "cpu_seconds": 34.19,
+        "rss_kib": 47072,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177873.76182616,
+        "cpu_seconds": 34.84,
+        "rss_kib": 50504,
+        "pid": 677
+      },
+      {
+        "at": 4177874.01519563,
+        "cpu_seconds": 40.44,
+        "rss_kib": 98788,
+        "pid": 15
+      },
+      {
+        "at": 4177874.256221329,
+        "cpu_seconds": 35.72,
+        "rss_kib": 46896,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177914.912322403,
+        "cpu_seconds": 36.51,
+        "rss_kib": 50472,
+        "pid": 677
+      },
+      {
+        "at": 4177915.100997836,
+        "cpu_seconds": 42.02,
+        "rss_kib": 98980,
+        "pid": 15
+      },
+      {
+        "at": 4177915.325444142,
+        "cpu_seconds": 37.27,
+        "rss_kib": 47420,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177955.03388407,
+        "cpu_seconds": 38.09,
+        "rss_kib": 50316,
+        "pid": 677
+      },
+      {
+        "at": 4177955.232735096,
+        "cpu_seconds": 43.64,
+        "rss_kib": 98744,
+        "pid": 15
+      },
+      {
+        "at": 4177955.418820942,
+        "cpu_seconds": 38.87,
+        "rss_kib": 47096,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4177994.824921728,
+        "cpu_seconds": 39.71,
+        "rss_kib": 50348,
+        "pid": 677
+      },
+      {
+        "at": 4177995.031898378,
+        "cpu_seconds": 45.25,
+        "rss_kib": 99084,
+        "pid": 15
+      },
+      {
+        "at": 4177995.225343878,
+        "cpu_seconds": 40.48,
+        "rss_kib": 47300,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178034.937146926,
+        "cpu_seconds": 41.34,
+        "rss_kib": 50524,
+        "pid": 677
+      },
+      {
+        "at": 4178035.180513424,
+        "cpu_seconds": 46.91,
+        "rss_kib": 99256,
+        "pid": 15
+      },
+      {
+        "at": 4178035.38972697,
+        "cpu_seconds": 42.04,
+        "rss_kib": 47444,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178074.772776658,
+        "cpu_seconds": 43.11,
+        "rss_kib": 50544,
+        "pid": 677
+      },
+      {
+        "at": 4178074.981624428,
+        "cpu_seconds": 48.53,
+        "rss_kib": 99436,
+        "pid": 15
+      },
+      {
+        "at": 4178075.166199744,
+        "cpu_seconds": 43.63,
+        "rss_kib": 47980,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178116.8975836,
+        "cpu_seconds": 44.71,
+        "rss_kib": 50688,
+        "pid": 677
+      },
+      {
+        "at": 4178117.157285617,
+        "cpu_seconds": 50.17,
+        "rss_kib": 99360,
+        "pid": 15
+      },
+      {
+        "at": 4178117.347326885,
+        "cpu_seconds": 45.26,
+        "rss_kib": 47724,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178158.036876936,
+        "cpu_seconds": 46.36,
+        "rss_kib": 50908,
+        "pid": 677
+      },
+      {
+        "at": 4178158.227682607,
+        "cpu_seconds": 51.75,
+        "rss_kib": 99584,
+        "pid": 15
+      },
+      {
+        "at": 4178158.456577566,
+        "cpu_seconds": 46.92,
+        "rss_kib": 47740,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178199.295636417,
+        "cpu_seconds": 48.12,
+        "rss_kib": 50812,
+        "pid": 677
+      },
+      {
+        "at": 4178199.515560705,
+        "cpu_seconds": 53.38,
+        "rss_kib": 99328,
+        "pid": 15
+      },
+      {
+        "at": 4178199.739609467,
+        "cpu_seconds": 48.57,
+        "rss_kib": 48012,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178240.414362934,
+        "cpu_seconds": 49.75,
+        "rss_kib": 51156,
+        "pid": 677
+      },
+      {
+        "at": 4178240.630789366,
+        "cpu_seconds": 55.01,
+        "rss_kib": 99388,
+        "pid": 15
+      },
+      {
+        "at": 4178240.872990409,
+        "cpu_seconds": 50.17,
+        "rss_kib": 48172,
+        "pid": 416
+      }
+    ],
+    [
+      {
+        "at": 4178241.36090093,
+        "cpu_seconds": 49.76,
+        "rss_kib": 51156,
+        "pid": 677
+      },
+      {
+        "at": 4178241.597651828,
+        "cpu_seconds": 55.03,
+        "rss_kib": 99388,
+        "pid": 15
+      },
+      {
+        "at": 4178241.827689279,
+        "cpu_seconds": 50.19,
+        "rss_kib": 48172,
+        "pid": 416
+      }
+    ]
+  ],
+  "native_screenshot_application": "xfce4-screenshooter",
+  "superseded_image_text_seconds": 2.825,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.2154,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.121",
+        "10.89.2.123"
+      ],
+      [
+        "10.89.2.121",
+        "10.89.2.122"
+      ]
+    ],
+    [
+      [
+        "10.89.2.122",
+        "10.89.2.123"
+      ],
+      [
+        "10.89.2.122",
+        "10.89.2.121"
+      ]
+    ],
+    [
+      [
+        "10.89.2.123",
+        "10.89.2.121"
+      ],
+      [
+        "10.89.2.123",
+        "10.89.2.122"
+      ]
+    ]
+  ],
+  "mixed_resolution_entry_pointer": {
+    "x": 30,
+    "y": 384
+  },
+  "simultaneous_claim_winners": [
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 11
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 13
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 15
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 17
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 19
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 21
+    },
+    {
+      "focus": "nohub-b",
+      "owner": "nohub-b",
+      "term": 23
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 25
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 27
+    },
+    {
+      "focus": "nohub-a",
+      "owner": "nohub-a",
+      "term": 29
+    }
+  ],
+  "kvm_observation": "Direct peer edge crossing, native GTK key reception, held-key release and target/controller recovery. Input is synthetic X11, not physical acceptance.",
+  "soak": {
+    "elapsed_seconds": 1205.105,
+    "image_text_rounds": 290
+  },
+  "idle_resources": [
+    {
+      "elapsed_seconds": 30.7474071145989,
+      "cpu_percent": 1.886337920587176,
+      "rss_start_kib": 51156,
+      "rss_end_kib": 51156
+    },
+    {
+      "elapsed_seconds": 30.710960586555302,
+      "cpu_percent": 1.9211382149286944,
+      "rss_start_kib": 99388,
+      "rss_end_kib": 99388
+    },
+    {
+      "elapsed_seconds": 30.700125657953322,
+      "cpu_percent": 1.8240967683300635,
+      "rss_start_kib": 48172,
+      "rss_end_kib": 48172
+    }
+  ],
+  "functional_checks_passed": true,
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "poolsync-final-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true
+    },
+    "poolsync-final-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true
+    },
+    "poolsync-final-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 100,
+  "computed_metrics": {
+    "convergence_observations": 627,
+    "median_convergence_seconds": 1.803,
+    "p95_convergence_seconds": 2.968,
+    "maximum_convergence_seconds": 5.604,
+    "convergence_scope": "Complete selected campaign including fault injection, receiver sampling and orchestration; not pure network latency.",
+    "soak_resources": [
+      {
+        "node": "nohub-a",
+        "interval_cpu_percent_one_core": 4.0211,
+        "rss_start_kib": 39656,
+        "rss_end_kib": 51156,
+        "rss_delta_kib": 11500,
+        "final_quarter_rss_range_kib": 808,
+        "pid_preserved_during_soak": true
+      },
+      {
+        "node": "nohub-b",
+        "interval_cpu_percent_one_core": 3.9919,
+        "rss_start_kib": 95620,
+        "rss_end_kib": 99388,
+        "rss_delta_kib": 3768,
+        "final_quarter_rss_range_kib": 500,
+        "pid_preserved_during_soak": true
+      },
+      {
+        "node": "nohub-c",
+        "interval_cpu_percent_one_core": 3.9685,
+        "rss_start_kib": 35648,
+        "rss_end_kib": 48172,
+        "rss_delta_kib": 12524,
+        "final_quarter_rss_range_kib": 872,
+        "pid_preserved_during_soak": true
+      }
+    ]
+  },
+  "runtime_source": "e1e5339"
+}

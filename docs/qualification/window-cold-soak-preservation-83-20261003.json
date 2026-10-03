@@ -1,0 +1,36 @@
+{
+  "original_desktops": {
+    "neko-desk-a": {
+      "pid": 341784,
+      "executing_binary_preserved": true,
+      "configuration_preserved": true,
+      "participation_preserved": true
+    },
+    "neko-desk-b": {
+      "pid": 3671357,
+      "executing_binary_preserved": true,
+      "configuration_preserved": true,
+      "participation_preserved": true
+    },
+    "neko-desk-c": {
+      "pid": 1005271,
+      "executing_binary_preserved": true,
+      "configuration_preserved": true,
+      "participation_preserved": true
+    }
+  },
+  "fresh_candidate_cleanup": {
+    "poolsync-final-a": {
+      "candidate_processes_remaining": 0,
+      "private_xorg_processes_remaining": 0
+    },
+    "poolsync-final-b": {
+      "candidate_processes_remaining": 0,
+      "private_xorg_processes_remaining": 0
+    },
+    "poolsync-final-c": {
+      "candidate_processes_remaining": 0,
+      "private_xorg_processes_remaining": 0
+    }
+  }
+}

@@ -32,6 +32,7 @@ credentials and profiles. Original desktop agents remain unchanged.
 | 76 | Three-peer relay, TLS, 20 Mbit/s directions, real Flameshot, recovery/privacy/screens | 97 checks; 634.672 seconds mixed traffic; 192 native Chromium image pastes and 326 fresh native keys |
 | 80 | Updated three-peer triangle, TLS, slow/refused PNG, BMP, deferred copy, input/recovery/screens | 112 checks; 135.182 seconds mixed traffic; 36 native browser image pastes |
 | 81 | Old-to-new paused cohort, configuration/private-copy preservation, constrained triangle and full selected scenarios | 124 checks; all original agents/configurations/absence and proxy cleanup preserved |
+| 83 | Fresh isolated desktops, two complete container start orders, TLS triangle, native GTK, recovery/privacy/screens and prolonged copies | 100 checks; 1,205.105 seconds, 290 alternating image/text rounds; candidate cleanup and independent original-desktop preservation pass |
 | Physical subset | Actual P2/P3/zaza-desktop GTK and Chrome, rotating copy source over three rounds, hub stopped | Four checks and 12 convergence observations; median 2.638 seconds, maximum 3.684 seconds |
 
 The convergence values include fixture orchestration and receiver sampling;
@@ -69,6 +70,31 @@ this incomplete campaign. Its failure and complete candidate cleanup are retaine
 in `qualification/window-cold-fixture-failure-82-20261003.json`. The disposable
 clones receive that missing package, and the harness now checks xinput/xprop
 availability before changing any lab session.
+
+The subsequent complete attempt 83 passes all 100 checks, including both cold
+restart orders, full-HD images, a real XFCE screenshot, slow/refused lossless
+offers, stale-owner cancellation, alternate-path continuity, target SIGTERM and
+SIGKILL recovery, network/controller loss, emergency return, simulated monitor
+changes, concurrent claims and private departure/rejoin. Its 1,205.105-second
+soak finishes 290 actual image/text rounds. The complete campaign records 627
+paste-convergence observations: median 1.803 seconds, p95 2.968 seconds and
+maximum 5.604 seconds. These include fault injection, receiver sampling and
+orchestration; they are not pure wire latency or a browser soak.
+
+All three PIDs stay stable during the soak. Agent CPU is approximately 4.02%,
+3.99% and 3.97% of one core. RSS moves from 39,656 to 51,156 KiB on A, 95,620 to
+99,388 KiB on B and 35,648 to 48,172 KiB on C. The last quarter varies by 808,
+500 and 872 KiB respectively; the following 30-second idle interval has unchanged
+RSS on every peer. Report the observed increase and finite duration rather than
+claiming full-day memory or battery stability. See
+`qualification/window-cold-soak-pass-83-20261003.json`.
+
+Independent post-run verification compares neko-desk-a/b/c against the previous
+retained original snapshots: exact PIDs, executable hashes, configuration bytes
+and participation markers are preserved. All three candidate agents and private
+Xorg servers are gone. Their disposable cold clones are stopped after preserving
+the artifacts; the original Neko desktops keep running. The separate evidence is
+`qualification/window-cold-soak-preservation-83-20261003.json`.
 
 Firefox 140.16.0esr times out in this lab even with an ordinary GTK clipboard
 owner and no PoolSync instance on the test display (attempt 77). The equivalent
@@ -146,3 +172,19 @@ physical attempt proves neither successful crossing nor a reproduced failure on
 the current artifact. Repeat both directions with each source's own physical
 input, correlate the observed lease with the human result, and retain the gate.
 See `qualification/physical-edge-unobserved-20261003.json`.
+
+The final fleet audit after attempt 83 verifies the same five executing PIDs,
+exact artifacts, modes and displays as deployment, byte-identical configurations
+and saved layouts, and fresh active membership for all five computers. The hub
+remains inactive/disabled with no TCP 9470 listener; GitHub Actions remains
+disabled. See `qualification/window-final-fleet-audit-20261003.json`.
+
+Physical acceptance remains unverified:
+physical Asus/Acer crossings and typing, emergency return, actual monitor-cable
+changes, and their native paste campaign after safe closure of the existing RDP
+clients. Current process journals still contain no physical edge switch, and the
+RDP clients remain open. The reported obstruction/loop stays unresolved, with
+the artifact used during that human attempt unconfirmed. Independent DEV,
+deployment, backup, native three-host and resource checks are complete to the
+recorded finite scope. Further completion now needs those human actions and
+their result; repeated synthetic input cannot supply physical acceptance.
