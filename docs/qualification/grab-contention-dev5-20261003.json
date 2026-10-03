@@ -1,0 +1,51 @@
+{
+  "scope": "isolated X11 keyboard contention; synthetic foreign owner; no physical input",
+  "results": {
+    "before": {
+      "fixture_sha256": "f337a272103709be2826e8be8fd76cbd1044c46507d0948c6dbe35ec151679ad",
+      "exit_code": 1,
+      "checks": [
+        {
+          "case": "reject_mouse_only_takeover_under_foreign_keyboard_grab",
+          "passed": false
+        },
+        {
+          "case": "pointer_released_after_capture_attempt",
+          "passed": true
+        },
+        {
+          "case": "foreign_keyboard_owner_preserved",
+          "passed": true
+        },
+        {
+          "case": "complete_capture_recovers_after_contention",
+          "passed": true
+        }
+      ],
+      "error": "Error: partial capture may split keyboard and pointer destinations"
+    },
+    "after": {
+      "fixture_sha256": "f6cda829eaef1ecee62ba24e602eb10e00cd61ad944b2ce524c237b050d05a73",
+      "exit_code": 0,
+      "checks": [
+        {
+          "case": "reject_mouse_only_takeover_under_foreign_keyboard_grab",
+          "passed": true
+        },
+        {
+          "case": "pointer_released_after_capture_attempt",
+          "passed": true
+        },
+        {
+          "case": "foreign_keyboard_owner_preserved",
+          "passed": true
+        },
+        {
+          "case": "complete_capture_recovers_after_contention",
+          "passed": true
+        }
+      ],
+      "error": ""
+    }
+  }
+}

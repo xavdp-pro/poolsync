@@ -344,9 +344,8 @@ fn create_blank_cursor(
     Ok((cursor, pixmap))
 }
 
-/// Grab pointeur (obligatoire pour le KVM souris), clavier en best-effort.
-/// IBus / xcape / menus XFCE tiennent souvent un grab clavier (ALREADY_GRABBED) :
-/// on ne doit pas pour autant annuler le basculement souris.
+/// Capture keyboard and pointer together or leave both on the local desktop.
+/// A foreign keyboard grab must never silently create a mouse-only takeover.
 fn grab_mouse_and_keyboard(
     conn: &x11rb::rust_connection::RustConnection,
     window: Window,
@@ -388,10 +387,15 @@ fn grab_mouse_and_keyboard(
             )?
             .reply()?;
         if kb.status != GrabStatus::SUCCESS {
-            warn!(
-                "grab clavier indisponible ({:?}) — KVM souris seul (IBus/xcape/menu ?)",
-                kb.status
-            );
+            // Release our pointer before retrying so a foreign keyboard owner
+            // cannot split the user's keyboard and mouse between desktops.
+            conn.ungrab_pointer(CURRENT_TIME)?;
+            conn.flush()?;
+            if Instant::now() >= deadline {
+                anyhow::bail!("keyboard grab timeout ({:?})", kb.status);
+            }
+            thread::sleep(GRAB_RETRY);
+            continue;
         }
         return Ok(());
     }

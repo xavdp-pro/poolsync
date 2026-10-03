@@ -138,3 +138,8 @@ the empty-text image advertisement regression, qualifies candidate dev.4 in
 116 mesh checks and compares native-RDP and direct-pool browser clipboard paths.
 It does not retroactively turn the failed production RDP campaign into a pass.
 The fleet remains on dev.3 until the separately recorded rollout occurs.
+
+A subsequent [atomic KVM grab candidate](KVM-GRAB-CONTENTION-2026-10-03.md)
+reproduces and fixes mouse-only takeover under a foreign keyboard grab in DEV.
+The changed runtime requires its own mesh qualification and physical acceptance;
+it is not deployed.
