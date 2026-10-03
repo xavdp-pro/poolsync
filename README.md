@@ -12,6 +12,14 @@ and maintenance assistant, not a required runtime service.
 PoolSync shares **clipboard + keyboard/mouse** across Linux desktops through
 authenticated, encrypted peer connections, without a permanent PoolSync hub.
 
+Its two distinguishing design choices relative to the documented server/client
+model of Synergy and Barrier are **decentralized peer coordination** and
+**temporary KVM leadership driven by physical use of an authorized node**.
+Use desk-a's own keyboard/mouse and desk-a can take the lead; use desk-b's own
+devices and desk-b can take over. The controller coordinates input only, not
+membership, layout or clipboard as a central server. See
+[the comparison and leadership example](docs/CONCEPT-AND-SCENARIOS.md#two-distinguishing-design-choices).
+
 ![PoolSync: human–AI setup and direct peer operation](docs/images/poolsync-concept.svg)
 
 Read **[how it works and example computer/RDP scenarios](docs/CONCEPT-AND-SCENARIOS.md)**.

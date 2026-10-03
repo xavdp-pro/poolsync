@@ -22,6 +22,32 @@ AI assistants should follow the
 The diagram illustrates logical peer connections, not an inventory of every
 configured network route or the physical screen arrangement.
 
+## Two distinguishing design choices
+
+**Decentralization** and **KVM leadership following physical use** are PoolSync's
+two highlighted design differences from the documented server/client setup of
+Synergy and Barrier. [Synergy's architecture overview](https://support.symless.com/hc/en-us/articles/48326695360529-Security-and-Architecture-Overview)
+describes one server sharing its keyboard/mouse with clients;
+[Barrier's usage instructions](https://github.com/debauchee/barrier#usage)
+also designate the keyboard/mouse computer as the server.
+
+PoolSync does not permanently assign that role to a particular computer.
+For example, desk-a's physical input can claim the KVM lead. If the user then
+uses desk-b's own keyboard/mouse, that authorized full-mode node can request
+control in turn, without installing a new central coordinator or swapping a
+fixed server/client arrangement. Clipboard-only and temporarily absent nodes
+cannot take the KVM lead.
+
+The controller is an input owner, not a central coordinator for the whole pool.
+Forwarding desk-a's input to desk-b does not by itself make desk-b the controller;
+physical use of desk-b's own devices is the takeover trigger. Concurrent requests
+are ordered deterministically; a renewable lease expires when its owner stops
+renewing. Physical takeover/crossing acceptance on actual computers remains a
+separate requirement from implementing and qualifying the protocol in DEV.
+
+These are scoped design differences, not a claim of worldwide novelty across
+every sharing product or every historical/future Synergy version.
+
 ## Example computers (fictitious names)
 
 All computer names below are fictional. This example illustrates two full-mode

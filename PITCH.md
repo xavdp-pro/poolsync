@@ -10,8 +10,30 @@ Neither the AI assistant nor a PoolSync hub is required for normal peer operatio
 
 ## One-liner
 
-**PoolSync connects Linux graphical sessions through encrypted peer exchanges:
-shared text/images, with temporary keyboard/mouse control on authorized nodes.**
+**PoolSync: decentralized peer coordination, with KVM leadership following the
+authorized computer you physically use. Shared text/images and input, without
+a permanent PoolSync hub or fixed controller.**
+
+## Two distinguishing design choices
+
+1. **Decentralized coordination.** Agents share clipboard, presence, layout and
+   control over encrypted peer links; no permanent PoolSync coordinator is needed.
+2. **The physically active authorized node takes the KVM lead.** Start from
+   desk-a's own keyboard/mouse, then use desk-b's own devices: desk-b can claim
+   control without rebuilding the pool around a different fixed server.
+
+The reference comparison is the documented server/client setup in
+[Synergy's architecture overview](https://support.symless.com/hc/en-us/articles/48326695360529-Security-and-Architecture-Overview)
+and [Barrier's usage instructions](https://github.com/debauchee/barrier#usage).
+Both describe a server whose keyboard/mouse is shared with clients. PoolSync's
+distinction is peer coordination and activity-driven control ownership, not
+merely sharing input over direct network links. This is not a claim to be the
+first implementation of every feature across all products or versions.
+
+Only authorized, participating full-mode nodes can take control. The lead
+follows physical input, not simply the screen currently receiving forwarded
+events. Concurrent claims and disappearance are handled by deterministic claim
+ordering and a renewable lease. Real desk acceptance remains separately tracked.
 
 ![PoolSync concept](docs/images/poolsync-concept.svg)
 
@@ -69,7 +91,8 @@ See the [current deployment and qualification report](docs/HUBLESS-WINDOW-DEPLOY
 
 ## Short share text
 
-> PoolSync: one desk, several Linux computers. Encrypted peer clipboard and
-> temporary keyboard/mouse control, without a permanent PoolSync hub. Installed
+> PoolSync: decentralized peer coordination, and the authorized computer you
+> physically use takes the KVM lead. No permanent hub or fixed controller; share
+> text, images, keyboard and mouse across your pool. Installed
 > and configured with a human–AI agent tandem; existing identities and settings
 > are preserved. The daily-use development build is undergoing physical acceptance.
