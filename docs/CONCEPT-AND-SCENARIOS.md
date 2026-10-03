@@ -44,6 +44,27 @@ when a different session opens. An agent must attach to the intended user's
 actual graphical session; a running process alone does not prove clipboard
 access. Existing settings and saved positions should be preserved.
 
+## Local network or multiple sites
+
+**On the same local network, a VPN is not required.** For example, desk-a,
+desk-b and work-a can exchange directly over their reachable LAN addresses.
+Peer authorization and PoolSync encryption still apply; the local network
+does not replace identities, keys or TLS configuration. Configure reachable
+peer URLs and permit the intended connections between those computers.
+
+**Across different networks or sites, a VPN is useful.** For example, desk-a
+at the office and desk-c at home can use VPN addresses to establish private
+peer routes across the Internet, including networks where direct reachability
+would otherwise be unavailable. PoolSync needs connectivity between authorized
+peers; it does not inherently require a particular VPN product.
+
+An example pool can mix local LAN routes with VPN routes for distant peers.
+A configured `peer_url_vpn` can provide a fallback for a peer's primary route.
+The VPN supplies network reachability, not PoolSync coordination. If a chosen
+VPN uses a common gateway, that gateway remains a network dependency for the
+routes it provides. The recorded deployment deliberately retains its existing
+VPN; this is a deployment choice, not a requirement for local-only pools.
+
 ## Hypothetical pool changes
 
 ![Example pool: add a node, then temporarily take it away](images/poolsync-flexible-pool.svg)

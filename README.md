@@ -26,7 +26,7 @@ change. See [hypothetical pool changes](docs/CONCEPT-AND-SCENARIOS.md#hypothetic
 
 - **Agent** — one local daemon per user, attached to the selected graphical session (XFCE / X11)
 - **Peer mesh** — direct encrypted clipboard, presence, layout and KVM control
-- **Network** — LAN or the existing VPN; cross-site VPN dependencies remain
+- **Network** — no VPN needed on a reachable LAN; a VPN is useful for connecting different networks or sites
 - **Temporary controller** — eligible full-mode nodes claim and renew control
 - **Example pool (fictitious names)** — desk-a/desk-b: KVM + clipboard; work-a/work-b/work-c: clipboard only
 

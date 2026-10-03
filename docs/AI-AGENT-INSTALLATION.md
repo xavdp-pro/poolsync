@@ -165,9 +165,14 @@ members. For a clipboard-only node set `mode = "clipboard_only"`,
 `kvm_enabled = false` and `kvm_capture = false`. Preserve the agreed RDP policy;
 the current detector directly covers FreeRDP, not Remmina in general.
 
-Verify name resolution, permitted LAN/VPN connectivity to the configured peer
-port, TLS trust/SANs and synchronized clocks. Do not expose the listener publicly
-or silently change firewall/VPN policy. The existing cross-site VPN stays in use.
+For computers on the same reachable LAN, configure local peer addresses; no VPN
+is required. For computers on different networks/sites, a VPN is useful to
+provide private peer routes. Mixed pools can use LAN routes locally and VPN
+routes for distant peers, with `peer_url_vpn` as an optional configured fallback.
+Verify name resolution, permitted connectivity to the configured peer port,
+TLS trust/SANs and synchronized clocks. Do not expose the listener publicly or
+silently change firewall/VPN policy. Preserve the recorded deployment's existing
+cross-site VPN; do not install one merely to connect an already reachable LAN.
 Provide alternate routes where loss of one relay must not isolate the pool.
 
 Saved layout lives in `agent.topology.json`, with `revision`, `origin` and

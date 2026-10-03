@@ -40,8 +40,10 @@ blockage/loop stays open.
   input control; deterministic ordering resolves simultaneous claims.
 - A renewable three-second control lease provides local expiry and recovery.
 - Temporary departure preserves settings and avoids replaying private copies.
-- The existing LAN/VPN supplies connectivity. Cross-site VPN gateway dependencies
-  remain; removing the PoolSync hub does not remove the network infrastructure.
+- On the same reachable local network, no VPN is required. A VPN is useful for
+  connecting computers on different networks or sites through private routes.
+  Where a deployment uses a VPN gateway, that network dependency remains even
+  without a PoolSync hub.
 
 The legacy hub and its web dashboard remain in the repository for compatibility
 and rollback. They are not required by the current hubless mode.
