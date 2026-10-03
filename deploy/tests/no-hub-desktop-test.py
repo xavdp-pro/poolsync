@@ -453,7 +453,8 @@ elif op=='key_state':
     code="import ctypes,os,sys,json;l=ctypes.CDLL('libX11.so.6');l.XOpenDisplay.argtypes=[ctypes.c_char_p];l.XOpenDisplay.restype=ctypes.c_void_p;l.XStringToKeysym.argtypes=[ctypes.c_char_p];l.XStringToKeysym.restype=ctypes.c_ulong;l.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];l.XKeysymToKeycode.restype=ctypes.c_ubyte;l.XQueryKeymap.argtypes=[ctypes.c_void_p,ctypes.c_void_p];l.XCloseDisplay.argtypes=[ctypes.c_void_p];d=l.XOpenDisplay(os.environ['DISPLAY'].encode());assert d;k=l.XKeysymToKeycode(d,l.XStringToKeysym(sys.argv[1].encode()));m=ctypes.create_string_buffer(32);l.XQueryKeymap(d,m);l.XCloseDisplay(d);print(json.dumps(bool(m.raw[k//8]&(1<<(k%8)))))"
     r=user(['python3','-c',code,request['key']],env=env());assert r.returncode==0;output=json.loads(r.stdout)
 elif op=='button_state':
-    r=user(['xinput','query-state','Virtual core XTEST pointer'],env=env());assert r.returncode==0
+    r=user(['xinput','query-state','Virtual core XTEST pointer'],env=env())
+    assert r.returncode==0, 'XTEST button query failed: '+r.stderr.decode(errors='replace')[:512]
     output=('button['+str(request['button'])+']=down') in r.stdout.decode()
 elif op=='injected_marker':
     r=user(['xprop','-root','_POOLSYNC_INJECTED_V1_'+request['node']],env=env());assert r.returncode==0
@@ -723,6 +724,12 @@ def main():
 
     try:
         # Reject missing native applications before changing any lab session.
+        if args.target_restart:
+            for container in args.containers:
+                available=subprocess.run(['podman','exec',container,'python3','-c',
+                    'import shutil,sys;sys.exit(0 if all(shutil.which(name) for name in sys.argv[1:]) else 1)',
+                    'xinput','xprop'],capture_output=True,timeout=10)
+                assert available.returncode==0, 'Target recovery tools xinput/xprop are unavailable in '+container
         if args.native_browser:
             version=subprocess.run(['podman','exec',args.containers[1],args.native_browser_engine,'--version'],capture_output=True,text=True,timeout=10)
             assert version.returncode==0, 'Selected native browser is unavailable in desktop B'

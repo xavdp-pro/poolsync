@@ -1,5 +1,9 @@
 # Hubless peer control: development qualification
 
+This is the historical implementation record. The latest executing artifact,
+qualification and outstanding physical gates are recorded in
+[HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md](HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md).
+
 ## Status and boundaries
 
 The development agent can run presence, layout, input ownership, KVM and
@@ -34,7 +38,7 @@ It retains the qualified clipboard/control implementation, passes the same
 checks. Physical device acceptance remains a separate gate.
 
 Manual reverse-crossing acceptance on Asus/Acer subsequently failed. The
-current installed capture correction is SHA-256
+capture correction installed at that stage is SHA-256
 `fcd71e99668bf9189b3469eda8b5933eed83927087aad7350f8424b43f4bdee3`,
 with the same package version. XI2 relative device motion prevents software
 pointer warps from becoming forwarded movement. It passes 130 Rust tests,

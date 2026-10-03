@@ -1,0 +1,441 @@
+{
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "production_hub_used": false,
+  "hub_available_during_test": false,
+  "serverless_kvm": null,
+  "input_source": "synthetic X11 events",
+  "restart_scope": "agents and complete disposable containers",
+  "isolated_xorg_display": 110,
+  "receiver_mode": "native GTK paste handler sampled once per second",
+  "checks": [
+    {
+      "name": "Cold start: isolated agents run with hub unreachable",
+      "passed": true
+    },
+    {
+      "name": "Every isolated peer executes its expected starting binary",
+      "passed": true
+    },
+    {
+      "name": "Every private peer listener uses TLS with isolated credentials",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (0, 1, 2)",
+      "passed": true
+    },
+    {
+      "name": "Complete container cold start restores hubless delivery in order (1, 2, 0)",
+      "passed": true
+    },
+    {
+      "name": "Encrypted native text crosses the A-B-C chain without hub",
+      "passed": true
+    },
+    {
+      "name": "Node C sends native text in the reverse direction",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste first image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "GTK receivers paste second image with identical RGBA pixels",
+      "passed": true
+    },
+    {
+      "name": "Native text replaces an image on every desktop",
+      "passed": true
+    },
+    {
+      "name": "Image after text travels from C to A",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-first PNG",
+      "passed": true
+    },
+    {
+      "name": "Native GTK pastes the distinct full-HD large-second PNG",
+      "passed": true
+    },
+    {
+      "name": "A real XFCE screenshot survives application close and pastes on every peer",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive slow metadata round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "Lossless PNG pixels survive temporary PNG refusal round 0 with JPEG also advertised",
+      "passed": true
+    },
+    {
+      "name": "A genuine new second BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "A genuine new first BMP supersedes the cached PNG",
+      "passed": true
+    },
+    {
+      "name": "Application SAVE_TARGETS handoff preserves a fresh image after close",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff starts a real image transfer",
+      "passed": true
+    },
+    {
+      "name": "Delayed application handoff cannot replace a newer native copy",
+      "passed": true
+    },
+    {
+      "name": "The delayed native image owner has received a real read request",
+      "passed": true
+    },
+    {
+      "name": "Fresh text converges before the six-second image response",
+      "passed": true
+    },
+    {
+      "name": "A late image response cannot restore the previous capture",
+      "passed": true
+    },
+    {
+      "name": "All three peers discover each other through the chain",
+      "passed": true
+    },
+    {
+      "name": "A crosses to B with peer-controlled ownership and no hub",
+      "passed": true
+    },
+    {
+      "name": "Software pointer warps during A capture neither move B nor bounce its focus",
+      "passed": true
+    },
+    {
+      "name": "Grabbed A motion moves the actual B pointer",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real B GTK window",
+      "passed": true
+    },
+    {
+      "name": "A crosses through B to the actual C desktop without a hub",
+      "passed": true
+    },
+    {
+      "name": "A keyboard reaches the real C GTK window through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "Captured A relative motion moves C through the peer mesh",
+      "passed": true
+    },
+    {
+      "name": "A held modifier reaches the actual C desktop",
+      "passed": true
+    },
+    {
+      "name": "Losing B preserves A control of C over the alternate direct path",
+      "passed": true
+    },
+    {
+      "name": "C native GTK still receives A input while B is unreachable",
+      "passed": true
+    },
+    {
+      "name": "Returning B learns the exact ongoing epoch without changing A/C control",
+      "passed": true
+    },
+    {
+      "name": "Resynchronizing B preserves the held modifier on C",
+      "passed": true
+    },
+    {
+      "name": "C control resumes or persists after the relay reconnects",
+      "passed": true
+    },
+    {
+      "name": "Relay recovery leaves no held modifier on C",
+      "passed": true
+    }
+  ],
+  "paste_convergence_seconds": [
+    1.916,
+    2.038,
+    1.869,
+    1.426,
+    1.717,
+    1.964,
+    1.936,
+    1.867,
+    3.389,
+    4.859,
+    4.33,
+    2.111,
+    1.706,
+    3.666,
+    2.763,
+    1.404,
+    5.848,
+    4.293,
+    1.651,
+    1.888,
+    1.612,
+    1.806,
+    4.098,
+    1.234
+  ],
+  "native_copy_owners": [
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 52,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 27262978,
+      "copier_pid": 52,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 81,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 29360130,
+      "copier_pid": 83,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 27262978,
+      "copier_pid": 98,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 106,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 29360130,
+      "copier_pid": 103,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-c",
+      "owner": 31457282,
+      "copier_pid": 116,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 27262978,
+      "copier_pid": 139,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 155,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 27262978,
+      "copier_pid": 171,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 208,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 27262978,
+      "copier_pid": 236,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 248,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 35651586,
+      "copier_pid": 277,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 33554433,
+      "copier_pid": 206,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-b",
+      "owner": 29360129,
+      "copier_pid": 218,
+      "timestamp": null,
+      "kind": "image"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 27262978,
+      "copier_pid": 317,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 35651586,
+      "copier_pid": 330,
+      "timestamp": null,
+      "kind": "text"
+    },
+    {
+      "container": "poolsync-final-a",
+      "owner": 33554434,
+      "copier_pid": 362,
+      "timestamp": null,
+      "kind": "text"
+    }
+  ],
+  "harness_sha256": "1cdc3320335389b1bc9e6765ad7aa06bf8faa8f0fb2f7d3a171f85487452e777",
+  "direct_links": "triangle",
+  "three_kvm_peers": true,
+  "fresh_desktops": true,
+  "native_copy_application": "gtk",
+  "allocator": {
+    "arena_max": 2,
+    "mmap_threshold": 131072
+  },
+  "network_fixture": {
+    "per_direction_rate_mbit": 0,
+    "per_peer_disposable_proxy": false,
+    "central_proxy": false,
+    "partition_ports": [
+      19676
+    ]
+  },
+  "peer_tls": true,
+  "browser_x11_trace": false,
+  "browser_syscall_trace": false,
+  "native_browser_engine": null,
+  "qualification_scope": "full selected scenarios",
+  "peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "initial_peer_binary_sha256": [
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd"
+  ],
+  "browser_fixture_sha256": {},
+  "resource_samples": [],
+  "native_screenshot_application": "xfce4-screenshooter",
+  "superseded_image_text_seconds": 1.234,
+  "kvm_entry_pointer": {
+    "x": 30,
+    "y": 450
+  },
+  "native_kvm_key_seconds": 0.1607,
+  "native_control_connections": [
+    [
+      [
+        "10.89.2.121",
+        "10.89.2.123"
+      ],
+      [
+        "10.89.2.121",
+        "10.89.2.122"
+      ]
+    ],
+    [
+      [
+        "10.89.2.122",
+        "10.89.2.121"
+      ],
+      [
+        "10.89.2.122",
+        "10.89.2.123"
+      ]
+    ],
+    [
+      [
+        "10.89.2.123",
+        "10.89.2.122"
+      ],
+      [
+        "10.89.2.123",
+        "10.89.2.121"
+      ]
+    ]
+  ],
+  "functional_checks_passed": false,
+  "error": "poolsync-final-c: button_state failed; see private diagnostics",
+  "failed_fresh_sessions_retained": false,
+  "restoration": {
+    "poolsync-final-a": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true
+    },
+    "poolsync-final-b": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true
+    },
+    "poolsync-final-c": {
+      "config_preserved": true,
+      "original_agent_restored": true,
+      "original_pid_preserved": true,
+      "away_preserved": true,
+      "candidate_agent_stopped": true,
+      "fresh_desktop": true
+    }
+  },
+  "restoration_passed": true,
+  "checks_passed": 39,
+  "failure_classification": "Missing xinput in the disposable cold fixture, independently confirmed in all three clones. The runtime button-release assertion was not reached. Complete container start orders and 39 earlier checks pass, but the full campaign and requested soak remain unqualified."
+}

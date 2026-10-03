@@ -98,6 +98,13 @@ cannot replace mesh or physical acceptance.
 
 Keep production credentials and hub endpoints out of these container tests.
 
+For `--target-restart`, every disposable desktop also needs `xinput` and `xprop`
+to query held XTEST buttons and the native recovery marker. The harness checks
+these executables before changing any test session. Fresh cold-desktop images
+must include them as well; their presence in the original Neko desktops does
+not cover a separately cloned image. `--fresh-desktops --reboot-desktops` is
+limited to disposable desktops with no original agent, session or shared mounts.
+
 ## Paused cohort upgrade regression
 
 Use `--rolling-upgrade-from OLD_BINARY --expected-starting-sha256 OLD_HASH`

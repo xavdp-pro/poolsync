@@ -40,6 +40,36 @@ they are not pure network latency. Native production proof is
 The DEV campaigns use synthetic X11 input and dummy display changes. They do
 not establish physical keyboard/mouse or monitor-cable acceptance.
 
+A subsequent read-only production interval takes 13 process samples on every
+computer over 60 seconds, without generating input or copying clipboard content.
+All five exact agents and configurations remain unchanged, and every sample
+retains five active peers. Interval measurements are:
+
+| Computer | CPU, percent of one core | RSS at start/end, KiB |
+| --- | --- | --- |
+| Asus | 3.0493 | 50,676 / 50,676 |
+| Acer | 4.2820 | 57,904 / 57,904 |
+| gbs-p2 | 1.3498 | 54,220 / 54,348 |
+| gbs-p3 | 1.0332 | 27,888 / 28,144 |
+| zaza-desktop | 0.5000 | 44,704 / 44,704 |
+
+These measure the agent process, not total machine power or battery drain.
+This finite interval does not prove full-day memory stability. The desktop's
+process-start and uptime clock origins are incompatible, so its lifetime CPU
+estimate is explicitly unavailable; the monotonic interval remains valid.
+See `qualification/window-fleet-resources-20261003.json`.
+
+Fresh cold-fixture attempt 82 independently repeats complete container restarts
+in orders A/B/C and B/C/A on this exact artifact. Both restore native mesh text
+delivery without an accessible hub. Subsequent image/text, screenshot, lossless
+retrieval, deferred-owner and control checks pass, but the campaign stops after
+39 checks because the separate old cloned image lacks `xinput`. The target button
+query cannot run; no target-release assertion or prolonged soak is qualified by
+this incomplete campaign. Its failure and complete candidate cleanup are retained
+in `qualification/window-cold-fixture-failure-82-20261003.json`. The disposable
+clones receive that missing package, and the harness now checks xinput/xprop
+availability before changing any lab session.
+
 Firefox 140.16.0esr times out in this lab even with an ordinary GTK clipboard
 owner and no PoolSync instance on the test display (attempt 77). The equivalent
 Chromium control passes 36 image pastes and three texts (attempt 79). Preserve
