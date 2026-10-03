@@ -1,20 +1,41 @@
 # PoolSync
 
-Shared **clipboard + keyboard/mouse** across multiple Linux desktops — a modern alternative to Barrier.
+## Install and configure with a human–AI agent tandem
 
-→ **[Product pitch](PITCH.md)** (overview, elevator pitch, Barrier comparison)
+PoolSync is designed to be installed and configured by **a human working with an
+AI agent**. The human chooses the computers, permissions and screen positions;
+the AI agent helps inspect the environment, preserve identities and keys,
+configure the agents, test changes and prepare rollback. The human validates
+physical keyboard/mouse and monitor behavior. The AI agent is an installation
+and maintenance assistant, not a required runtime service.
 
-- **Hub** — lightweight central coordinator (any host reachable over your VPN)
-- **Agent** — one daemon per machine in the pool (XFCE / X11)
-- **Transport** — WebSocket/TLS over WireGuard, LAN or another trusted network
-- **Dynamic master** — whichever machine you use becomes the input master
+PoolSync shares **clipboard + keyboard/mouse** across Linux desktops through
+authenticated, encrypted peer connections, without a permanent PoolSync hub.
+
+![PoolSync: human–AI setup and direct peer operation](docs/images/poolsync-concept.svg)
+
+Read **[how it works and real-computer/RDP scenarios](docs/CONCEPT-AND-SCENARIOS.md)**.
+For the AI assistant: **[build, install and configure nodes](docs/AI-AGENT-INSTALLATION.md)**.
+
+→ **[Product pitch](PITCH.md)** (overview and share text)
+
+- **Agent** — one local daemon per user, attached to the selected graphical session (XFCE / X11)
+- **Peer mesh** — direct encrypted clipboard, presence, layout and KVM control
+- **Network** — LAN or the existing VPN; cross-site VPN dependencies remain
+- **Temporary controller** — eligible full-mode nodes claim and renew control
+- **Current fleet** — Asus/Acer: KVM + clipboard; gbs-p2/gbs-p3/zaza-desktop: clipboard only
+
+The deployed hubless development build has passing isolated qualification.
+Physical Asus/Acer crossings and monitor changes still require acceptance; the
+reported edge blockage/loop remains open. See the
+[current qualification and deployment report](docs/HUBLESS-WINDOW-DEPLOYMENT-2026-10-03.md).
 
 ## Rust workspace
 
 | Crate | Role |
 |-------|------|
 | `poolsync-core` | JSON protocol, TOML config |
-| `poolsync-hub` | WebSocket server + web dashboard |
+| `poolsync-hub` | Legacy coordinator + web dashboard, retained for rollback |
 | `poolsync-agent` | X11 client (clipboard, KVM, systray) |
 
 ## Build
@@ -25,7 +46,13 @@ cargo build --release
 
 Binaries: `target/release/poolsync-hub`, `target/release/poolsync-agent`
 
-## Hub
+## Legacy hub (optional compatibility / rollback)
+
+The following hub instructions and agent example describe the legacy deployment.
+They are not the setup path for the current hubless fleet. In hubless mode,
+`hubless = true` bypasses the hub session; authorized peer routes and the existing
+pool key must be configured together. See the
+[hubless implementation record](docs/HUBLESS-IMPLEMENTATION-2026-10-02.md).
 
 ```bash
 poolsync-hub --listen 0.0.0.0:9470 --token YOUR_TOKEN
@@ -33,7 +60,7 @@ poolsync-hub --listen 0.0.0.0:9470 --token YOUR_TOKEN
 
 Run on any node your agents can reach (VPS, home server, container, etc.).
 
-## Agent
+## Legacy agent configuration example
 
 Config file: `~/.config/poolsync/agent.toml`
 
@@ -54,7 +81,10 @@ direction = "left"
 node = "laptop-a"
 ```
 
-## Deploy (agent)
+## Legacy deployment helpers
+
+These helpers predate the hubless migration. They are retained for compatibility;
+do not use the hub install command to configure the current hubless fleet.
 
 ```bash
 POOLSYNC_TOKEN=your_token ./deploy/install-agent-local.sh my-node-name
@@ -94,16 +124,21 @@ preserves its layout/identity and prevents replay of copies made while away.
 Operators can use `poolsync-agent --config PATH --away true` / `--away false`.
 
 See [daily-use review and qualification](docs/DAILY-USE-REVIEW-2026-10-01.md).
-The clipboard mesh works independently of hub availability; KVM/topology still
-require the hub. Additional monitors are detected, while cross-machine KVM uses
-the primary monitor.
+Clipboard, KVM control, presence and layout operate over the peer mesh in hubless
+mode. Additional monitors are detected, while cross-machine KVM uses the primary
+monitor. Actual monitor attachment/removal remains a physical acceptance gate.
+
+When native FreeRDP clipboard redirection is detected and
+`pause_clipboard_when_rdp = true`, PoolSync leaves the client's local clipboard
+to RDP. It continues receiving/relaying pool history. See the
+[RDP scenarios and detection limits](docs/CONCEPT-AND-SCENARIOS.md#rdp-scenarios).
 
 ## Security model
 
 - All HTTP and WebSocket credentials use `Authorization: Bearer`; PoolSync no longer accepts or emits secrets in URL query parameters.
 - The hub supports native TLS with `--tls-cert` and `--tls-key`; peer listeners support `peer_tls_cert`/`peer_tls_key`, and `wss://` clients validate the system trust store. Peer certificate SANs must match the hostnames used in `peer_url`.
 - `--node-tokens-file` enables one independently revocable identity per node. The JSON entry accepts `token`, `previous_tokens` for zero-downtime rotation, and `revoked`; secure agent installs do not retain the dashboard administrator token.
-- `e2e_key` enables XChaCha20-Poly1305 clipboard encryption. The hub relays opaque authenticated ciphertext and therefore cannot populate its central clipboard history in this mode. Use `--require-e2e` after every agent has migrated to prevent downgrade.
+- `e2e_key` provides XChaCha20-Poly1305 payload encryption. Hubless control, presence and layout use a distinct authenticated domain; clipboard uses its encrypted wire format. Existing keys and identities are preserved. In legacy mode, the hub relays opaque ciphertext; `--require-e2e` is a legacy hub option.
 - `/health` is deliberately public and contains only `ok`; every status, topology and clipboard API is private.
 
 Generate a local CA, hub certificate, node identities and E2E key outside the repository:
