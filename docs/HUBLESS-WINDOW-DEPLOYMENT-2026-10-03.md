@@ -103,3 +103,16 @@ normal closure of their existing RDP client sessions: the deliberate clipboard
 pause setting remains enabled. The selected three-host production success does
 not cover these two portable computers. Human requests for those indispensable
 actions remain pending.
+
+A human reply reports right-edge obstruction from Asus toward Acer and repeated
+return to the Asus right edge when crossing from Acer. The executed artifact
+during that attempt is unconfirmed; retain the report as an unresolved physical
+failure rather than treating DEV success as acceptance. A fresh read-back verifies
+both portable agents still execute `6e9b4980` with mutually consistent left/right
+positions. Their current process journals contain no edge switch. Two independent
+180-second evdev observations record no physical events and no control lease,
+while preserving both executing agents and configurations. This absence of a new
+physical attempt proves neither successful crossing nor a reproduced failure on
+the current artifact. Repeat both directions with each source's own physical
+input, correlate the observed lease with the human result, and retain the gate.
+See `qualification/physical-edge-unobserved-20261003.json`.

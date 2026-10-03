@@ -1,0 +1,43 @@
+{
+  "observed_utc": "2026-10-03T03:43:30.884711+00:00",
+  "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+  "runtime_source": "e1e5339",
+  "physical_acceptance_passed": null,
+  "human_confirmation_required": true,
+  "reported_failure": "Right-edge obstruction from Asus toward Acer; repeated return to the Asus right edge when crossing left from Acer. The executed version during the reported attempt is unconfirmed.",
+  "nodes": {
+    "asus": {
+      "pid": 543002,
+      "display": ":0",
+      "observer_completed": true,
+      "event_counts": {},
+      "evdev_device_count": 8,
+      "duration_seconds": 180.219,
+      "configuration_preserved": true,
+      "executing_agent_preserved": true,
+      "hardware_acceptance_passed": null,
+      "leases_observed": [
+        null
+      ],
+      "new_process_switch_log_count": 0,
+      "absolute_pointer_axes_present": false
+    },
+    "acer": {
+      "pid": 1546397,
+      "display": ":0",
+      "observer_completed": true,
+      "event_counts": {},
+      "evdev_device_count": 8,
+      "duration_seconds": 180.254,
+      "configuration_preserved": true,
+      "executing_agent_preserved": true,
+      "hardware_acceptance_passed": null,
+      "leases_observed": [
+        null
+      ],
+      "new_process_switch_log_count": 0,
+      "absolute_pointer_axes_present": false
+    }
+  },
+  "next_action": "Repeat both crossings using the physical input device of the source laptop on the verified current artifact; correlate control transitions with the human result. Emergency local return and actual monitor hotplug remain separate acceptance gates."
+}
