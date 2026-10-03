@@ -188,3 +188,11 @@ the artifact used during that human attempt unconfirmed. Independent DEV,
 deployment, backup, native three-host and resource checks are complete to the
 recorded finite scope. Further completion now needs those human actions and
 their result; repeated synthetic input cannot supply physical acceptance.
+
+## Subsequent production follow-up
+
+See [Production follow-up](PRODUCTION-FOLLOWUP-2026-10-03.md) for the nine-round
+three-node and ten-round five-node native paste campaigns, six automated
+controller checks, preserved fleet state and retained RDP-active image failures.
+These extend the evidence without completing physical acceptance or qualifying
+the end-to-end RDP image path. The deployed binary remains unchanged.

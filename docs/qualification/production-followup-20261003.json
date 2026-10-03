@@ -1,0 +1,1205 @@
+{
+  "three-native": {
+    "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "selected_nodes": [
+      "gbs-p2",
+      "gbs-p3",
+      "zaza-desktop"
+    ],
+    "input_source": "synthetic native GTK copy applications",
+    "checks": [
+      {
+        "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 0 copied from gbs-p2",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 1 copied from gbs-p3",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 2 copied from zaza-desktop",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 3 copied from gbs-p2",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 4 copied from gbs-p3",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 5 copied from zaza-desktop",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 6 copied from gbs-p2",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 7 copied from gbs-p3",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 8 copied from zaza-desktop",
+        "passed": true
+      }
+    ],
+    "paste_convergence_seconds": [
+      3.164,
+      4.483,
+      2.285,
+      3.579,
+      2.949,
+      4.293,
+      2.258,
+      3.537,
+      1.547,
+      2.826,
+      2.321,
+      3.597,
+      2.291,
+      3.567,
+      2.28,
+      3.561,
+      2.159,
+      3.431,
+      2.939,
+      4.233,
+      1.544,
+      2.814,
+      1.532,
+      2.802,
+      2.303,
+      3.586,
+      2.279,
+      3.553,
+      2.936,
+      4.203,
+      2.955,
+      4.235,
+      1.549,
+      2.828,
+      1.552,
+      2.831
+    ],
+    "functional_checks_passed": true,
+    "preservation": {
+      "gbs-p2": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "gbs-p3": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "zaza-desktop": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      }
+    },
+    "preservation_passed": true
+  },
+  "five-native-isolated": {
+    "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "selected_nodes": [
+      "gbs-p2",
+      "gbs-p3",
+      "asus",
+      "acer",
+      "zaza-desktop"
+    ],
+    "input_source": "synthetic native GTK copy applications",
+    "checks": [
+      {
+        "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 0 copied from gbs-p2",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 1 copied from gbs-p3",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 2 copied from asus",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 3 copied from acer",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 4 copied from zaza-desktop",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 5 copied from gbs-p2",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 6 copied from gbs-p3",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 7 copied from asus",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 8 copied from acer",
+        "passed": true
+      },
+      {
+        "name": "Native image/text round 9 copied from zaza-desktop",
+        "passed": true
+      }
+    ],
+    "paste_convergence_seconds": [
+      3.64,
+      6.117,
+      4.195,
+      8.413,
+      4.121,
+      6.81,
+      3.088,
+      5.587,
+      3.588,
+      5.963,
+      3.493,
+      5.874,
+      4.131,
+      6.513,
+      4.116,
+      6.505,
+      2.292,
+      4.687,
+      2.472,
+      5.029,
+      3.611,
+      6.302,
+      3.349,
+      6.361,
+      3.155,
+      6.002,
+      3.274,
+      5.917,
+      3.785,
+      6.33,
+      3.885,
+      6.376,
+      4.966,
+      7.388,
+      4.858,
+      7.275,
+      2.691,
+      5.525,
+      2.297,
+      5.088
+    ],
+    "functional_checks_passed": true,
+    "preservation": {
+      "gbs-p2": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "gbs-p3": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "asus": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "acer": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "zaza-desktop": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      }
+    },
+    "preservation_passed": true
+  },
+  "five-native-rdp": {
+    "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "selected_nodes": [
+      "gbs-p2",
+      "gbs-p3",
+      "asus",
+      "acer",
+      "zaza-desktop"
+    ],
+    "input_source": "synthetic native GTK copy applications",
+    "checks": [
+      {
+        "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+        "passed": true
+      }
+    ],
+    "paste_convergence_seconds": [],
+    "functional_checks_passed": false,
+    "preservation": {
+      "gbs-p2": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "gbs-p3": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "asus": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "acer": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "zaza-desktop": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      }
+    },
+    "preservation_passed": true,
+    "error": "Native GTK paste did not converge on asus, acer",
+    "failed_paste": {
+      "route": "native GTK",
+      "expected_sha256": "0877af33c28732c70c25cadbf5a806dc46ad98fc67b8910fd1cf06a0f2594b5f",
+      "missing_nodes": [
+        "asus",
+        "acer"
+      ]
+    }
+  },
+  "control": {
+    "input_source": "synthetic native emergency-claim shortcuts; no physical keyboard/mouse crossing",
+    "checks": [],
+    "passed": false,
+    "error": "control convergence deadline exceeded",
+    "preservation": {
+      "asus": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "acer": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "gbs-p2": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "gbs-p3": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "zaza-desktop": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      }
+    },
+    "preservation_passed": true
+  },
+  "control-centered": {
+    "input_source": "synthetic native emergency-claim shortcuts; no physical keyboard/mouse crossing",
+    "checks": [],
+    "passed": false,
+    "error": "control convergence deadline exceeded",
+    "preservation": {
+      "asus": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "acer": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "gbs-p2": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "gbs-p3": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "zaza-desktop": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      }
+    },
+    "preservation_passed": true
+  },
+  "control-rdp-ungrabbed": {
+    "input_source": "synthetic native emergency-claim shortcuts; no physical keyboard/mouse crossing",
+    "checks": [
+      {
+        "name": "Native local claim asus",
+        "passed": true
+      },
+      {
+        "name": "Native local claim acer",
+        "passed": true
+      },
+      {
+        "name": "Native local claim asus",
+        "passed": true
+      },
+      {
+        "name": "Concurrent native claims agree on one owner and term",
+        "passed": true,
+        "lease": {
+          "focus": "acer",
+          "owner": "acer",
+          "term": 128
+        }
+      },
+      {
+        "name": "Controller temporary departure releases local/remote input and shared ownership",
+        "passed": true
+      },
+      {
+        "name": "Controller returns with original membership and configuration",
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "preservation": {
+      "asus": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "acer": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "gbs-p2": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "gbs-p3": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      },
+      "zaza-desktop": {
+        "pid": true,
+        "running_sha256": true,
+        "configuration": true,
+        "layout": true,
+        "participation": true
+      }
+    },
+    "preservation_passed": true
+  },
+  "final-preservation": {
+    "asus": {
+      "pid": true,
+      "running_sha256": true,
+      "installed_sha256": true,
+      "config_sha256": true,
+      "layout_sha256": true,
+      "away": true,
+      "graphical_access": true,
+      "five_active_peers": true,
+      "no_injected_key_or_button_down": true
+    },
+    "acer": {
+      "pid": true,
+      "running_sha256": true,
+      "installed_sha256": true,
+      "config_sha256": true,
+      "layout_sha256": true,
+      "away": true,
+      "graphical_access": true,
+      "five_active_peers": true,
+      "no_injected_key_or_button_down": true
+    },
+    "gbs-p2": {
+      "pid": true,
+      "running_sha256": true,
+      "installed_sha256": true,
+      "config_sha256": true,
+      "layout_sha256": true,
+      "away": true,
+      "graphical_access": true,
+      "five_active_peers": true,
+      "no_injected_key_or_button_down": true
+    },
+    "gbs-p3": {
+      "pid": true,
+      "running_sha256": true,
+      "installed_sha256": true,
+      "config_sha256": true,
+      "layout_sha256": true,
+      "away": true,
+      "graphical_access": true,
+      "five_active_peers": true,
+      "no_injected_key_or_button_down": true
+    },
+    "zaza-desktop": {
+      "pid": true,
+      "running_sha256": true,
+      "installed_sha256": true,
+      "config_sha256": true,
+      "layout_sha256": true,
+      "away": true,
+      "graphical_access": true,
+      "five_active_peers": true,
+      "no_injected_key_or_button_down": true
+    }
+  },
+  "resources": {
+    "asus": {
+      "samples": [
+        {
+          "pid": 543002,
+          "monotonic": 80922.287575775,
+          "ticks": 127854,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80927.285149977,
+          "ticks": 127870,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80932.273046612,
+          "ticks": 127886,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80937.282187242,
+          "ticks": 127902,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80942.980670655,
+          "ticks": 127920,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80947.300772593,
+          "ticks": 127933,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80952.29673341,
+          "ticks": 127949,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80957.283734564,
+          "ticks": 127963,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80962.28662812,
+          "ticks": 127979,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80967.274408141,
+          "ticks": 127996,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80972.287690468,
+          "ticks": 128010,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80977.291256489,
+          "ticks": 128026,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        },
+        {
+          "pid": 543002,
+          "monotonic": 80982.28285855,
+          "ticks": 128042,
+          "hz": 100,
+          "rss_kib": 52844,
+          "active_peers": 5
+        }
+      ],
+      "cpu_percent_one_core": 3.1335796966750133,
+      "rss_start_kib": 52844,
+      "rss_end_kib": 52844,
+      "pid_stable": true,
+      "five_active_peers": true
+    },
+    "acer": {
+      "samples": [
+        {
+          "pid": 1546397,
+          "monotonic": 205182.853352901,
+          "ticks": 169037,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205187.912622223,
+          "ticks": 169057,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205192.838319603,
+          "ticks": 169076,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205197.848140634,
+          "ticks": 169098,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205202.97180236,
+          "ticks": 169116,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205207.899166842,
+          "ticks": 169136,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205212.846233106,
+          "ticks": 169157,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205217.904574083,
+          "ticks": 169177,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205222.897851719,
+          "ticks": 169197,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205227.895618963,
+          "ticks": 169217,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205233.022686045,
+          "ticks": 169237,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205237.891841443,
+          "ticks": 169256,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        },
+        {
+          "pid": 1546397,
+          "monotonic": 205242.84474162,
+          "ticks": 169275,
+          "hz": 100,
+          "rss_kib": 61152,
+          "active_peers": 5
+        }
+      ],
+      "cpu_percent_one_core": 3.9672360497399604,
+      "rss_start_kib": 61152,
+      "rss_end_kib": 61152,
+      "pid_stable": true,
+      "five_active_peers": true
+    },
+    "gbs-p2": {
+      "samples": [
+        {
+          "pid": 2067349,
+          "monotonic": 456690.416744192,
+          "ticks": 54912,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456695.403971543,
+          "ticks": 54918,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456700.397693845,
+          "ticks": 54925,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456705.401264996,
+          "ticks": 54931,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456710.408138854,
+          "ticks": 54939,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456715.400303335,
+          "ticks": 54946,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456720.404249016,
+          "ticks": 54953,
+          "hz": 100,
+          "rss_kib": 118276,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456725.398543076,
+          "ticks": 54958,
+          "hz": 100,
+          "rss_kib": 118404,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456730.408176811,
+          "ticks": 54965,
+          "hz": 100,
+          "rss_kib": 118404,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456735.408394541,
+          "ticks": 54971,
+          "hz": 100,
+          "rss_kib": 118404,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456740.40055208,
+          "ticks": 54979,
+          "hz": 100,
+          "rss_kib": 118404,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456745.399039009,
+          "ticks": 54986,
+          "hz": 100,
+          "rss_kib": 118404,
+          "active_peers": 5
+        },
+        {
+          "pid": 2067349,
+          "monotonic": 456750.404710934,
+          "ticks": 54993,
+          "hz": 100,
+          "rss_kib": 118404,
+          "active_peers": 5
+        }
+      ],
+      "cpu_percent_one_core": 1.3502708026165497,
+      "rss_start_kib": 118276,
+      "rss_end_kib": 118404,
+      "pid_stable": true,
+      "five_active_peers": true
+    },
+    "gbs-p3": {
+      "samples": [
+        {
+          "pid": 2262832,
+          "monotonic": 507180.932212205,
+          "ticks": 8997,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507185.310231248,
+          "ticks": 9002,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507190.30169499,
+          "ticks": 9006,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507195.303523641,
+          "ticks": 9011,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507200.30847346,
+          "ticks": 9015,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507205.304783892,
+          "ticks": 9020,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507210.306631722,
+          "ticks": 9026,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507215.299590893,
+          "ticks": 9030,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507220.304514057,
+          "ticks": 9034,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507225.300860601,
+          "ticks": 9039,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507230.299420208,
+          "ticks": 9043,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507235.303264773,
+          "ticks": 9047,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        },
+        {
+          "pid": 2262832,
+          "monotonic": 507240.300323794,
+          "ticks": 9052,
+          "hz": 100,
+          "rss_kib": 27188,
+          "active_peers": 5
+        }
+      ],
+      "cpu_percent_one_core": 0.926423268787244,
+      "rss_start_kib": 27188,
+      "rss_end_kib": 27188,
+      "pid_stable": true,
+      "five_active_peers": true
+    },
+    "zaza-desktop": {
+      "samples": [
+        {
+          "pid": 372605,
+          "monotonic": 65468399.81476208,
+          "ticks": 19257,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468404.81473354,
+          "ticks": 19260,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468409.814831495,
+          "ticks": 19262,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468414.81470536,
+          "ticks": 19265,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468419.814328805,
+          "ticks": 19267,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468424.815675884,
+          "ticks": 19268,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468429.81476409,
+          "ticks": 19271,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468434.81590208,
+          "ticks": 19273,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468439.813668,
+          "ticks": 19275,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468444.81397237,
+          "ticks": 19277,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468449.8153926,
+          "ticks": 19280,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468454.81468886,
+          "ticks": 19281,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        },
+        {
+          "pid": 372605,
+          "monotonic": 65468459.814823434,
+          "ticks": 19284,
+          "hz": 100,
+          "rss_kib": 65932,
+          "active_peers": 5
+        }
+      ],
+      "cpu_percent_one_core": 0.44999953983398644,
+      "rss_start_kib": 65932,
+      "rss_end_kib": 65932,
+      "pid_stable": true,
+      "five_active_peers": true
+    }
+  },
+  "final_runtime": {
+    "asus": {
+      "mode": "full",
+      "pid": 543002,
+      "display": ":0",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "hubless": true,
+      "peer_direct_clipboard": true,
+      "hub_clipboard": false,
+      "rdp_clipboard_paused": true,
+      "status_age_seconds": 0.035
+    },
+    "acer": {
+      "mode": "full",
+      "pid": 1546397,
+      "display": ":0",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "hubless": true,
+      "peer_direct_clipboard": true,
+      "hub_clipboard": false,
+      "rdp_clipboard_paused": true,
+      "status_age_seconds": 0.914
+    },
+    "gbs-p2": {
+      "mode": "clipboard_only",
+      "pid": 2067349,
+      "display": ":10",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "hubless": true,
+      "peer_direct_clipboard": true,
+      "hub_clipboard": false,
+      "rdp_clipboard_paused": false,
+      "status_age_seconds": 0.341
+    },
+    "gbs-p3": {
+      "mode": "clipboard_only",
+      "pid": 2262832,
+      "display": ":10",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "hubless": true,
+      "peer_direct_clipboard": true,
+      "hub_clipboard": false,
+      "rdp_clipboard_paused": false,
+      "status_age_seconds": 0.817
+    },
+    "zaza-desktop": {
+      "mode": "clipboard_only",
+      "pid": 372605,
+      "display": ":10",
+      "running_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+      "hubless": true,
+      "peer_direct_clipboard": true,
+      "hub_clipboard": false,
+      "rdp_clipboard_paused": false,
+      "status_age_seconds": 0.974
+    }
+  },
+  "legacy_hub": {
+    "legacy_hub_active": "inactive",
+    "legacy_hub_enabled": "disabled",
+    "hub_port_listening": false
+  },
+  "rdp_restoration": {
+    "asus_visible_clients": 1,
+    "acer_visible_clients": 1,
+    "password_prompt_cancelled": true,
+    "human_reconnected_clients": true,
+    "automatic_acer_restore_failed": true
+  },
+  "overall_physical_acceptance": false,
+  "five-native-rdp-reopened": {
+    "candidate_sha256": "6e9b49804eb4b48f7f1a31698bedc9d503751573cd9aef6e74148be9743208cd",
+    "selected_nodes": [
+      "gbs-p2",
+      "gbs-p3",
+      "asus",
+      "acer",
+      "zaza-desktop"
+    ],
+    "input_source": "synthetic native GTK copy applications",
+    "checks": [
+      {
+        "name": "Exact candidate runs in the selected original graphical sessions with preserved modes",
+        "passed": true
+      }
+    ],
+    "paste_convergence_seconds": [],
+    "functional_checks_passed": false,
+    "preservation": {
+      "gbs-p2": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "gbs-p3": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "asus": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "acer": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      },
+      "zaza-desktop": {
+        "config_preserved": true,
+        "agent_pid_preserved": true,
+        "running_sha256_preserved": true
+      }
+    },
+    "preservation_passed": true,
+    "error": "Native GTK paste did not converge on asus, acer",
+    "failed_paste": {
+      "route": "native GTK",
+      "expected_sha256": "3268b909b392d96d2d52de11653d5d850148ee2fafc2f9ea2f2d50025448f160",
+      "missing_nodes": [
+        "asus",
+        "acer"
+      ]
+    }
+  }
+}
